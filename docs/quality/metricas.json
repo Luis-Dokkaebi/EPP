@@ -1,0 +1,22 @@
+{
+  "fecha_linea_base": "2026-10-21",
+  "entorno": "Linux, Python 3.11.15, Xvfb, requirements-ci.txt + requirements-dev.txt",
+  "cobertura_global_minima": 41.0,
+  "cobertura_global_objetivo": 85.0,
+  "radon_cc_waiver": [
+    "src/acquisition/camera_enumerator.py:enumerate_cameras",
+    "src/analysis/efficiency_calculator.py:EfficiencyCalculator.calculate_efficiency",
+    "src/gui_app.py:SystemGUI._process_burst",
+    "src/gui_app.py:SystemGUI._update_video",
+    "src/main.py:start_video_stream",
+    "src/recognition/face_recognizer.py:FaceRecognizer.load_known_faces",
+    "src/security/drm.py:DRMValidator._generate_machine_id",
+    "src/storage/database_manager.py:DatabaseManager.get_efficiency_report",
+    "src/tracking/camera_worker.py:CameraWorker",
+    "src/tracking/camera_worker.py:CameraWorker.run",
+    "src/tracking/tracking_pipeline.py:TrackingPipeline.process"
+  ],
+  "radon_mi_waiver": [
+    "src/gui_app.py"
+  ]
+}

@@ -1,0 +1,22 @@
+# Herramientas de calidad (CLAUDE.md Apéndice A y SPEC/9 §0.1). No van al ejecutable.
+# pytest 8.1.1 tenía PYSEC-2026-1845 (pip-audit, 2026-10-21): se usa 9.1.1 y sus plugins compatibles.
+pytest==9.1.1
+pytest-cov==7.1.0
+pytest-bdd==9.0.0
+pytest-mock==3.17.0
+pytest-timeout==2.4.0
+pytest-randomly==5.0.0
+freezegun==1.5.5
+ruff==0.4.4
+mypy==1.10.0
+radon==6.0.1
+bandit==1.7.8
+pip-audit==2.7.3
+mutmut==2.4.4
+detect-secrets==1.5.0
+pre-commit==3.7.1
+pip-licenses==5.5.5
+import-linter==2.15
+diff-cover==10.6.0
+# Lo usa tests/test_camera_worker_leaks.py para medir hilos y memoria.
+psutil==7.2.2

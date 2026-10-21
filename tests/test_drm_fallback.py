@@ -1,28 +1,21 @@
-import unittest
-from unittest.mock import patch
-import platform
-import os
-import sys
+"""DRM: si las políticas de dominio bloquean WMI, el machine_id usa el respaldo MAC/BIOS."""
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import sys
+from unittest.mock import MagicMock, patch
+
 from src.security.drm import DRMValidator
 
-class TestDRM(unittest.TestCase):
-    def test_wmi_fallback(self):
-        # Muteamos por completo el stack pesado de administracion WMI fingiendo una computadora de oficina capada
-        with patch('wmi.WMI') as mock_wmi:
-            mock_wmi.side_effect = Exception("Acceso Denegado por Políticas de Dominio GPO de Windows Server")
-            
-            # Encender validador
-            drm = DRMValidator()
-            machine_id = drm.machine_id
-            
-            # Output de prueba
-            self.assertEqual(len(machine_id), 64, "El Fallback falló al tratar de parsear un Hash de 256 bits estable")
-            
-            print(f"\n[Security Audit] Sistema WMI denegado a nivel usuario.")
-            print(f"[Security Audit] Fallback Resiliente Executed con la tarjeta de red Local (MAC UUID).")
-            print(f"[Crypto] Machine ID Salvavidas generado: {machine_id[:16]}... (Completado: 64 char SHA256)")
+LONGITUD_SHA256_HEX = 64
 
-if __name__ == "__main__":
-    unittest.main()
+
+def test_drm_wmi_denegado_genera_machine_id_de_respaldo_sha256() -> None:
+    # Arrange: un doble de wmi permite probar el respaldo también fuera de Windows.
+    wmi_denegado = MagicMock()
+    wmi_denegado.WMI.side_effect = PermissionError("Acceso denegado por políticas de dominio")
+
+    # Act
+    with patch.dict(sys.modules, {"wmi": wmi_denegado}):
+        machine_id = DRMValidator().machine_id
+
+    # Assert
+    assert len(machine_id) == LONGITUD_SHA256_HEX

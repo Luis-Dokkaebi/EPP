@@ -49,6 +49,15 @@ def _sign(data: bytes) -> bytes:
 class TestFaceEncodingsIntegrity:
     """FaceRecognizer must reject tampered or foreign-machine encodings files."""
 
+    @pytest.fixture(autouse=True)
+    def _face_recognition_disponible(self, monkeypatch):
+        """Aísla la clase del orden de importación de la suite.
+
+        Si otro módulo importó `face_recognizer` antes de que existiera el doble de
+        `face_recognition`, el módulo queda con `face_recognition = None` y no carga nada.
+        """
+        monkeypatch.setattr("src.recognition.face_recognizer.face_recognition", _fr_stub)
+
     @pytest.fixture
     def face_rec(self, tmp_path):
         """FaceRecognizer with faces_dir and encodings_file in tmp_path."""

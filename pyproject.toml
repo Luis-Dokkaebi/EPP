@@ -1,0 +1,292 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "C90", "N", "UP", "S", "A", "C4", "T20", "PL", "RUF"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.format]
+# WAIVER-#2 (caduca 2027-01-19): código heredado sin formatear. Cada PR que toque
+# uno de estos archivos lo formatea en un commit aparte y lo quita de la lista.
+exclude = [
+    "config/config.py",
+    "config/path_utils.py",
+    "generate_license.py",
+    "migrate_data.py",
+    "obfuscate.py",
+    "scripts/generar_llaves_maestras.py",
+    "scripts/keygen_b2b.py",
+    "src/acquisition/camera_enumerator.py",
+    "src/acquisition/video_stream.py",
+    "src/analysis/efficiency_calculator.py",
+    "src/analysis/generar_reporte.py",
+    "src/analysis/report_generator.py",
+    "src/analysis/report_main.py",
+    "src/analysis/state_manager.py",
+    "src/detection/people_detector.py",
+    "src/detection/person_detector.py",
+    "src/gui/dashboard.py",
+    "src/gui/views.py",
+    "src/gui_app.py",
+    "src/main.py",
+    "src/main_ui.py",
+    "src/models/model_verifier.py",
+    "src/recognition/face_recognizer.py",
+    "src/security/crash_logger.py",
+    "src/security/db_crypto.py",
+    "src/security/drm.py",
+    "src/storage/database_manager.py",
+    "src/tracking/camera_worker.py",
+    "src/tracking/person_tracker.py",
+    "src/tracking/tracking_pipeline.py",
+    "src/zones/zone_checker.py",
+    "src/zones/zone_editor.py",
+    "tests/test_async_excel.py",
+    "tests/test_camera_selector.py",
+    "tests/test_camera_worker_leaks.py",
+    "tests/test_crash_logger.py",
+    "tests/test_dashboard_grid.py",
+    "tests/test_database_manager.py",
+    "tests/test_db_encryption.py",
+    "tests/test_db_migration.py",
+    "tests/test_drm_rsa_b2b.py",
+    "tests/test_efficiency.py",
+    "tests/test_face_recognition.py",
+    "tests/test_model_verifier.py",
+    "tests/test_obfuscate_pipeline.py",
+    "tests/test_person_detector.py",
+    "tests/test_person_tracker.py",
+    "tests/test_report_generation.py",
+    "tests/test_report_sql_injection.py",
+    "tests/test_reports.py",
+    "tests/test_security_fixes.py",
+    "tests/test_sprint5_audit.py",
+    "tests/test_state_manager.py",
+    "tests/test_tenant_routing.py",
+    "tests/test_tracking_pipeline.py",
+    "tests/test_ui_navigation.py",
+    "tests/test_zone_checker.py",
+    "utils/register_face.py",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# S101: pytest verifica con assert; no es un waiver.
+"tests/**" = ["S101"]
+"features/**" = ["S101"]
+# WAIVER-#3 (caduca 2027-01-19): hallazgos del código heredado, solo los códigos que hoy
+# incumple cada archivo. Al tocar un archivo se corrigen y se borra su entrada.
+"config/config.py" = ["E501", "I001", "S110", "UP015", "W291"]
+"config/path_utils.py" = ["E501", "W293"]
+"generate_license.py" = ["I001", "T201", "W293"]
+"migrate_data.py" = ["E501", "T201"]
+"obfuscate.py" = ["E501", "F401", "T201"]
+"scripts/generar_llaves_maestras.py" = ["I001", "T201"]
+"scripts/keygen_b2b.py" = ["E501", "F541", "I001", "N801", "RUF013", "T201"]
+"src/acquisition/camera_enumerator.py" = ["C901", "I001", "PLR0912", "S110", "W293"]
+"src/acquisition/video_stream.py" = ["I001"]
+"src/analysis/efficiency_calculator.py" = ["B007", "C901", "E501", "E701", "F841", "I001", "PLR2004", "T201"]
+"src/analysis/generar_reporte.py" = ["B007", "E501", "E722", "I001", "PLR2004", "T201", "W292", "W293"]
+"src/analysis/report_generator.py" = ["B904", "E501", "F401", "I001", "PLR0913", "T201", "UP035", "W291", "W293"]
+"src/analysis/report_main.py" = ["I001"]
+"src/analysis/state_manager.py" = ["E501", "F401", "I001", "W291", "W293"]
+"src/detection/people_detector.py" = ["I001", "T201", "UP015"]
+"src/detection/person_detector.py" = ["E401", "I001", "W293"]
+"src/gui/dashboard.py" = ["E501", "E741", "F841", "I001", "PLR2004", "S110", "W291", "W293"]
+"src/gui/views.py" = ["C901", "E501", "E701", "I001", "N806", "PLR0915", "PLR2004", "UP015", "W293"]
+"src/gui_app.py" = ["C901", "E402", "E501", "E722", "F401", "F811", "F841", "I001", "PLR0912", "PLR0915", "PLR2004", "RUF005", "S110", "T201", "UP012", "W291", "W293"]
+"src/main.py" = ["C901", "E402", "E501", "F401", "I001", "PLR0912", "PLR0915", "PLR2004", "T201", "W292", "W293"]
+"src/main_ui.py" = ["E402", "E501", "E701", "F401", "I001", "S110", "T201", "W291", "W293"]
+"src/models/model_verifier.py" = ["UP007"]
+"src/recognition/face_recognizer.py" = ["C901", "E501", "F401", "I001", "N806", "PLR0912", "RUF100"]
+"src/security/crash_logger.py" = ["E702", "S110", "T201", "UP007"]
+"src/security/db_crypto.py" = ["UP007"]
+"src/security/drm.py" = ["E501", "F401", "I001", "PLR0911", "PLR2004", "UP006", "UP007", "UP015", "UP035"]
+"src/storage/database_manager.py" = ["C901", "E501", "I001", "PLR0912", "PLR0913", "PLR0915", "PLR2004", "S608", "T201", "UP012", "W291", "W293"]
+"src/tracking/camera_worker.py" = ["C901", "E501", "F401", "I001", "PLR0912", "PLR0915", "PLR2004", "T201", "UP035", "W291", "W293"]
+"src/tracking/person_tracker.py" = ["I001"]
+"src/tracking/tracking_pipeline.py" = ["B905", "C901", "PLR0912", "PLR0913", "PLW2901", "RUF003", "T201"]
+"src/zones/zone_checker.py" = ["E501", "I001", "T201", "UP015"]
+"src/zones/zone_editor.py" = ["I001", "PLR0913", "T201", "UP015"]
+"tests/test_async_excel.py" = ["E501", "F401", "I001", "W293"]
+"tests/test_camera_selector.py" = ["F841", "I001", "W293"]
+"tests/test_camera_worker_leaks.py" = ["E501", "I001", "T201", "W293"]
+"tests/test_dashboard_grid.py" = ["B007", "E501", "I001", "S110", "T201", "W293"]
+"tests/test_database_manager.py" = ["E501", "I001", "PLR2004", "S108"]
+"tests/test_db_encryption.py" = ["F401", "I001", "PLR2004"]
+"tests/test_db_migration.py" = ["E501", "F841", "I001", "W293"]
+"tests/test_drm_rsa_b2b.py" = ["E501", "F401", "I001", "T201", "W291", "W293"]
+"tests/test_efficiency.py" = ["E501", "F401", "I001", "W293"]
+"tests/test_face_recognition.py" = ["E402", "F401", "I001", "W293"]
+"tests/test_model_verifier.py" = ["I001"]
+"tests/test_obfuscate_pipeline.py" = ["F401", "I001"]
+"tests/test_person_detector.py" = ["E501", "I001", "PLR2004"]
+"tests/test_person_tracker.py" = ["F401", "I001"]
+"tests/test_report_generation.py" = ["E501", "F401", "I001", "T201"]
+"tests/test_report_sql_injection.py" = ["E501", "I001", "PLR2004", "S608"]
+"tests/test_reports.py" = ["E501", "E722", "I001", "S110", "W293"]
+"tests/test_security_fixes.py" = ["E501", "F401", "I001", "PLR2004"]
+"tests/test_sprint5_audit.py" = ["E501", "I001", "T201", "W291", "W293"]
+"tests/test_state_manager.py" = ["E501", "F401", "I001", "PLR0913"]
+"tests/test_tenant_routing.py" = ["E501", "I001", "T201", "W293"]
+"tests/test_tracking_pipeline.py" = ["I001", "PLR2004"]
+"tests/test_ui_navigation.py" = ["E501", "I001", "T201", "W293"]
+"tests/test_zone_checker.py" = ["I001"]
+"utils/register_face.py" = ["E402", "I001", "PLR2004", "T201", "W293"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "features"]
+pythonpath = ["."]
+addopts = "-q --strict-markers --strict-config"
+timeout = 60
+markers = [
+    "unit: prueba unitaria rápida sin I/O real (se asigna sola si no hay otro marcador)",
+    "bdd: escenario Gherkin de features/",
+    "integration: I/O real acotado a tmp_path o localhost",
+    "slow: más de un segundo; fuera del hook rápido",
+    "windows: requiere Windows (se deselecciona en Linux)",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# Librerías de terceros sin anotaciones de tipos publicadas (no es un waiver).
+module = [
+    "customtkinter.*",
+    "face_recognition.*",
+    "pandas.*",
+    "reportlab.*",
+    "seaborn.*",
+    "shapely.*",
+    "supervision.*",
+    "tkcalendar.*",
+    "torch.*",
+    "ultralytics.*",
+    "wmi",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# WAIVER-#4 (caduca 2027-01-19): imports heredados sin el prefijo `src.`; A-04 los unifica.
+module = [
+    "analysis.*",
+    "detection.*",
+    "main",
+    "recognition.*",
+    "storage.*",
+    "tracking.*",
+    "zones.*",
+]
+ignore_missing_imports = true
+
+# WAIVER-#4 (caduca 2027-01-19): módulos heredados sin anotar. Cada override desactiva solo
+# los códigos que hoy incumple el módulo; al tocarlo se anota y se borra su bloque.
+
+[[tool.mypy.overrides]]
+module = "config.config"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "config.path_utils"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.acquisition.camera_enumerator"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.acquisition.video_stream"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.analysis.efficiency_calculator"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.analysis.generar_reporte"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.analysis.report_generator"
+disable_error_code = ["no-untyped-def", "truthy-function"]
+
+[[tool.mypy.overrides]]
+module = "src.analysis.report_main"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.analysis.state_manager"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.detection.people_detector"
+disable_error_code = ["attr-defined", "no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.detection.person_detector"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.gui.dashboard"
+disable_error_code = ["no-untyped-def", "var-annotated"]
+
+[[tool.mypy.overrides]]
+module = "src.gui.views"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.gui_app"
+disable_error_code = ["no-redef", "no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.main"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.main_ui"
+disable_error_code = ["no-untyped-def", "var-annotated"]
+
+[[tool.mypy.overrides]]
+module = "src.recognition.face_recognizer"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.security.crash_logger"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.security.drm"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.storage.database_manager"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.tracking.camera_worker"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.tracking.person_tracker"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.tracking.tracking_pipeline"
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.zones.zone_checker"
+disable_error_code = ["attr-defined", "no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = "src.zones.zone_editor"
+disable_error_code = ["attr-defined", "no-untyped-def"]

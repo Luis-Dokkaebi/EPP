@@ -376,7 +376,7 @@ class DatabaseManager:
         # de input del usuario, por lo que el f-string es seguro (OWASP A03).
         for table in _EMPLOYEE_NAME_TABLES:
             try:
-                c.execute(f"UPDATE {table} SET employee_name = ? WHERE employee_name = ?", (anon_id, employee_name))
+                c.execute(f"UPDATE {table} SET employee_name = ? WHERE employee_name = ?", (anon_id, employee_name))  # nosec B608  # WAIVER-#6
             except sqlite3.OperationalError:
                 pass # Ignorar si la tabla o columna no existe en versiones antiguas
                 

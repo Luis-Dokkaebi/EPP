@@ -5,3 +5,13 @@ __pycache__/
 build/
 dist/
 installer_output/
+# Artefactos del Quality Gate (SPEC/9 §0.3)
+.coverage
+coverage.xml
+htmlcov/
+reports/
+.mutmut-cache
+mutants/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

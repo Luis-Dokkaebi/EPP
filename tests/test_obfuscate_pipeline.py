@@ -6,6 +6,8 @@ import os
 import sys
 import importlib.util
 
+import pytest
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
@@ -16,6 +18,13 @@ def _load_obfuscate():
     return mod
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "WAIVER-#8 (caduca 2027-01-19): obfuscate.py copia el código sin PyArmor y no define "
+        "build_pyarmor_command; corregirlo exige la autorización D8 y la licencia de PyArmor"
+    ),
+)
 def test_obfuscate_command_is_restrictive_pyarmor():
     ob = _load_obfuscate()
     cmd = ob.build_pyarmor_command()

@@ -1,115 +1,70 @@
-# Skills de terceros — procedencia y licencias
+# Skills de terceros — procedencia, selección y licencias
 
 Las carpetas de `.claude/skills/` y los tres agentes `cavecrew-*` de `.claude/agents/` son
 **copias literales** de los repositorios hermanos listados abajo. No se editan aquí: para
 actualizarlas se vuelven a copiar desde el repositorio de origen y se actualiza el commit de
 esta tabla.
 
-| Origen | Commit | Ruta copiada | Skills | Licencia |
-|--------|--------|--------------|--------|----------|
-| [Luis-Dokkaebi/caveman](https://github.com/Luis-Dokkaebi/caveman) | `df2ccd8` | `skills/*/`, `agents/cavecrew-*.md` | 20 | MIT (Julius Brussee) |
-| [Luis-Dokkaebi/ECC](https://github.com/Luis-Dokkaebi/ECC) | `68e926b` | `skills/*/` | 270 | MIT (Affaan Mustafa) |
-| [Luis-Dokkaebi/hallmark](https://github.com/Luis-Dokkaebi/hallmark) | `aeb42fb` | `skills/*/` | 1 | MIT (Hallmark contributors) |
+| Origen | Commit | Skills conservadas | Licencia |
+|--------|--------|--------------------|----------|
+| [Luis-Dokkaebi/caveman](https://github.com/Luis-Dokkaebi/caveman) | `df2ccd8` | 10 de 20 (+ 3 agentes) | MIT (Julius Brussee) |
+| [Luis-Dokkaebi/ECC](https://github.com/Luis-Dokkaebi/ECC) | `68e926b` | 8 de 270 | MIT (Affaan Mustafa) |
+| [Luis-Dokkaebi/hallmark](https://github.com/Luis-Dokkaebi/hallmark) | `aeb42fb` | 0 de 1 | MIT (Hallmark contributors) |
 
-## No copiado (y por qué)
+## Criterio de selección
 
-- `caveman/skills/generated/`, `compile.mjs`, `verbs-gate.mjs`, `registry.json`,
-  `engine-mcp-tools.json`, `native-core.md`: herramientas de compilación del paquete caveman,
-  no son skills.
-- `ECC/.claude/skills/everything-claude-code`: describe las convenciones internas del repo ECC;
-  en este repositorio daría instrucciones equivocadas.
-- `ECC/docs/<idioma>/skills/` y los espejos `.agents/`, `.cursor/`, `.kiro/`,
-  `caveman/plugins/`: traducciones o copias de las mismas skills.
+Se conserva una skill solo si aplica a este proyecto (aplicación de escritorio Windows en
+Python 3.11 con visión por computadora, SQLite cifrado y reportes Excel) y no contradice
+`CLAUDE.md`. Se descartan las que cumplen cualquiera de estas condiciones:
 
-## Dependencias externas conocidas
+- Otro lenguaje o stack: web/React/Vue, Java, Kotlin, Swift, Go, Rust, PHP, Perl, .NET,
+  Docker/Kubernetes, bases de datos de servidor.
+- Otro dominio: finanzas, logística, salud, redes/homelab, marketing, redes sociales, video.
+- Dependen de algo que este repo no tiene: agentes, hooks o comandos de ECC; servidores MCP;
+  CLI o cuenta de Caveman Cloud; servicios externos de pago.
+- Contradicen la constitución: `caveman-commit` (formato de commit distinto al de §12),
+  `caveman-compress` (reescribiría `CLAUDE.md`/`Agents.md`, normativos y gemelos),
+  `tdd-workflow`, `verification-loop` y `git-workflow` (umbrales y convenciones que chocan con
+  §2, §6, §10 y §12), `security-review` (orientada a web y con el mismo nombre que el comando
+  integrado `/security-review`).
+- `hallmark`: diseño de páginas web; la interfaz de este proyecto es `customtkinter`.
 
-- `caveman-stats` solo funciona con los hooks de caveman instalados (no incluidos aquí).
-- `caveman-setup`, `caveman-discover`, `caveman-manage`, `caveman-optimize` y
-  `caveman-evidence-review` operan sobre Caveman Cloud (CLI `caveman` y sus herramientas MCP);
-  `caveman-learn` necesita el CLI `caveman`.
-- `cavecrew` delega en los agentes de `.claude/agents/cavecrew-*.md`.
-- Algunos `README.md` y skills de ECC enlazan rutas relativas del repo de origen
-  (`../../README.md`, `scripts/hooks/...`) que no existen aquí.
-
-## Lista por origen
+## Skills conservadas
 
 ### caveman
 
-`cavecrew` `caveman-commit` `caveman-compress` `caveman-discover` `caveman-evidence-review`
-`caveman-explore` `caveman-help` `caveman-learn` `caveman-manage` `caveman-optimize`
-`caveman-review` `caveman-setup` `caveman-stats` `caveman` `investigate-first` `lean-build`
-`migration` `safe-refactor` `surgical-patch` `verify-and-stop`
+| Skill | Para qué sirve aquí |
+|-------|---------------------|
+| `caveman` | Modo de respuesta comprimida, a petición (`/caveman`). |
+| `caveman-review` | Revisión de código en una línea por hallazgo. |
+| `caveman-explore` | Exploración de solo lectura con citas `ruta:línea`. |
+| `cavecrew` | Cuándo delegar en los agentes `cavecrew-*` de `.claude/agents/`. |
+| `investigate-first` | Diagnosticar fallos ambiguos (p. ej. fugas en workers de cámara) antes de editar. |
+| `surgical-patch` | Corregir bugs en la capa responsable con prueba de regresión (§2, regla del bug). |
+| `safe-refactor` | Refactorizar sin cambiar comportamiento, con verificación antes y después (P3). |
+| `lean-build` | Funcionalidad nueva con alcance mínimo y condición de parada explícita (P6). |
+| `migration` | Migraciones de esquema/datos de SQLite reversibles y verificadas. |
+| `verify-and-stop` | Validar trabajo existente contra criterios de aceptación sin ampliar alcance. |
 
 ### ECC
 
-`accessibility` `agent-architecture-audit` `agent-eval` `agent-harness-construction`
-`agent-introspection-debugging` `agent-payment-x402` `agent-self-evaluation` `agent-sort`
-`agentic-engineering` `agentic-os` `ai-first-engineering` `ai-regression-testing`
-`android-clean-architecture` `angular-developer` `api-connector-builder` `api-design`
-`architecture-decision-records` `article-writing` `automation-audit-ops`
-`autonomous-agent-harness` `autonomous-loops` `backend-patterns` `benchmark-methodology`
-`benchmark-optimization-loop` `benchmark` `blender-motion-state-inspection` `blueprint`
-`brand-discovery` `brand-voice` `browser-qa` `bun-runtime` `canary-watch`
-`carrier-relationship-management` `cisco-ios-patterns` `ck` `claude-devfleet` `click-path-audit`
-`clickhouse-io` `code-tour` `codebase-onboarding` `codehealth-mcp` `coding-standards`
-`competitive-platform-analysis` `competitive-report-structure` `compose-multiplatform-patterns`
-`config-gc` `configure-ecc` `connections-optimizer` `content-engine` `content-hash-cache-pattern`
-`context-budget` `continuous-agent-loop` `continuous-learning-v2` `continuous-learning`
-`cost-aware-llm-pipeline` `cost-tracking` `council` `cpp-coding-standards` `cpp-testing`
-`crosspost` `csharp-testing` `customer-billing-ops` `customs-trade-compliance`
-`dart-flutter-patterns` `dashboard-builder` `data-scraper-agent` `data-throughput-accelerator`
-`database-migrations` `deep-research` `defi-amm-security` `deployment-patterns` `design-system`
-`django-celery` `django-patterns` `django-security` `django-tdd` `django-verification`
-`dmux-workflows` `docker-patterns` `documentation-lookup` `dotnet-patterns`
-`dynamic-workflow-mode` `e2e-testing` `ecc-guide` `ecc-tools-cost-audit` `email-ops`
-`energy-procurement` `enterprise-agent-ops` `error-handling` `eval-harness` `evm-token-decimals`
-`exa-search` `fal-ai-media` `fastapi-patterns` `finance-billing-ops` `flox-environments`
-`flutter-dart-code-review` `foundation-models-on-device` `frontend-a11y`
-`frontend-design-direction` `frontend-patterns` `frontend-slides` `fsharp-testing`
-`gan-style-harness` `gateguard` `git-workflow` `github-ops` `golang-patterns` `golang-testing`
-`google-workspace-ops` `healthcare-cdss-patterns` `healthcare-emr-patterns`
-`healthcare-eval-harness` `healthcare-phi-compliance` `hermes-imports` `hexagonal-architecture`
-`hipaa-compliance` `homelab-network-readiness` `homelab-network-setup` `homelab-pihole-dns`
-`homelab-vlan-segmentation` `homelab-wireguard-vpn` `hookify-rules` `inherit-legacy-style`
-`intent-driven-development` `inventory-demand-planning` `investor-materials` `investor-outreach`
-`ios-icon-gen` `iterative-retrieval` `ito-basket-compare` `ito-data-atlas-agent`
-`ito-market-intelligence` `ito-trade-planner` `java-coding-standards` `jira-integration`
-`jpa-patterns` `knowledge-ops` `kotlin-coroutines-flows` `kotlin-exposed-patterns`
-`kotlin-ktor-patterns` `kotlin-patterns` `kotlin-testing` `kubernetes-patterns`
-`laravel-patterns` `laravel-plugin-discovery` `laravel-security` `laravel-tdd`
-`laravel-verification` `latency-critical-systems` `lead-intelligence` `liquid-glass-design`
-`llm-trading-agent-security` `logistics-exception-management` `make-interfaces-feel-better`
-`manim-video` `market-research` `marketing-campaign` `mcp-server-patterns` `messages-ops`
-`ml-adoption-playbook` `mle-workflow` `motion-advanced` `motion-foundations` `motion-patterns`
-`motion-ui` `mysql-patterns` `nanoclaw-repl` `nestjs-patterns` `netmiko-ssh-automation`
-`network-bgp-diagnostics` `network-config-validation` `network-interface-health`
-`nextjs-turbopack` `nodejs-keccak256` `nutrient-document-processing` `nuxt4-patterns`
-`openclaw-persona-forge` `opensource-pipeline` `orch-add-feature` `orch-build-mvp`
-`orch-change-feature` `orch-fix-defect` `orch-pipeline` `orch-refine-code`
-`parallel-execution-optimizer` `perl-patterns` `perl-security` `perl-testing` `plan-orchestrate`
-`plankton-code-quality` `postgres-patterns` `prediction-market-oracle-research`
-`prediction-market-risk-review` `prisma-patterns` `product-capability` `product-lens`
-`production-audit` `production-scheduling` `project-flow-ops` `prompt-optimizer`
-`python-patterns` `python-testing` `pytorch-patterns` `quality-nonconformance` `quarkus-patterns`
-`quarkus-security` `quarkus-tdd` `quarkus-verification` `ralphinho-rfc-pipeline` `react-patterns`
-`react-performance` `react-testing` `recsys-pipeline-architect` `recursive-decision-ledger`
-`redis-patterns` `regex-vs-llm-structured-text` `remotion-video-creation` `repo-scan`
-`research-ops` `returns-reverse-logistics` `rules-distill` `rust-patterns` `rust-testing`
-`safety-guard` `santa-method` `scientific-db-pubmed-database` `scientific-db-uspto-database`
-`scientific-pkg-gget` `scientific-thinking-literature-review`
-`scientific-thinking-scholar-evaluation` `search-first` `security-bounty-hunter`
-`security-review` `security-scan` `seo` `skill-comply` `skill-scout` `skill-stocktake`
-`social-graph-ranker` `social-publisher` `springboot-patterns` `springboot-security`
-`springboot-tdd` `springboot-verification` `strategic-compact` `swift-actor-persistence`
-`swift-concurrency-6-2` `swift-protocol-di-testing` `swiftui-patterns` `taste` `tdd-workflow`
-`team-agent-orchestration` `team-builder` `terminal-ops` `tinystruct-patterns`
-`token-budget-advisor` `ui-demo` `ui-to-vue` `uncloud` `unified-notifications-ops`
-`verification-loop` `video-editing` `videodb` `visa-doc-translate` `vite-patterns` `vue-patterns`
-`windows-desktop-e2e` `workspace-surface-audit` `x-api`
+| Skill | Para qué sirve aquí |
+|-------|---------------------|
+| `python-patterns` | Idioms de Python, type hints y PEP 8 (§3). |
+| `python-testing` | pytest, fixtures, mocks, parametrización y cobertura (§4, §6). |
+| `error-handling` | Excepciones tipadas, reintentos y errores de cara al usuario (§3). |
+| `intent-driven-development` | Criterios de aceptación verificables antes de implementar (§5, §17). |
+| `hexagonal-architecture` | Puertos y adaptadores para que el dominio no importe `cv2`/`ultralytics` (§16). |
+| `windows-desktop-e2e` | Pruebas E2E de la app de escritorio Windows con pywinauto. |
+| `mle-workflow` | Contratos de datos, evaluación y empaquetado de los modelos de detección y rostro. |
+| `benchmark-optimization-loop` | Optimizar el pipeline de cámaras o la exportación con mediciones y pruebas en verde. |
 
-### hallmark
+## Dependencias externas conocidas
 
-`hallmark`
+- `cavecrew` delega en los agentes de `.claude/agents/cavecrew-*.md`.
+- `lean-build` menciona el "Native Core" de caveman, que no se distribuye como skill.
+- Algunos `README.md` enlazan rutas relativas del repo de origen (`../../README.md`) que no
+  existen aquí.
 
 ## Textos de licencia
 
@@ -151,32 +106,6 @@ SOFTWARE.
 MIT License
 
 Copyright (c) 2026 Affaan Mustafa
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-### hallmark
-
-```text
-MIT License
-
-Copyright (c) 2026 Hallmark contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

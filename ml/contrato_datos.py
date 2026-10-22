@@ -13,6 +13,7 @@ from typing import Any, NamedTuple, TypeGuard
 
 TAXONOMIA_V1 = ("persona", "cabeza", "casco", "chaleco")
 TAXONOMIA_V2 = (*TAXONOMIA_V1, "manos", "guantes", "gafas", "barbijo")
+TAXONOMIAS = {"v1": TAXONOMIA_V1, "v2": TAXONOMIA_V2}
 METADATOS_DE_IMAGEN = ("camara", "fecha", "hora", "turno", "autorizacion")
 SECCIONES_COCO = ("images", "annotations", "categories")
 SPLITS = ("train", "valid", "test")

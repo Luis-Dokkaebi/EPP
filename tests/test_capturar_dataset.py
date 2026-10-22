@@ -1,5 +1,7 @@
 """Núcleo de la captura del dataset: muestreo, duplicados, turnos y nombres (SPEC/9 §2.4)."""
 
+import dataclasses
+from collections.abc import Callable
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -8,6 +10,7 @@ import pytest
 from ml.contrato_datos import NOMBRE_DE_ARCHIVO
 from tools.capturar_dataset import (
     BITS_DE_HUELLA,
+    SECUENCIA_MAXIMA,
     CapturaInvalidaError,
     FiltroDeDuplicados,
     Fotograma,
@@ -21,6 +24,14 @@ from tools.capturar_dataset import (
 INICIO = datetime(2026, 10, 21, 8, 30, 5)
 TODOS_LOS_BITS = 2**BITS_DE_HUELLA - 1
 BITS_QUE_CAMBIA_EL_RUIDO = 2
+# Columnas que suben y bajan: cada píxel se compara con su vecino, no con el primero de la fila.
+COLUMNAS_EN_ZIGZAG = (10, 20, 15, 30, 25, 40, 35, 50, 45)
+
+
+def _mensaje(accion: Callable[[], object]) -> str:
+    with pytest.raises(CapturaInvalidaError) as error:
+        accion()
+    return str(error.value)
 
 
 def _gradiente_creciente() -> np.ndarray:
@@ -80,10 +91,24 @@ def test_filtro_de_duplicados_compara_contra_todas_las_huellas_registradas() -> 
     assert filtro.es_duplicado(TODOS_LOS_BITS) is True
 
 
+def test_dhash_compara_cada_pixel_con_su_vecino_izquierdo() -> None:
+    fila = np.repeat(np.array(COLUMNAS_EN_ZIGZAG, dtype=np.uint8), 10)
+
+    assert dhash(np.tile(fila, (80, 1))) == int("10101010" * 8, 2)
+
+
+def test_filtro_de_duplicados_acepta_la_distancia_maxima_de_64_bits() -> None:
+    filtro = FiltroDeDuplicados(distancia_maxima=BITS_DE_HUELLA)
+    filtro.registrar(0)
+
+    assert filtro.es_duplicado(TODOS_LOS_BITS) is True
+
+
 @pytest.mark.parametrize("distancia", [-1, BITS_DE_HUELLA + 1])
 def test_filtro_de_duplicados_rechaza_distancias_imposibles(distancia: int) -> None:
-    with pytest.raises(CapturaInvalidaError, match="entre 0 y 64"):
-        FiltroDeDuplicados(distancia_maxima=distancia)
+    assert _mensaje(lambda: FiltroDeDuplicados(distancia_maxima=distancia)) == (
+        f"La distancia máxima debe estar entre 0 y 64; llegó {distancia}."
+    )
 
 
 def _fotogramas(*segundos: float) -> list[Fotograma]:
@@ -115,13 +140,24 @@ def test_muestrear_sin_fotogramas_no_devuelve_nada() -> None:
 
 @pytest.mark.parametrize("segundos", [0, -1])
 def test_muestrear_exige_un_intervalo_positivo(segundos: int) -> None:
-    with pytest.raises(CapturaInvalidaError, match="intervalo debe ser positivo"):
-        list(muestrear(_fotogramas(0), timedelta(seconds=segundos)))
+    intervalo = timedelta(seconds=segundos)
+
+    assert _mensaje(lambda: list(muestrear(_fotogramas(0), intervalo))) == (
+        f"El intervalo debe ser positivo; llegó {intervalo}."
+    )
+
+
+def test_muestrear_acepta_dos_fotogramas_con_la_misma_hora() -> None:
+    elegidos = list(muestrear(_fotogramas(0, 0, 1), timedelta(seconds=1)))
+
+    assert _segundos(elegidos) == [0.0, 1.0]
 
 
 def test_muestrear_falla_si_el_reloj_va_hacia_atras() -> None:
-    with pytest.raises(CapturaInvalidaError, match="reloj retrocedió"):
-        list(muestrear(_fotogramas(0, 5, 4), timedelta(seconds=1)))
+    assert _mensaje(lambda: list(muestrear(_fotogramas(0, 5, 4), timedelta(seconds=1)))) == (
+        "El reloj retrocedió de 2026-10-21 08:30:10 a 2026-10-21 08:30:09: revisa la hora del "
+        "equipo de captura."
+    )
 
 
 TURNOS = "manana=6-14,tarde=14-22,noche=22-6"
@@ -143,21 +179,32 @@ def test_tabla_de_turnos_asigna_cada_hora_incluso_cruzando_medianoche(
 @pytest.mark.parametrize(
     ("texto", "error"),
     [
-        ("manana=6-14,tarde=14-22", "sin turno: 0, 1, 2, 3, 4, 5, 22, 23"),
-        ("manana=6-15,tarde=14-6", "en más de un turno: 14"),
-        ("manana=6-6", "no puede empezar y terminar a la misma hora"),
-        ("manana=6-25", "formato <nombre>=<hora>-<hora>"),
-        ("manana=25-6", "formato <nombre>=<hora>-<hora>"),
-        ("Mañana=0-24", "formato <nombre>=<hora>-<hora>"),
-        ("", "formato <nombre>=<hora>-<hora>"),
+        ("manana=6-14,tarde=14-22", "Horas sin turno: 0, 1, 2, 3, 4, 5, 22, 23."),
+        ("manana=6-15,tarde=14-6", "Horas en más de un turno: 14."),
+        ("a=0-14,b=12-0", "Horas en más de un turno: 12, 13."),
+        ("manana=6-6", 'El turno "manana=6-6" no puede empezar y terminar a la misma hora.'),
     ],
-    ids=["hueco", "solapado", "vacio", "fin-25", "inicio-25", "nombre-invalido", "texto-vacio"],
+    ids=["hueco", "solapado", "dos-solapadas", "vacio"],
 )
 def test_tabla_de_turnos_rechaza_tablas_que_no_cubren_el_dia_una_vez(
     texto: str, error: str
 ) -> None:
-    with pytest.raises(CapturaInvalidaError, match=error):
-        TablaDeTurnos.desde_texto(texto)
+    assert _mensaje(lambda: TablaDeTurnos.desde_texto(texto)) == error
+
+
+@pytest.mark.parametrize("texto", ["manana=6-25", "manana=25-6", "Mañana=0-24", ""])
+def test_tabla_de_turnos_rechaza_turnos_fuera_de_formato(texto: str) -> None:
+    assert _mensaje(lambda: TablaDeTurnos.desde_texto(texto)) == (
+        f'Turno "{texto}" inválido: usa el formato <nombre>=<hora>-<hora>, con un nombre en '
+        "minúsculas y horas de 0 a 24 (por ejemplo, noche=22-6)."
+    )
+
+
+def test_tabla_de_turnos_es_inmutable() -> None:
+    tabla = TablaDeTurnos.desde_texto("unico=0-24")
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        tabla.turno_por_hora = {}
 
 
 def test_tabla_de_turnos_acepta_un_unico_turno_de_todo_el_dia() -> None:
@@ -173,11 +220,18 @@ def test_nombre_de_archivo_sigue_el_contrato_de_datos() -> None:
 
 @pytest.mark.parametrize("camara", ["", "Cam-01", "cam 01", "cam_01", "192.168.0.10"])
 def test_nombre_de_archivo_rechaza_identificadores_de_camara_invalidos(camara: str) -> None:
-    with pytest.raises(CapturaInvalidaError, match="identificador corto"):
-        nombre_de_archivo(camara, INICIO, 1)
+    assert _mensaje(lambda: nombre_de_archivo(camara, INICIO, 1)) == (
+        f'Cámara "{camara}" inválida: usa un identificador corto con a-z, 0-9 y guiones, sin '
+        "nombres de personas ni direcciones IP."
+    )
 
 
 @pytest.mark.parametrize("secuencia", [0, 10_000])
 def test_nombre_de_archivo_exige_una_secuencia_de_cuatro_cifras(secuencia: int) -> None:
-    with pytest.raises(CapturaInvalidaError, match="entre 1 y 9999"):
-        nombre_de_archivo("cam-01", INICIO, secuencia)
+    assert _mensaje(lambda: nombre_de_archivo("cam-01", INICIO, secuencia)) == (
+        f"La secuencia debe estar entre 1 y 9999; llegó {secuencia}."
+    )
+
+
+def test_nombre_de_archivo_acepta_la_secuencia_maxima() -> None:
+    assert nombre_de_archivo("cam-01", INICIO, SECUENCIA_MAXIMA).endswith("_9999.jpg")

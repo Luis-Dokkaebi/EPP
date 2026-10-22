@@ -8,6 +8,8 @@ ctk.set_default_color_theme("blue")
 
 # Cada cuánto el hilo de la UI revisa si el escaneo de cámaras (hilo de fondo) terminó.
 INTERVALO_SONDEO_ESCANEO_MS = 100
+# Sin filtro extra: Ultralytics ya aplica su umbral interno (0.25), como antes de usar el puerto.
+CONFIANZA_MINIMA_GUI = 0.0
 
 class ViewManager:
     """Clase singleton-like para manejar el renderizado condicional de vistas (caching de frames)."""
@@ -93,8 +95,9 @@ class AppMain(ctk.CTk):
             return _original_load(*args, **kwargs)
         torch.load = _patched_load
         try:
-            from ultralytics import YOLO
             from ultralytics.nn.tasks import DetectionModel
+
+            from src.composition import crear_detector
 
             if hasattr(torch.serialization, 'add_safe_globals'):
                 try:
@@ -102,17 +105,17 @@ class AppMain(ctk.CTk):
                 except Exception:
                     pass
 
-            model = YOLO(MODEL_PATH)
+            detector = crear_detector(MODEL_PATH, CONFIANZA_MINIMA_GUI)
 
         except Exception as e:
             print(f"[VMS] No se pudo cargar YOLO: {e}")
             import tkinter.messagebox
             tkinter.messagebox.showerror("Error Crítico de IA", f"No se pudo cargar el motor YOLO B2B:\n\n{e}\n\nFavor de reportar este problema.")
-            model = None
+            detector = None
         finally:
             torch.load = _original_load  # SIEMPRE se restaura
         
-        self.yolo_model = model
+        self.detector = detector
         self.view_dashboard = DashboardFrame(self.main_workspace, self.camera_queues)
         self.view_manager.register_view("Dashboard", self.view_dashboard)
         
@@ -131,7 +134,7 @@ class AppMain(ctk.CTk):
         import queue
         from config.config import LOCAL_CAMERA_INDEX
         from src.tracking.camera_worker import CameraWorker
-        if self.yolo_model is None: return
+        if self.detector is None: return
         
         idx = camera_index if camera_index is not None else LOCAL_CAMERA_INDEX
         self._active_camera_index = idx
@@ -142,7 +145,7 @@ class AppMain(ctk.CTk):
             self.view_dashboard.camera_queues = self.camera_queues
             self.view_dashboard.setup_grid()
         q = self.camera_queues[cam_name]
-        worker = CameraWorker(idx, q, self.yolo_model, fps_limit=15)
+        worker = CameraWorker(idx, q, self.detector, fps_limit=15)
         worker.start()
         self.camera_workers.append(worker)
         

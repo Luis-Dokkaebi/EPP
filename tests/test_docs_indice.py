@@ -35,6 +35,13 @@ def test_indice_de_docs_enlaza_cada_adr_y_cada_documento_de_calidad() -> None:
     assert [documento for documento in documentos if documento.resolve() not in enlazados] == []
 
 
+def test_indice_de_docs_enlaza_cada_documento_de_ml_y_cada_runbook() -> None:
+    enlazados = set(_enlaces(INDICE))
+    documentos = [*(DOCS / "ml").glob("*.md"), *(DOCS / "runbooks").glob("*.md")]
+
+    assert [documento for documento in documentos if documento.resolve() not in enlazados] == []
+
+
 def test_hay_al_menos_una_adr_numerada() -> None:
     assert _adrs()
 

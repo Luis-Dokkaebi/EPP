@@ -33,6 +33,30 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guardian.py formato",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guardian.py cierre",
+            "timeout": 60,
+            "statusMessage": "Gemelos CLAUDE.md/Agents.md y pruebas unitarias rápidas"
+          }
+        ]
+      }
     ]
   }
 }

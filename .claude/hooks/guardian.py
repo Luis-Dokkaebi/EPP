@@ -4,16 +4,21 @@ Subcomandos (el JSON del evento llega por stdin):
   bash      PreToolUse/Bash: bloquea `git commit --no-verify`, `git push --force` y
             `pip install` de paquetes sin versión fijada.
   archivos  PreToolUse/Edit|Write: bloquea archivos de build y binarios salvo autorización.
+  formato   PostToolUse/Edit|Write: `ruff format` + `ruff check --fix` sobre el .py editado.
+  cierre    Stop: gemelos CLAUDE.md/Agents.md idénticos y pruebas unitarias rápidas.
 
 Un bloqueo sale con código 2 y explica por stderr cómo seguir (Claude Code se lo muestra al
 agente). Sin dependencias fuera de la biblioteca estándar: corre con cualquier python3.
 """
 
 import argparse
+import filecmp
 import json
 import os
 import re
 import shlex
+import shutil
+import subprocess
 import sys
 from collections.abc import Iterator
 from itertools import pairwise
@@ -39,6 +44,9 @@ OPCIONES_PIP_CON_VALOR = frozenset(
         "--index-strategy", "--prefix", "--root",
     }
 )  # fmt: skip
+PLAZO_PRUEBAS_RAPIDAS_S = 50
+CODIGOS_PYTEST_ACEPTABLES = frozenset({0, 5})  # 5: no hay pruebas que coincidan con el filtro
+CARACTERES_DE_SALIDA_DE_PRUEBAS = 2000
 
 
 def _segmentos(comando: str) -> Iterator[list[str]]:
@@ -140,6 +148,78 @@ def motivo_de_bloqueo_archivo(ruta: str) -> str | None:
     )
 
 
+def _proyecto() -> Path:
+    return Path(os.environ.get("CLAUDE_PROJECT_DIR", "."))
+
+
+def herramienta(nombre: str) -> str | None:
+    """Ejecutable del entorno del proyecto: .venv del proyecto, el del intérprete o el PATH."""
+    candidatos = [_proyecto() / ".venv" / "bin" / nombre, Path(sys.executable).parent / nombre]
+    encontrada = next((str(candidato) for candidato in candidatos if candidato.is_file()), None)
+    return encontrada or shutil.which(nombre)
+
+
+def _correr(argumentos: list[str], carpeta: Path | None = None) -> subprocess.CompletedProcess[str]:
+    # S603: solo ejecuta herramientas del entorno del proyecto (ruff, pytest) con argumentos fijos.
+    return subprocess.run(
+        argumentos,  # noqa: S603
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=carpeta,
+        timeout=PLAZO_PRUEBAS_RAPIDAS_S,
+    )
+
+
+def _es_python_del_proyecto(ruta: str) -> bool:
+    archivo = Path(ruta).resolve()
+    return (
+        archivo.suffix == ".py"
+        and archivo.is_file()
+        and archivo.is_relative_to(_proyecto().resolve())
+    )
+
+
+def _formatear(ruta: str) -> int:
+    if not _es_python_del_proyecto(ruta):
+        return 0
+    ruff = herramienta("ruff")
+    if ruff is None:
+        sys.stderr.write("ruff no está instalado: corre .claude/hooks/session-start.sh.\n")
+        return 1
+    # --force-exclude respeta las exclusiones heredadas (WAIVER-#2/#3) aunque se pase la ruta.
+    _correr([ruff, "format", "--force-exclude", ruta])
+    revision = _correr([ruff, "check", "--fix", "--force-exclude", ruta])
+    if revision.returncode == 0:
+        return 0
+    sys.stderr.write(f"ruff encontró problemas que no puede arreglar solo:\n{revision.stdout}")
+    return CODIGO_BLOQUEO
+
+
+def _problemas_al_cerrar() -> list[str]:
+    proyecto = _proyecto()
+    problemas = []
+    if not filecmp.cmp(proyecto / "CLAUDE.md", proyecto / "Agents.md", shallow=False):
+        problemas.append("CLAUDE.md y Agents.md difieren: copia uno sobre el otro (§14.13).")
+    python = herramienta("python") or sys.executable
+    pruebas = _correr(
+        [python, "-m", "pytest", "-q", "-x", "-m", "unit and not slow", "-p", "no:cacheprovider"],
+        carpeta=proyecto,
+    )
+    if pruebas.returncode not in CODIGOS_PYTEST_ACEPTABLES:
+        salida = pruebas.stdout[-CARACTERES_DE_SALIDA_DE_PRUEBAS:]
+        problemas.append(f"Las pruebas unitarias rápidas fallan (Ley Cero):\n{salida}")
+    return problemas
+
+
+def _cierre(evento: dict[str, object]) -> int:
+    if evento.get("stop_hook_active"):
+        return 0
+    if problemas := _problemas_al_cerrar():
+        sys.stdout.write(json.dumps({"decision": "block", "reason": "\n".join(problemas)}))
+    return 0
+
+
 def _bloquear_si(motivo: str | None) -> int:
     if motivo is None:
         return 0
@@ -149,12 +229,16 @@ def _bloquear_si(motivo: str | None) -> int:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("subcomando", choices=["bash", "archivos"])
+    parser.add_argument("subcomando", choices=["bash", "archivos", "formato", "cierre"])
     subcomando = parser.parse_args(argv).subcomando
     evento = json.load(sys.stdin)
+    if subcomando == "cierre":
+        return _cierre(evento)
     entrada = evento["tool_input"]
     if subcomando == "bash":
         return _bloquear_si(motivo_de_bloqueo_bash(entrada["command"]))
+    if subcomando == "formato":
+        return _formatear(entrada["file_path"])
     if os.environ.get(VARIABLE_AUTORIZACION) == "1":
         return 0
     return _bloquear_si(motivo_de_bloqueo_archivo(entrada["file_path"]))

@@ -11,7 +11,9 @@ import numpy as np
 
 from src.inference.types import ClaseObjeto, Deteccion
 
+COLOR_EPP = (0, 255, 255)
 COLORES: dict[ClaseObjeto, tuple[int, int, int]] = {
+    **dict.fromkeys(ClaseObjeto, COLOR_EPP),
     ClaseObjeto.PERSONA: (0, 255, 0),
     ClaseObjeto.CELULAR: (0, 0, 255),
 }

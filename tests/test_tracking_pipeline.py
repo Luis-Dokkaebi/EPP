@@ -108,3 +108,12 @@ def test_no_zone_no_crash(db):
     td = pipe.process(object(), None, [])
     assert len(td) == 1
     assert db.get_all_records() == []
+
+
+def test_track_data_includes_track_id_and_every_zone_inside(db):
+    """El EPP (SPEC/9 §5.1) necesita el track_id y todas las zonas donde está la persona."""
+    zonas = {"ZonaA": True, "ZonaB": False, "ZonaC": True}
+    pipe = _make_pipeline(db, zonas, face_name="Alice",
+                          db_write_interval=1, face_check_interval=1)
+    td = pipe.process(object(), None, [])
+    assert (td[0]["track_id"], td[0]["zones"]) == (1, frozenset({"ZonaA", "ZonaC"}))

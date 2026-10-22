@@ -57,7 +57,17 @@ def test_deteccion_es_inmutable() -> None:
 
 
 def test_clase_objeto_usa_nombres_semanticos() -> None:
-    assert [clase.value for clase in ClaseObjeto] == ["persona", "celular"]
+    assert [clase.value for clase in ClaseObjeto] == [
+        "persona",
+        "celular",
+        "casco",
+        "chaleco",
+        "guantes",
+        "gafas",
+        "barbijo",
+        "cabeza",
+        "manos",
+    ]
 
 
 @pytest.mark.parametrize("confianza", [0.0, 0.5, 1.0])

@@ -7,13 +7,19 @@ todo el conjunto, el kappa de Cohen con "fondo" para las cajas sin pareja. Las r
 la medición se informa pero no aprueba nada (falla cerrada).
 """
 
+import argparse
+import json
+import sys
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, NamedTuple
 
 IOU_MINIMO = 0.5
 FONDO = "fondo"
+CODIGO_NO_APROBADO = 1
+CODIGO_INVALIDO = 2
 
 
 class AcuerdoInvalidoError(ValueError):
@@ -158,3 +164,77 @@ def clases_bajo_el_umbral(informe: InformeDeAcuerdo, umbral: float | None) -> li
         for clase, resultado in informe.por_clase.items()
         if resultado.acuerdo is None or resultado.acuerdo < umbral
     ]
+
+
+def _cifra(valor: float | None) -> str:
+    return "-" if valor is None else f"{valor:.2f}"
+
+
+def _texto(informe: InformeDeAcuerdo) -> str:
+    lineas = [
+        f"{clase}: cajas A {resultado.cajas_a}, cajas B {resultado.cajas_b}, coincidencias "
+        f"{resultado.coincidencias}, acuerdo {_cifra(resultado.acuerdo)}, "
+        f"IoU medio {_cifra(resultado.iou_medio)}"
+        for clase, resultado in informe.por_clase.items()
+    ]
+    return "\n".join([*lineas, f"kappa de Cohen: {_cifra(informe.kappa)}", ""])
+
+
+def _guardar_reporte(
+    ruta: Path, informe: InformeDeAcuerdo, umbral: float | None, a_redefinir: list[str] | None
+) -> None:
+    contenido = {
+        "umbral": umbral,
+        "kappa": informe.kappa,
+        "clases_a_redefinir": a_redefinir,
+        "por_clase": {
+            clase: {
+                "cajas_a": resultado.cajas_a,
+                "cajas_b": resultado.cajas_b,
+                "coincidencias": resultado.coincidencias,
+                "acuerdo": resultado.acuerdo,
+                "iou_medio": resultado.iou_medio,
+            }
+            for clase, resultado in informe.por_clase.items()
+        },
+    }
+    ruta.write_text(json.dumps(contenido, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _analizar(argv: Sequence[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("etiquetado_a", type=Path, help="COCO exportado por la primera persona")
+    parser.add_argument("etiquetado_b", type=Path, help="COCO exportado por la segunda persona")
+    parser.add_argument("--umbral", type=float, default=None, help="acuerdo mínimo aprobado")
+    parser.add_argument("--reporte", type=Path, default=None, help="JSON con la medición")
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    argumentos = _analizar(argv)
+    try:
+        informe = medir_acuerdo(
+            json.loads(argumentos.etiquetado_a.read_text(encoding="utf-8")),
+            json.loads(argumentos.etiquetado_b.read_text(encoding="utf-8")),
+        )
+    except AcuerdoInvalidoError as error:
+        sys.stderr.write(f"{error}\n")
+        return CODIGO_INVALIDO
+    sys.stdout.write(_texto(informe))
+    try:
+        a_redefinir: list[str] | None = clases_bajo_el_umbral(informe, argumentos.umbral)
+    except UmbralDeAcuerdoPendienteError as error:
+        a_redefinir = None
+        sys.stderr.write(f"{error}\n")
+    if argumentos.reporte is not None:
+        _guardar_reporte(argumentos.reporte, informe, argumentos.umbral, a_redefinir)
+    if a_redefinir:
+        sys.stderr.write(f"Redefinir en la guía y volver a etiquetar: {', '.join(a_redefinir)}.\n")
+    if a_redefinir is None or a_redefinir:
+        return CODIGO_NO_APROBADO
+    sys.stdout.write(f"Acuerdo aprobado con el umbral {argumentos.umbral}.\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

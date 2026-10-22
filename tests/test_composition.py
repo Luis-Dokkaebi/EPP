@@ -114,3 +114,8 @@ def test_crear_detector_falla_ruidosamente_con_un_error_tipado(
         crear_detector("m.onnx", 0.5, motor=motor, manifiesto=manifiesto)
 
     assert str(excepcion.value) == mensaje
+
+
+def test_los_nombres_de_motor_son_los_que_admite_la_configuracion() -> None:
+    """config.DETECTION_ENGINE usa estos textos literales: cambiarlos rompe la configuración."""
+    assert (MOTOR_ULTRALYTICS, MOTOR_ONNX) == ("ultralytics", "onnx")

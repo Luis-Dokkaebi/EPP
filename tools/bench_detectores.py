@@ -27,9 +27,8 @@ import numpy as np
 import psutil
 
 from src.composition import crear_detector
-from src.inference.adapters.onnx_detector import ConfiguracionOnnx, DetectorOnnx, crear_sesion
 from src.inference.ports import DetectorPort
-from src.inference.types import Caja, CatalogoDeClases, ClaseObjeto
+from src.inference.types import Caja, ClaseObjeto
 
 IOU_MINIMO = 0.5
 MILISEGUNDOS = 1000.0
@@ -180,29 +179,7 @@ def leer_frames_etiquetados(video: Path, etiquetas: Path) -> list[FrameEtiquetad
 def crear_variante(
     motor: str, ruta: str, confianza_minima: float, manifiesto: dict[str, Any]
 ) -> DetectorPort:
-    if motor == "ultralytics":
-        return crear_detector(ruta, confianza_minima)
-    if motor == "onnx":
-        configuracion = _configuracion_onnx(ruta, confianza_minima, manifiesto)
-        return DetectorOnnx(crear_sesion(ruta), configuracion)
-    raise ValueError(f"Motor desconocido: {motor} (usa ultralytics u onnx).")
-
-
-def _configuracion_onnx(
-    ruta: str, confianza_minima: float, manifiesto: dict[str, Any]
-) -> ConfiguracionOnnx:
-    entrada = next((m for m in manifiesto["modelos"] if m["archivo"] == ruta), None)
-    if entrada is None:
-        raise ValueError(
-            f"{ruta} no está declarado en models/manifest.json (clases y normalización)."
-        )
-    clases = {int(id_): ClaseObjeto(nombre) for id_, nombre in entrada["clases"].items()}
-    return ConfiguracionOnnx(
-        media=tuple(entrada["media"]),
-        desviacion=tuple(entrada["desviacion"]),
-        catalogo=CatalogoDeClases(clases),
-        confianza_minima=confianza_minima,
-    )
+    return crear_detector(ruta, confianza_minima, motor=motor, manifiesto=manifiesto)
 
 
 def _memoria_mb() -> float:

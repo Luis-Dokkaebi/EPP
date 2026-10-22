@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# Quality Gate de CLAUDE.md §10 en un solo comando (SPEC/9 §0.3).
+#
+# Uso: scripts/quality_gate.sh [--changed] [--sin-instalar] [--sin-mutacion]
+#   --changed       muta solo los archivos de src/ cambiados respecto de $GATE_BASE
+#   --sin-instalar  no reinstala dependencias (paso 0 queda como omitido)
+#   --sin-mutacion  no corre mutmut (paso 7 queda como omitido; CI lo corre en otro job)
+#
+# Se detiene en el primer paso que falla. Cada salida queda en $GATE_REPORTES/<paso>.txt
+# (por defecto reports/gate/), lista para pegar en el PR. Un paso omitido nunca es aprobado.
+set -uo pipefail
+
+RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$RAIZ" || exit 1
+REPORTES="${GATE_REPORTES:-reports/gate}"
+BASE="${GATE_BASE:-origin/main}"
+MODULOS_CRITICOS="src/security src/storage src/analysis/efficiency_calculator.py src/zones/zone_checker.py"
+UMBRAL_MUTACION_CRITICA=90
+UMBRAL_MUTACION_NUEVA=85
+UMBRAL_COBERTURA_DIFF=95
+
+CAMBIADOS=0
+INSTALAR=1
+MUTACION=1
+for opcion in "$@"; do
+    case "$opcion" in
+        --changed) CAMBIADOS=1 ;;
+        --sin-instalar) INSTALAR=0 ;;
+        --sin-mutacion) MUTACION=0 ;;
+        *) echo "Opción desconocida: $opcion" >&2; exit 2 ;;
+    esac
+done
+mkdir -p "$REPORTES"
+
+paso() {
+    local nombre="$1"
+    shift
+    echo "==> [$nombre] $*"
+    "$@" >"$REPORTES/$nombre.txt" 2>&1
+    local codigo=$?
+    if [ "$codigo" -eq 0 ]; then
+        echo "    OK -> $REPORTES/$nombre.txt"
+        return 0
+    fi
+    cat "$REPORTES/$nombre.txt"
+    echo "FALLA en el paso '$nombre' (código $codigo). Corrige y reinicia desde el paso 1 (CLAUDE.md §10)." >&2
+    exit "$codigo"
+}
+
+omitido() {
+    echo "==> [$1] omitido: $2" | tee "$REPORTES/$1.txt"
+}
+
+con_pantalla() {
+    # La GUI heredada (Tk) necesita un display; en Linux sin escritorio se usa Xvfb.
+    if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then
+        xvfb-run -a "$@"
+    else
+        "$@"
+    fi
+}
+
+paquetes_medidos() {
+    local paquete
+    for paquete in src scripts tools ml; do
+        [ -d "$paquete" ] && printf -- "--cov=%s " "$paquete"
+    done
+}
+
+piso_de_cobertura() {
+    python -c "import json; print(json.load(open('docs/quality/metricas.json'))['cobertura_global_minima'])"
+}
+
+objetivos_de_mutacion() {
+    if [ "$CAMBIADOS" = 1 ]; then
+        git diff --name-only "$BASE"...HEAD -- 'src/*.py'
+    else
+        echo "$MODULOS_CRITICOS"
+    fi
+}
+
+pruebas_de() {
+    # Convención de nombres: src/ppe/domain/asociacion.py -> tests/test_*asociacion*.py.
+    # Sin coincidencias se usa toda la suite; $GATE_PRUEBAS_MUTACION la reemplaza.
+    local tema
+    tema="$(basename "$1" .py)"
+    if [ -n "${GATE_PRUEBAS_MUTACION:-}" ]; then
+        echo "$GATE_PRUEBAS_MUTACION"
+        return
+    fi
+    compgen -G "tests/test_*${tema}*.py" | tr '\n' ' ' | grep . || echo "tests"
+}
+
+mutar() {
+    local umbral="$1"
+    shift
+    local objetivo
+    if [ "$#" -eq 0 ]; then
+        echo "Sin código de src/ cambiado respecto de $BASE: no hay mutantes que generar."
+        return 0
+    fi
+    rm -f .mutmut-cache
+    for objetivo in "$@"; do
+        [ -e "$objetivo" ] || continue
+        con_pantalla mutmut run --paths-to-mutate "$objetivo" \
+            --runner "python scripts/ejecutar_pruebas_mutacion.py -x -q -p no:randomly -m 'not slow' $(pruebas_de "$objetivo")" \
+            || true
+    done
+    if find src -name '*.py.bak' | grep -q .; then
+        echo "mutmut dejó código mutado (*.py.bak): restaura con git checkout -- src y borra los .bak."
+        return 1
+    fi
+    mutmut results
+    python scripts/check_mutacion.py .mutmut-cache "$umbral"
+}
+
+if [ "$INSTALAR" = 1 ]; then
+    paso 0-entorno python -m pip install -r requirements-ci.txt -r requirements-dev.txt
+else
+    omitido 0-entorno "--sin-instalar"
+fi
+paso 1-formato ruff format --check .
+paso 2-lint ruff check .
+paso 3-tipos mypy
+# shellcheck disable=SC2046  # paquetes_medidos devuelve varias opciones a propósito
+paso 4a-pruebas con_pantalla python -m pytest $(paquetes_medidos) --cov-branch \
+    --cov-report=term-missing --cov-report=xml
+paso 4b-cobertura-global python -m coverage report --include='src/*' \
+    --fail-under="$(piso_de_cobertura)"
+paso 4c-cobertura-diff diff-cover coverage.xml --compare-branch="$BASE" \
+    --fail-under="$UMBRAL_COBERTURA_DIFF"
+paso 5-complejidad python scripts/check_trinquete.py src docs/quality/metricas.json
+paso 6a-bandit bandit -r src -ll
+paso 6b-pip-audit pip-audit
+if [ "$MUTACION" = 0 ]; then
+    omitido 7-mutacion "--sin-mutacion"
+elif [ "$CAMBIADOS" = 1 ]; then
+    # shellcheck disable=SC2046
+    paso 7-mutacion mutar "$UMBRAL_MUTACION_NUEVA" $(objetivos_de_mutacion)
+else
+    # shellcheck disable=SC2046
+    paso 7-mutacion mutar "$UMBRAL_MUTACION_CRITICA" $(objetivos_de_mutacion)
+fi
+paso 8a-suite con_pantalla python -m pytest
+paso 8b-suite-sin-cache con_pantalla python -m pytest -p no:cacheprovider
+paso 9a-gemelos cmp CLAUDE.md Agents.md
+paso 9b-waivers python scripts/check_waivers.py docs/quality/waivers.md
+echo "Quality Gate en verde. Salidas en $REPORTES/"

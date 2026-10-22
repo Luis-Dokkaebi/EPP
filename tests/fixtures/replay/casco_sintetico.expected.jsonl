@@ -1,0 +1,2 @@
+{"evento": "inicio", "t": 2.0, "track_id": 1, "nombre": null, "elemento": "casco", "zona": "Pozo Ñandú", "version_modelo": "replay-sintetico", "evidencia": "frame-2"}
+{"evento": "fin", "t": 5.0, "track_id": 1, "nombre": null, "elemento": "casco", "zona": "Pozo Ñandú", "version_modelo": "replay-sintetico", "inicio": 2.0, "duracion_s": 3.0}

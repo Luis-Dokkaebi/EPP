@@ -25,6 +25,19 @@ def ejecutar_script(
     )
 
 
+def ejecutar_modulo(modulo: str, *argumentos: str) -> subprocess.CompletedProcess[str]:
+    """Corre `python -m <modulo>` desde la raíz del repositorio (p. ej. tools.replay)."""
+    # S603: ejecuta un módulo propio del repositorio; los argumentos no vienen de fuera.
+    return subprocess.run(
+        [sys.executable, "-m", modulo, *argumentos],  # noqa: S603
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=SEGUNDOS_MAXIMOS,
+        cwd=RAIZ,
+    )
+
+
 def cargar_hook(nombre: str) -> ModuleType:
     """Importa .claude/hooks/<nombre>.py, que no es un paquete importable."""
     ruta = RAIZ / ".claude" / "hooks" / f"{nombre}.py"

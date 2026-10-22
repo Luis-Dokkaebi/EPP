@@ -7,9 +7,11 @@ Uso: python scripts/check_architecture.py [.importlinter]
 """
 
 import io
+import logging
 import re
 import sys
-from contextlib import redirect_stdout
+from collections.abc import Iterator
+from contextlib import contextmanager, redirect_stdout
 
 from importlinter.cli import lint_imports
 
@@ -54,10 +56,26 @@ def traducir(salida: str) -> list[str]:
     ]
 
 
+@contextmanager
+def _conservando_loggers() -> Iterator[None]:
+    """import-linter usa `dictConfig`, que deshabilita los loggers ya creados: se restauran."""
+    loggers = [
+        logger
+        for logger in logging.root.manager.loggerDict.values()
+        if isinstance(logger, logging.Logger)
+    ]
+    estados = [(logger, logger.disabled) for logger in loggers]
+    try:
+        yield
+    finally:
+        for logger, deshabilitado in estados:
+            logger.disabled = deshabilitado
+
+
 def main(argv: list[str]) -> int:
     configuracion = argv[0] if argv else CONFIGURACION_POR_DEFECTO
     salida = io.StringIO()
-    with redirect_stdout(salida):
+    with redirect_stdout(salida), _conservando_loggers():
         codigo = lint_imports(config_filename=configuracion, no_cache=True)
     sys.stdout.write(salida.getvalue())
     for mensaje in traducir(salida.getvalue()):

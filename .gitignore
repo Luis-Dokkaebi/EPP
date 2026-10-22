@@ -17,3 +17,4 @@ mutants/
 .ruff_cache/
 .claude/worktrees/
 .import_linter_cache/
+.venv

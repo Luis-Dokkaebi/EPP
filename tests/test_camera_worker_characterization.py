@@ -27,6 +27,7 @@ BLANCO = 255
 MARCA_TIEMPO = 1_000.0
 FRAMES_ENTRE_RECARGAS = 60
 ESPERA_RECONEXION_S = 2.0
+FPS_POR_OMISION = 15
 
 
 def frame_blanco() -> np.ndarray:
@@ -321,6 +322,18 @@ def test_camera_worker_busca_una_camara_de_respaldo_si_la_pedida_falla(
 
     assert escenario.worker.camera_id == 1
     assert [camara for camara, _ in escenario.encolados()] == [1]
+
+
+def test_camera_worker_por_omision_limita_a_15_fps(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    monkeypatch.setattr("config.config.get_faces_dir", lambda: str(tmp_path))
+    monkeypatch.setattr("config.config.get_db_path", _sin_tenant)
+    monkeypatch.setattr(modulo_worker, "FaceRecognizer", ReconocedorFalso)
+
+    worker = CameraWorker(0, queue.Queue(), DetectorUltralytics(ModeloFalso([]), CATALOGO_COCO, 0))
+
+    assert worker.fps_limit == FPS_POR_OMISION
 
 
 def test_camera_worker_libera_la_captura_al_detenerse(

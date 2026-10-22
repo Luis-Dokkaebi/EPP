@@ -2,7 +2,10 @@
 
 import importlib
 import re
+import tkinter as tk
 import types
+from collections.abc import Iterator
+from datetime import date
 from typing import Any
 
 import pytest
@@ -105,3 +108,38 @@ def test_la_app_ya_no_depende_de_tkcalendar() -> None:
 
     assert "tkcalendar" not in requisitos
     assert re.search(r"^\s*(from|import)\s+tkcalendar", fuentes, re.MULTILINE) is None
+
+
+HOY = date(2026, 10, 22)
+
+
+class FechaFija(date):
+    @classmethod
+    def today(cls) -> "FechaFija":
+        return cls(HOY.year, HOY.month, HOY.day)
+
+
+@pytest.fixture
+def raiz() -> Iterator[tk.Tk]:
+    ventana = tk.Tk()
+    yield ventana
+    ventana.destroy()
+
+
+@pytest.mark.parametrize(
+    ("prefijo", "pestana"),
+    [("att", "_build_attendance_tab"), ("eff", "_build_efficiency_tab")],
+    ids=NOMBRES,
+)
+def test_pestana_de_reporte_propone_los_ultimos_siete_dias(
+    monkeypatch: pytest.MonkeyPatch, raiz: tk.Tk, prefijo: str, pestana: str
+) -> None:
+    gui_app = importlib.import_module("src.gui_app")
+    monkeypatch.setattr(gui_app, "date", FechaFija)
+    gui = object.__new__(gui_app.SystemGUI)
+    gui.db = types.SimpleNamespace(get_unique_employees=lambda: [])
+
+    getattr(gui, pestana)(tk.Frame(raiz))
+
+    assert getattr(gui, f"{prefijo}_date_from").get() == "2026-10-15"
+    assert getattr(gui, f"{prefijo}_date_to").get() == "2026-10-22"

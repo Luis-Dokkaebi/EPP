@@ -1441,8 +1441,8 @@ B-01..B-06 (datos y modelo EPP) ────────────────
 
 | Criterio | Evidencia | Estado |
 |----------|-----------|--------|
-| AC-001 | Job `licencias` en CI + informe legal | Pendiente |
-| AC-002 | `tests/test_model_verifier.py` + gate | Pendiente |
+| AC-001 | Job `licencias` en CI + informe legal | En curso: gate y job listos (A-05, A-07, #20, #28); en rojo por diseño hasta A-16 (D8), A-17 y D9 |
+| AC-002 | `tests/test_model_verifier.py` + gate | En curso: manifiesto validado por el gate (A-05, #21); verificador por manifiesto en A-14 |
 | AC-003 | Prueba de humo del ejecutable (PR A-16) | Pendiente |
 | AC-004 | `docs/benchmarks/motor_ia.md` | Pendiente |
 | AC-005 | Test de `sys.modules` + grep | Pendiente |
@@ -1456,7 +1456,7 @@ B-01..B-06 (datos y modelo EPP) ────────────────
 | AC-017 | Medición en el piloto | Pendiente (D4) |
 | AC-018 | `ml/promotion_gates.py` + informe del piloto | Pendiente (D4) |
 | AC-019 | Prueba de purga con un reloj falso | Pendiente (D5) |
-| AC-020 | PRs de prueba que demuestran que cada check falla | Pendiente |
+| AC-020 | PRs de prueba que demuestran que cada check falla | En curso: cada check tiene pruebas que lo hacen fallar con mensaje de corrección (A-03..A-07); falta ver la CI real fallar en un PR |
 
 Cada fase se cierra aplicando `verify-and-stop`: se corre la evidencia mínima que prueba sus AC, se
 marca el estado aquí y se para.

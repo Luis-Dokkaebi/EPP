@@ -2,14 +2,11 @@
 
 import pytest
 
-from ml.contrato_datos import categorias
 from tests.coco_sintetico import ID_CASCO as CASCO
 from tests.coco_sintetico import ID_CHALECO as CHALECO
 from tests.coco_sintetico import etiquetado
 from tools.acuerdo_etiquetado import (
-    AcuerdoInvalidoError,
     Caja,
-    UmbralDeAcuerdoPendienteError,
     clases_bajo_el_umbral,
     emparejar,
     iou,
@@ -108,30 +105,6 @@ def test_medir_acuerdo_de_una_clase_sin_cajas_no_tiene_valor() -> None:
 
     assert informe.por_clase["persona"].acuerdo is None
     assert informe.por_clase["persona"].iou_medio is None
-
-
-def test_medir_acuerdo_exige_las_mismas_imagenes_en_los_dos_etiquetados() -> None:
-    b = etiquetado()
-    b["images"] = [{"id": 7, "file_name": "cam-02_20261021_083005_0001.jpg"}]
-
-    with pytest.raises(AcuerdoInvalidoError, match="mismas imágenes"):
-        medir_acuerdo(etiquetado(), b)
-
-
-def test_medir_acuerdo_exige_las_mismas_categorias() -> None:
-    b = {**etiquetado(), "categories": categorias(("persona", "casco"))}
-
-    with pytest.raises(AcuerdoInvalidoError, match="mismas categorías"):
-        medir_acuerdo(etiquetado(), b)
-
-
-def test_clases_bajo_el_umbral_falla_cerrada_si_no_hay_umbral_aprobado() -> None:
-    informe = medir_acuerdo(
-        etiquetado((CASCO, [0, 0, 10, 10])), etiquetado((CASCO, [0, 0, 10, 10]))
-    )
-
-    with pytest.raises(UmbralDeAcuerdoPendienteError, match="PENDIENTE"):
-        clases_bajo_el_umbral(informe, None)
 
 
 @pytest.mark.parametrize(

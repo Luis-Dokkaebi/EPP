@@ -61,6 +61,11 @@ con_pantalla() {
     fi
 }
 
+revisar_secretos() {
+    # -z: los nombres versionados con espacios o acentos llegan intactos a detect-secrets.
+    git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
+}
+
 paquetes_medidos() {
     local paquete
     for paquete in src scripts tools ml .claude/hooks; do
@@ -141,8 +146,10 @@ paso 4b-cobertura-global python -m coverage report --include='src/*' \
 paso 4c-cobertura-diff diff-cover coverage.xml --compare-branch="$BASE" \
     --fail-under="$UMBRAL_COBERTURA_DIFF"
 paso 5-complejidad python scripts/check_trinquete.py src docs/quality/metricas.json
+paso 5b-tamano python scripts/check_tamano.py
 paso 6a-bandit bandit -r src -ll
 paso 6b-pip-audit pip-audit
+paso 6c-secretos revisar_secretos
 if [ "$MUTACION" = 0 ]; then
     omitido 7-mutacion "--sin-mutacion"
 elif [ "$CAMBIADOS" = 1 ]; then

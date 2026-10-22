@@ -15,6 +15,8 @@ el archivo afectado.
 | W-006 | `--cov-fail-under=85` (§6, §10.4) | `src/` (global) | La línea base es 41 %; el piso del gate es `cobertura_global_minima` de `metricas.json` y solo sube | Medio | 2027-01-19 | #7 |
 | W-007 | Suite 100 % verde (§4) | `tests/test_obfuscate_pipeline.py::test_obfuscate_command_is_restrictive_pyarmor` (`xfail(strict=True)`) | `obfuscate.py` no ofusca; arreglarlo exige D8 y licencia de PyArmor | **Alto** | 2027-01-19 | #8 |
 | W-008 | Contrato `dominio-sin-detalles` de import-linter (§16) | `src/zones/zone_editor.py -> cv2` (`ignore_imports` en `.importlinter`) | Editor interactivo heredado con ventana de OpenCV dentro de `src/zones` | Bajo | 2027-01-20 | #10 |
+| W-009 | Longitud de archivo ≤ 500 líneas (§3) | `src/gui_app.py` (`longitud_waiver` en `metricas.json`) | GUI heredada de 1094 líneas | Medio | 2027-01-20 | #16 |
+| W-010 | Sin secretos en el repositorio (§9) | `scripts/tu_llave_maestra_privada.pem` (registrado en `.secrets.baseline` como secreto real) | Llave privada versionada antes del gate; rotarla y purgar el historial es acción humana | **Alto** | 2027-01-20 | #17 |
 
 Las reglas para código **nuevo** (paquetes `src/inference`, `src/ppe`, `src/alerts`, `ml/`, `tools/`
 y archivos de prueba nuevos) no tienen ningún waiver.

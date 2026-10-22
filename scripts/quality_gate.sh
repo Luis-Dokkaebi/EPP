@@ -95,14 +95,16 @@ pruebas_de() {
 mutar() {
     local umbral="$1"
     shift
-    local objetivo codigo
+    local objetivo codigo fallo=0
     if [ "$#" -eq 0 ]; then
         echo "Sin código Python cambiado respecto de $BASE: no hay mutantes que generar."
         return 0
     fi
-    rm -f .mutmut-cache
     for objetivo in "$@"; do
         [ -e "$objetivo" ] || continue
+        # Caché nueva por objetivo: mutmut reutiliza el tiempo base de la corrida anterior y,
+        # si las pruebas de este objetivo son más lentas, marca como timeout mutantes que mueren.
+        rm -f .mutmut-cache
         con_pantalla mutmut run "${PARCHE[@]}" --paths-to-mutate "$objetivo" \
             --runner "python scripts/ejecutar_pruebas_mutacion.py -x -q -p no:randomly -m 'not slow' $(pruebas_de "$objetivo")"
         codigo=$?
@@ -112,13 +114,14 @@ mutar() {
             echo "mutmut falló al mutar $objetivo (código $codigo): revisa la salida de arriba."
             return 1
         fi
+        if find src scripts tools ml -name '*.py.bak' 2>/dev/null | grep -q .; then
+            echo "mutmut dejó código mutado (*.py.bak): restaura con git checkout y borra los .bak."
+            return 1
+        fi
+        mutmut results
+        python scripts/check_mutacion.py .mutmut-cache "$umbral" || fallo=1
     done
-    if find src scripts tools ml -name '*.py.bak' 2>/dev/null | grep -q .; then
-        echo "mutmut dejó código mutado (*.py.bak): restaura con git checkout y borra los .bak."
-        return 1
-    fi
-    mutmut results
-    python scripts/check_mutacion.py .mutmut-cache "$umbral"
+    return "$fallo"
 }
 
 if [ "$INSTALAR" = 1 ]; then

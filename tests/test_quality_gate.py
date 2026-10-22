@@ -12,6 +12,7 @@ import pytest
 RAIZ = Path(__file__).resolve().parents[1]
 HERRAMIENTAS = ("ruff", "mypy", "python", "bandit", "pip-audit", "diff-cover", "mutmut")
 CODIGO_OPCION_INVALIDA_BASH = 2
+MODULOS_CRITICOS = 4
 
 pytestmark = pytest.mark.integration
 
@@ -55,9 +56,14 @@ def lanzador(request: pytest.FixtureRequest) -> Lanzador:
 
 def _crear_herramienta(carpeta: Path, nombre: str, codigo: int) -> None:
     posix = carpeta / nombre
-    posix.write_text(f'#!/bin/sh\necho "{nombre} $*"\nexit {codigo}\n', encoding="utf-8")
+    posix.write_text(
+        f'#!/bin/sh\necho "{nombre} $*" | tee -a "$HOME/registro.txt"\nexit {codigo}\n',
+        encoding="utf-8",
+    )
     posix.chmod(posix.stat().st_mode | stat.S_IXUSR)
-    (carpeta / f"{nombre}.cmd").write_text(f"@echo {nombre} %*\r\n@exit /b {codigo}\r\n")
+    (carpeta / f"{nombre}.cmd").write_text(
+        f'@echo {nombre} %* >> "%HOME%\\registro.txt"\r\n@exit /b {codigo}\r\n'
+    )
 
 
 def _entorno(tmp_path: Path, fallan: frozenset[str] = frozenset()) -> dict[str, str]:
@@ -140,6 +146,19 @@ def test_quality_gate_powershell_opcion_desconocida_falla(tmp_path: Path) -> Non
     resultado = _correr(_lanzador_powershell(), _entorno(tmp_path), "-Inventada")
 
     assert resultado.returncode != 0
+
+
+def _invocaciones(tmp_path: Path, texto: str) -> int:
+    registro = (tmp_path / "registro.txt").read_text(encoding="utf-8").splitlines()
+    return sum(texto in linea for linea in registro)
+
+
+def test_quality_gate_mide_la_mutacion_de_cada_modulo_critico_por_separado(
+    lanzador: Lanzador, tmp_path: Path
+) -> None:
+    _correr_con_opciones(lanzador, _entorno(tmp_path), lanzador.sin_instalar)
+
+    assert _invocaciones(tmp_path, "scripts/check_mutacion.py") == MODULOS_CRITICOS
 
 
 def test_quality_gate_falla_si_mutmut_termina_con_error(lanzador: Lanzador, tmp_path: Path) -> None:

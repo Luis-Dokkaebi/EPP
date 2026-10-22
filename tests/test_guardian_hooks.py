@@ -18,6 +18,11 @@ MOTIVO_PUSH = (
     "`git push --force` está prohibido (CLAUDE.md §12): usa --force-with-lease y decláralo."
 )
 MOTIVO_GEMELOS = "CLAUDE.md y Agents.md difieren: copia uno sobre el otro (§14.13)."
+OPCIONES_PIP_CON_VALOR = [
+    "-r", "--requirement", "-c", "--constraint", "-e", "--editable", "-i", "--index-url",
+    "--extra-index-url", "-f", "--find-links", "-t", "--target", "--python", "-p",
+    "--index-strategy", "--prefix", "--root",
+]  # fmt: skip
 
 
 def _cargar_guardian() -> ModuleType:
@@ -93,6 +98,50 @@ def test_motivo_de_bloqueo_bash_push_forzado_es_bloqueado(comando: str) -> None:
     "comando", ["git push --force-with-lease origin rama", "git push -u origin rama"]
 )
 def test_motivo_de_bloqueo_bash_push_normal_devuelve_none(comando: str) -> None:
+    assert guardian.motivo_de_bloqueo_bash(comando) is None
+
+
+@pytest.mark.parametrize(
+    ("comando", "paquetes"),
+    [
+        ("pip install requests", "requests"),
+        ("pip3 install requests six", "requests, six"),
+        ("python -m pip install numpy pandas==2.2.0", "numpy"),
+        ("uv pip install --index-strategy unsafe-best-match torch", "torch"),
+        ('pip install "./ruta con espacios/pkg.whl" otro', "otro"),
+    ],
+)
+def test_motivo_de_bloqueo_bash_pip_sin_version_nombra_los_paquetes(
+    comando: str, paquetes: str
+) -> None:
+    assert guardian.motivo_de_bloqueo_bash(comando) == (
+        f"pip install sin versión fijada ({paquetes}) está prohibido (CLAUDE.md §14.11): "
+        "usa paquete==versión y corre pip-audit."
+    )
+
+
+@pytest.mark.parametrize("opcion", OPCIONES_PIP_CON_VALOR)
+def test_motivo_de_bloqueo_bash_pip_opcion_con_valor_no_es_un_paquete(opcion: str) -> None:
+    assert guardian.motivo_de_bloqueo_bash(f"pip install {opcion} valor numpy==1.26.4") is None
+
+
+@pytest.mark.parametrize(
+    "comando",
+    [
+        "pip install numpy==1.26.4",
+        "pip install ./dlib-19.24.1-cp311-cp311-win_amd64.whl",
+        "pip install /tmp/paquete",
+        "pip install ./paquete",
+        "pip install .",
+        "pip install dist/paquete-1.0.tar.gz",
+        "pip install dlib.whl",
+        "pip install --upgrade numpy==1.26.4",
+        'pip install "./ruta con espacios/pkg.whl"',
+        "pip install",
+        "ls -la",
+    ],
+)
+def test_motivo_de_bloqueo_bash_pip_fijado_o_local_devuelve_none(comando: str) -> None:
     assert guardian.motivo_de_bloqueo_bash(comando) is None
 
 

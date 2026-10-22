@@ -9,11 +9,22 @@ import pytest
 
 from ml.manifiesto_dataset import huella_del_manifiesto, main
 from tests.test_manifiesto_dataset import _dataset
-from tests.utilidades_scripts import RAIZ, SEGUNDOS_MAXIMOS
+from tests.utilidades_scripts import RAIZ, SEGUNDOS_MAXIMOS, textos_ausentes
 
 CAMBIADO, INVALIDO = 1, 2
-FUENTE = "Piloto planta 1=propia-con-autorizacion"
+FUENTE = "Planta Ñandú=propia-con-autorizacion"
 LADO_MINIMO = 10.0
+AYUDA = ["valida el dataset y escribe su manifiesto", "compara la carpeta con el manifiesto"]
+AYUDA_DE_CREAR = [
+    "vMAYOR.MENOR",
+    "decisión D6, en píxeles",
+    "AAAA-MM-DD",
+    "ml/datasets/<v>/manifest.json",
+]
+
+
+def _ruta(carpeta: Path) -> Path:
+    return carpeta / "datasets" / "v0.1" / "manifest.json"
 
 
 def _crear(carpeta: Path, *extra: str) -> list[str]:
@@ -22,13 +33,13 @@ def _crear(carpeta: Path, *extra: str) -> list[str]:
         *("--carpeta", str(carpeta), "--version", "v0.1", "--taxonomia", "v1"),
         *("--lado-minimo", str(LADO_MINIMO), "--fuente", FUENTE),
         *("--camara-test", "cam-03", "--dia-valid", "2026-10-02"),
-        *("--salida", str(carpeta / "manifest.json")),
+        *("--salida", str(_ruta(carpeta))),
         *extra,
     ]
 
 
 def _verificar(carpeta: Path) -> list[str]:
-    return ["verificar", "--carpeta", str(carpeta), "--manifiesto", str(carpeta / "manifest.json")]
+    return ["verificar", "--carpeta", str(carpeta), "--manifiesto", str(_ruta(carpeta))]
 
 
 def test_crear_guarda_el_manifiesto_y_muestra_su_huella(
@@ -38,10 +49,13 @@ def test_crear_guarda_el_manifiesto_y_muestra_su_huella(
 
     codigo = main(_crear(carpeta))
 
-    manifiesto = json.loads((carpeta / "manifest.json").read_text(encoding="utf-8"))
+    texto = _ruta(carpeta).read_text(encoding="utf-8")
+    manifiesto = json.loads(texto)
     assert codigo == 0
+    assert texto.startswith('{\n  "version"')
+    assert "Planta Ñandú" in texto
     assert manifiesto["fuentes"] == [
-        {"nombre": "Piloto planta 1", "licencia": "propia-con-autorizacion"}
+        {"nombre": "Planta Ñandú", "licencia": "propia-con-autorizacion"}
     ]
     assert manifiesto["regla_de_split"]["camaras_de_test"] == ["cam-03"]
     assert manifiesto["lado_minimo_px"] == LADO_MINIMO
@@ -62,11 +76,13 @@ def test_crear_informa_la_violacion_y_no_guarda_nada(
         "El dataset no cumple el contrato de datos:\n"
         "SH17: SH17 no es apto para el producto (CC BY-NC-SA 4.0, SPEC/9 §2.3).\n"
     )
-    assert not (carpeta / "manifest.json").exists()
+    assert not (_ruta(carpeta)).exists()
 
 
 @pytest.mark.parametrize("fuente", ["sin-signo-igual", "=MIT"])
-def test_crear_exige_fuentes_con_nombre_igual_licencia(tmp_path: Path, fuente: str) -> None:
+def test_crear_exige_fuentes_con_nombre_igual_licencia(
+    tmp_path: Path, fuente: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     argumentos = _crear(_dataset(tmp_path))
     argumentos[argumentos.index(FUENTE)] = fuente
 
@@ -74,6 +90,32 @@ def test_crear_exige_fuentes_con_nombre_igual_licencia(tmp_path: Path, fuente: s
         main(argumentos)
 
     assert salida.value.code == INVALIDO
+    assert f'"{fuente}": usa <nombre>=<licencia>.' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "argumentos",
+    [[], ["verificar", "--carpeta", "x"], ["verificar", "--manifiesto", "x"]],
+    ids=["sin-accion", "sin-manifiesto", "sin-carpeta"],
+)
+def test_main_exige_la_accion_y_los_parametros_de_verificar(argumentos: list[str]) -> None:
+    with pytest.raises(SystemExit) as salida:
+        main(argumentos)
+
+    assert salida.value.code == INVALIDO
+
+
+@pytest.mark.parametrize(
+    ("argumentos", "textos"),
+    [(["--help"], AYUDA), (["crear", "--help"], AYUDA_DE_CREAR)],
+)
+def test_main_explica_acciones_y_parametros_en_la_ayuda(
+    argumentos: list[str], textos: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit):
+        main(argumentos)
+
+    assert textos_ausentes(capsys.readouterr().out, textos) == []
 
 
 @pytest.mark.parametrize(

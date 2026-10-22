@@ -44,6 +44,8 @@ calidad sin enlazar.
 - [Licencias revisadas](legal/licencias_revisadas.json) — aprobaciones humanas del gate de
   licencias (las propuestas sin `aprobado_por` no cuentan).
 - [Manifiesto de modelos](../models/manifest.json) — hash y licencias de cada modelo distribuido.
+- [Expediente para la revisión legal (D9)](legal/revision_d9.md) — hechos y decisiones humanas
+  pendientes antes del release (no es asesoría legal).
 
 ## Seguridad
 

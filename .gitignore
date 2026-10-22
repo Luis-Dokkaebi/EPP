@@ -16,3 +16,4 @@ mutants/
 .mypy_cache/
 .ruff_cache/
 .claude/worktrees/
+.import_linter_cache/

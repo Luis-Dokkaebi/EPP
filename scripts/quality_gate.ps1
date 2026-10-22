@@ -87,6 +87,7 @@ if ($SinInstalar) {
 }
 Invoke-Paso '1-formato' { ruff format --check . }
 Invoke-Paso '2-lint' { ruff check . }
+Invoke-Paso '2b-arquitectura' { python scripts/check_architecture.py .importlinter }
 Invoke-Paso '3-tipos' { mypy }
 $opcionesCobertura = Get-OpcionesDeCobertura
 Invoke-Paso '4a-pruebas' {

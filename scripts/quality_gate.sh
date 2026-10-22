@@ -121,6 +121,7 @@ else
 fi
 paso 1-formato ruff format --check .
 paso 2-lint ruff check .
+paso 2b-arquitectura python scripts/check_architecture.py .importlinter
 paso 3-tipos mypy
 # shellcheck disable=SC2046  # paquetes_medidos devuelve varias opciones a propósito
 paso 4a-pruebas con_pantalla python -m pytest $(paquetes_medidos) --cov-branch \

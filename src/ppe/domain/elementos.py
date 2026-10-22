@@ -4,7 +4,10 @@ Taxonomía v1 (decisión D3): casco y chaleco. Guantes, gafas y barbijo ya exist
 2.ª iteración; la asociación es genérica por tipo de ancla y no necesita lógica extra.
 """
 
+from collections.abc import Iterable
 from enum import Enum
+
+from src.ppe.domain.errores import ElementoDesconocidoError
 
 
 class TipoAncla(Enum):
@@ -49,3 +52,18 @@ class EstadoElemento(Enum):
     AUSENTE = "ausente"
     # El ancla no se ve: no se puede afirmar ni negar el elemento, y no se alerta (AC-011).
     NO_VERIFICABLE = "no verificable"
+
+
+def elementos_desde_textos(textos: Iterable[str]) -> frozenset[ElementoEPP]:
+    """Traduce los nombres de la configuración; un nombre desconocido falla en voz alta."""
+    return frozenset(_elemento_desde_texto(texto) for texto in textos)
+
+
+def _elemento_desde_texto(texto: str) -> ElementoEPP:
+    try:
+        return ElementoEPP(texto)
+    except ValueError as error:
+        validos = ", ".join(elemento.value for elemento in ElementoEPP)
+        raise ElementoDesconocidoError(
+            f'Elemento de EPP desconocido: "{texto}". Válidos: {validos}'
+        ) from error

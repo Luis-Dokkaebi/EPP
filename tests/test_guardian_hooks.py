@@ -130,6 +130,7 @@ def test_motivo_de_bloqueo_bash_pip_opcion_con_valor_no_es_un_paquete(opcion: st
         "pip install --upgrade numpy==1.26.4",
         'pip install "./ruta con espacios/pkg.whl"',
         "pip install",
+        "pip install -r requirements.txt  # comentario de shell, no un paquete",
         "ls -la",
     ],
 )

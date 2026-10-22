@@ -321,7 +321,12 @@ def _analizar(argv: Sequence[str] | None) -> argparse.Namespace:
     )
     parser.add_argument("--turnos", required=True, help="por ejemplo: manana=6-14,tarde=14-22")
     parser.add_argument("--intervalo-segundos", required=True, type=float)
-    parser.add_argument("--distancia-maxima", type=int, default=DISTANCIA_MAXIMA_PROPUESTA)
+    parser.add_argument(
+        "--distancia-maxima",
+        type=int,
+        default=DISTANCIA_MAXIMA_PROPUESTA,
+        help="casi duplicados a esta distancia dHash o menos (por omisión: %(default)s)",
+    )
     parser.add_argument("--maximo", type=int, default=None, help="tope de imágenes guardadas")
     modo = parser.add_mutually_exclusive_group(required=True)
     modo.add_argument("--inicio", type=datetime.fromisoformat, help="hora del primer fotograma")

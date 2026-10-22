@@ -22,6 +22,19 @@ from tools.capturar_dataset import (
 
 INICIO = datetime(2026, 10, 21, 8, 0, 0)
 CODIGO_DE_ERROR = 2
+AYUDAS = (
+    "Captura de frames para el dataset EPP del piloto (SPEC/9 §2.4, B-02).",
+    "video, URL RTSP o índice de cámara",
+    "identificador corto: a-z, 0-9 y -",
+    "carpeta cifrada, fuera de git",
+    "ID de la autorización del cliente",
+    "plazo de borrado (decisión D5)",
+    "por ejemplo: manana=6-14,tarde=14-22",
+    "casi duplicados a esta distancia dHash o menos (por omisión: 5)",
+    "tope de imágenes guardadas",
+    "hora del primer fotograma",
+    "fecha cada fotograma con el reloj",
+)
 # Credenciales ficticias: el caso de prueba es justamente una URL con usuario y clave.
 URL_CON_CREDENCIALES = "rtsp://admin:clave@10.0.0.5:554/stream"  # pragma: allowlist secret
 
@@ -87,7 +100,9 @@ def test_main_libera_la_camara_aunque_la_captura_falle(
     codigo = main(_argumentos(tmp_path, "clip.avi"), abrir=lambda _: camara)
 
     assert (codigo, camara.liberada) == (CODIGO_DE_ERROR, True)
-    assert "ya existe" in capsys.readouterr().err
+    assert capsys.readouterr().err == (
+        "cam-01_20261021_080000_0001.jpg ya existe: la captura nunca sobrescribe imágenes.\n"
+    )
 
 
 def test_main_valida_la_configuracion_antes_de_abrir_la_fuente(
@@ -102,8 +117,20 @@ def test_main_valida_la_configuracion_antes_de_abrir_la_fuente(
     assert "PENDIENTE (D5)" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("falta", ["--retencion-dias", "--autorizacion", "--turnos"])
-def test_main_exige_los_parametros_de_privacidad_y_turnos(tmp_path: Path, falta: str) -> None:
+@pytest.mark.parametrize(
+    "falta",
+    [
+        "--fuente",
+        "--camara",
+        "--salida",
+        "--autorizacion",
+        "--retencion-dias",
+        "--turnos",
+        "--intervalo-segundos",
+        "--inicio",
+    ],
+)
+def test_main_exige_cada_parametro_obligatorio(tmp_path: Path, falta: str) -> None:
     argumentos = _argumentos(tmp_path, "clip.avi")
     posicion = argumentos.index(falta)
     del argumentos[posicion : posicion + 2]
@@ -129,8 +156,17 @@ def test_abrir_fuente_abre_un_video_y_falla_ante_uno_inexistente(tmp_path: Path)
     captura.release()
 
     assert leida is True
-    with pytest.raises(CapturaInvalidaError, match="No se pudo abrir la fuente"):
+    with pytest.raises(CapturaInvalidaError) as error:
         abrir_fuente(str(tmp_path / "no-existe.avi"))
+    assert str(error.value) == f"No se pudo abrir la fuente {tmp_path / 'no-existe.avi'}."
+
+
+def test_main_explica_cada_parametro_en_la_ayuda(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        main(["--help"])
+
+    ayuda = " ".join(capsys.readouterr().out.split())
+    assert [texto for texto in AYUDAS if texto not in ayuda] == []
 
 
 def test_abrir_fuente_usa_el_indice_de_camara_cuando_la_fuente_es_un_numero(

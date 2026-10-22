@@ -67,14 +67,29 @@ def test_validar_anotaciones_acepta_cajas_desde_el_lado_minimo(lado: float) -> N
     validar_anotaciones(coco(None, caja(bbox=[0, 0, 40, lado])), TAXONOMIA_V1, LADO_MINIMO)
 
 
-def test_validar_anotaciones_acepta_una_caja_chica_marcada_como_ignorar() -> None:
-    validar_anotaciones(coco(None, caja(bbox=[0, 0, 2, 2], iscrowd=1)), TAXONOMIA_V1, LADO_MINIMO)
+@pytest.mark.parametrize("bbox", [[0, 0, 2, 2], [0, 0, 0.5, 40]], ids=["cuadrada", "fina"])
+def test_validar_anotaciones_acepta_una_caja_chica_marcada_como_ignorar(bbox: list[float]) -> None:
+    validar_anotaciones(coco(None, caja(bbox=bbox, iscrowd=1)), TAXONOMIA_V1, LADO_MINIMO)
+
+
+def test_validar_anotaciones_acepta_la_categoria_uno_y_lados_menores_a_un_pixel() -> None:
+    dataset = coco(None, caja(category_id=1, bbox=[0, 0, 0.5, 0.5]))
+
+    validar_anotaciones(dataset, TAXONOMIA_V1, lado_minimo_px=0.5)
+
+
+def test_validar_anotaciones_rechaza_cajas_con_valores_no_finitos() -> None:
+    assert _violaciones(coco(None, caja(bbox=[float("nan"), 0, 10, 10]))) == [
+        f"{ARCHIVO}: la caja 1 no es [x, y, ancho, alto] con ancho y alto positivos."
+    ]
 
 
 @pytest.mark.parametrize("lado_minimo", [0.0, -1.0, float("nan")])
 def test_validar_anotaciones_exige_un_lado_minimo_positivo(lado_minimo: float) -> None:
-    with pytest.raises(ValueError, match="lado mínimo debe ser positivo"):
+    with pytest.raises(ValueError) as error:
         validar_anotaciones(coco(), TAXONOMIA_V1, lado_minimo)
+
+    assert str(error.value) == f"El lado mínimo debe ser positivo; llegó {lado_minimo}."
 
 
 @pytest.mark.parametrize("categoria", [0, 5, 99, "3"])

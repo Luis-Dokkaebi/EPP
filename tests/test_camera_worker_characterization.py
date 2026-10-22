@@ -15,6 +15,7 @@ import pytest
 
 from src.tracking import camera_worker as modulo_worker
 from src.tracking.camera_worker import CameraWorker
+from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
 
 CLASE_PERSONA = 0
 CLASE_AUTO = 2
@@ -28,49 +29,6 @@ ESPERA_RECONEXION_S = 2.0
 
 def frame_blanco() -> np.ndarray:
     return np.full((ALTO, ANCHO, 3), BLANCO, dtype=np.uint8)
-
-
-class TensorFalso:
-    """Imita la interfaz `.cpu().numpy()` de los tensores de Ultralytics."""
-
-    def __init__(self, valores: list[Any]) -> None:
-        self._valores = np.asarray(valores, dtype=np.float32)
-
-    def cpu(self) -> "TensorFalso":
-        return self
-
-    def numpy(self) -> np.ndarray:
-        return self._valores
-
-
-class CajasFalsas:
-    def __init__(self, detecciones: list[tuple[int, tuple[float, ...]]]) -> None:
-        self.xyxy = TensorFalso([caja for _, caja in detecciones] or np.empty((0, 4)))
-        self.conf = TensorFalso([0.9] * len(detecciones))
-        self.cls = TensorFalso([clase for clase, _ in detecciones])
-        self.id = None
-
-
-class ResultadoFalso:
-    obb = None
-    masks = None
-
-    def __init__(self, frame: np.ndarray, detecciones: list[tuple[int, tuple[float, ...]]]) -> None:
-        self.boxes = CajasFalsas(detecciones)
-        self._frame = frame
-
-    def plot(self) -> np.ndarray:
-        return self._frame.copy()
-
-
-class ModeloFalso:
-    def __init__(self, detecciones: list[tuple[int, tuple[float, ...]]]) -> None:
-        self._detecciones = detecciones
-        self.frames_recibidos: list[np.ndarray] = []
-
-    def __call__(self, frame: np.ndarray, verbose: bool = False) -> list[ResultadoFalso]:
-        self.frames_recibidos.append(frame)
-        return [ResultadoFalso(frame, self._detecciones)]
 
 
 class CapturaFalsa:
@@ -149,7 +107,7 @@ class Escenario:
 def crear_worker(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> Callable[..., Escenario]:
     def _crear(  # noqa: PLR0913 - cada argumento es una perilla del escenario
         frames: list[np.ndarray | None],
-        detecciones: list[tuple[int, tuple[float, ...]]] | None = None,
+        detecciones: list[DeteccionCruda] | None = None,
         camara: int | str = 0,
         verificacion: Callable[[str], bool] = lambda _ruta: True,
         tamano_cola: int = 0,
@@ -203,9 +161,9 @@ def test_camera_worker_pasa_al_pipeline_personas_de_clase_0_y_celulares_de_clase
     escenario = crear_worker(
         frames=[frame],
         detecciones=[
-            (CLASE_PERSONA, (10.0, 20.0, 110.0, 220.0)),
-            (CLASE_CELULAR, (5.7, 6.2, 30.9, 40.1)),
-            (CLASE_AUTO, (1.0, 1.0, 2.0, 2.0)),
+            DeteccionCruda(CLASE_PERSONA, (10.0, 20.0, 110.0, 220.0)),
+            DeteccionCruda(CLASE_CELULAR, (5.7, 6.2, 30.9, 40.1)),
+            DeteccionCruda(CLASE_AUTO, (1.0, 1.0, 2.0, 2.0)),
         ],
     )
     pipeline = PipelineFalso()

@@ -130,3 +130,15 @@ def _razon(medicion: Medicion, metrica: str, sentido: str, umbral: float | None)
     if sentido == "max" and valor > umbral:
         return f"{metrica}: {valor:.1f} > {umbral:.1f}"
     return ""
+
+
+def fila_bitacora(medicion: Medicion, hipotesis: str, hardware: str, veredicto: str) -> str:
+    return (
+        f"{medicion.nombre} | {hipotesis} | {hardware} | {medicion.fps:.1f} | "
+        f"{medicion.latencia_p95_ms:.0f} | {medicion.ram_mb:.0f} | {medicion.recall:.3f} | "
+        f"{veredicto} | precisión {medicion.precision:.3f}"
+    )
+
+
+def veredicto(razones: list[str]) -> str:
+    return "sí" if not razones else f"no ({'; '.join(razones)})"

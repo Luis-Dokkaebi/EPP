@@ -14,6 +14,7 @@ from tools.bench_detectores import (
     iou,
     medir_variante,
     percentil,
+    veredicto,
 )
 
 FRAME = np.zeros((4, 4, 3), dtype=np.uint8)
@@ -89,3 +90,8 @@ def test_puerta_acepta_valores_iguales_al_umbral() -> None:
     umbrales = {"fps": ("min", 10.0), "latencia_p95_ms": ("max", 100.0)}
 
     assert evaluar_puerta(_medicion(), _medicion(), umbrales) == []
+
+
+@pytest.mark.parametrize(("razones", "esperado"), [([], "sí"), (["a", "b"], "no (a; b)")])
+def test_veredicto_resume_las_razones(razones: list[str], esperado: str) -> None:
+    assert veredicto(razones) == esperado

@@ -98,8 +98,10 @@ def test_crear_manifiesto_registra_version_taxonomia_fuentes_y_hashes(tmp_path: 
 
 @pytest.mark.parametrize("version", ["0.1", "v1", "v0.1-beta", "V0.1", ""])
 def test_crear_manifiesto_exige_una_version_mayor_menor(tmp_path: Path, version: str) -> None:
-    with pytest.raises(ContratoDeDatosError, match="vMAYOR.MENOR"):
+    with pytest.raises(ContratoDeDatosError) as error:
         _crear(_dataset(tmp_path), version=version)
+
+    assert error.value.violaciones == [f'Versión "{version}" inválida: usa vMAYOR.MENOR (v0.1).']
 
 
 def test_crear_manifiesto_rechaza_fuentes_con_licencia_prohibida(tmp_path: Path) -> None:
@@ -108,8 +110,29 @@ def test_crear_manifiesto_rechaza_fuentes_con_licencia_prohibida(tmp_path: Path)
 
 
 def test_crear_manifiesto_exige_al_menos_una_fuente(tmp_path: Path) -> None:
-    with pytest.raises(ContratoDeDatosError, match="al menos una fuente"):
+    with pytest.raises(ContratoDeDatosError) as error:
         _crear(_dataset(tmp_path), fuentes=())
+
+    assert error.value.violaciones == ["El dataset debe declarar al menos una fuente."]
+
+
+def test_definicion_del_dataset_es_inmutable() -> None:
+    definicion = DefinicionDelDataset("v0.1", TAXONOMIA_V1, FUENTES, REGLA, LADO_MINIMO)
+
+    with pytest.raises(AttributeError, match="cannot assign"):
+        definicion.version = "v9.9"
+
+
+def test_las_anotaciones_del_dataset_se_llaman_anotaciones_json() -> None:
+    assert ARCHIVO_DE_ANOTACIONES == "anotaciones.json"
+
+
+def test_huella_del_manifiesto_es_el_sha256_del_json_canonico_sin_escapar() -> None:
+    canonico = '{"a":"señal","b":[1,2]}'
+
+    huella = huella_del_manifiesto({"b": [1, 2], "a": "señal"})
+
+    assert huella == hashlib.sha256(canonico.encode("utf-8")).hexdigest()
 
 
 def test_crear_manifiesto_valida_las_anotaciones_contra_el_contrato(tmp_path: Path) -> None:

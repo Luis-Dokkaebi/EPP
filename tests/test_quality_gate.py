@@ -68,15 +68,33 @@ def _crear_herramienta(carpeta: Path, nombre: str, codigo: int) -> None:
     )
 
 
-def _entorno(tmp_path: Path, fallan: frozenset[str] = frozenset()) -> dict[str, str]:
+# Windows necesita estas variables para ejecutar los .cmd falsos (cmd.exe y PATHEXT).
+VARIABLES_DE_WINDOWS = frozenset({"SYSTEMROOT", "COMSPEC", "PATHEXT"})
+
+
+def _entorno(
+    tmp_path: Path,
+    fallan: frozenset[str] = frozenset(),
+    ausentes: frozenset[str] = frozenset(),
+) -> dict[str, str]:
     carpeta = tmp_path / "bin"
     carpeta.mkdir()
-    for nombre in HERRAMIENTAS:
+    for nombre in sorted(set(HERRAMIENTAS) - ausentes):
         _crear_herramienta(carpeta, nombre, 1 if nombre in fallan else 0)
-    sistema = os.pathsep.join(str(Path(ruta).parent) for ruta in (_pwsh(), shutil.which("bash")))
+    # Solo la carpeta de bash (sus utilidades): la de pwsh puede ser un venv con las herramientas
+    # reales, que ocultarían a las falsas.
+    sistema = [str(Path(shutil.which("bash") or "/bin/bash").parent)]
+    windows = {
+        clave: valor for clave, valor in os.environ.items() if clave.upper() in VARIABLES_DE_WINDOWS
+    }
+    system32 = [
+        str(Path(valor, "System32"))
+        for clave, valor in windows.items()
+        if clave.upper() == "SYSTEMROOT"
+    ]
     return {
-        **{clave: valor for clave, valor in os.environ.items() if clave.upper() == "SYSTEMROOT"},
-        "PATH": os.pathsep.join([str(carpeta), sistema, "/usr/bin", "/bin"]),
+        **windows,
+        "PATH": os.pathsep.join([str(carpeta), *sistema, *system32, "/usr/bin", "/bin"]),
         "GATE_REPORTES": str(tmp_path / "reportes"),
         "DISPLAY": ":0",
         "HOME": str(tmp_path),
@@ -188,3 +206,10 @@ def test_quality_gate_falla_si_aparece_un_secreto_nuevo(lanzador: Lanzador, tmp_
 
     assert resultado.returncode != 0
     assert "FALLA en el paso '6c-secretos'" in resultado.stderr
+
+
+def test_quality_gate_falla_si_falta_una_herramienta(lanzador: Lanzador, tmp_path: Path) -> None:
+    resultado = _correr(lanzador, _entorno(tmp_path, ausentes=frozenset({"bandit"})))
+
+    assert resultado.returncode != 0
+    assert "FALLA en el paso '6a-bandit'" in resultado.stderr

@@ -154,10 +154,22 @@ def _proyecto() -> Path:
     return Path(os.environ.get("CLAUDE_PROJECT_DIR", "."))
 
 
+def carpeta_de_scripts(sistema: str) -> str:
+    """Carpeta de ejecutables de un venv: Scripts/ en Windows (os.name "nt"), bin/ en el resto."""
+    return "Scripts" if sistema == "nt" else "bin"
+
+
+CARPETA_DE_SCRIPTS = carpeta_de_scripts(os.name)
+
+
 def herramienta(nombre: str) -> str | None:
-    """Ejecutable del entorno del proyecto: .venv del proyecto, el del intérprete o el PATH."""
-    candidatos = [_proyecto() / ".venv" / "bin" / nombre, Path(sys.executable).parent / nombre]
-    encontrada = next((str(candidato) for candidato in candidatos if candidato.is_file()), None)
+    """Ejecutable del entorno del proyecto: .venv del proyecto, el del intérprete o el PATH.
+
+    shutil.which agrega la extensión de PATHEXT en Windows (ruff.exe, python.exe).
+    """
+    interprete = Path(sys.executable).parent
+    carpetas = [_proyecto() / ".venv" / CARPETA_DE_SCRIPTS, interprete, interprete / "Scripts"]
+    encontrada = shutil.which(nombre, path=os.pathsep.join(str(c) for c in carpetas))
     return encontrada or shutil.which(nombre)
 
 

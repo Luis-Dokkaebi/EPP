@@ -27,6 +27,14 @@ OPCIONES_PIP_CON_VALOR = [
 
 
 guardian = cargar_hook("guardian")
+EN_WINDOWS = os.name == "nt"
+CARPETA = "Scripts" if EN_WINDOWS else "bin"
+EXTENSION = ".cmd" if EN_WINDOWS else ""
+PLANTILLA = (
+    '@echo off\r\n<nul set /p "={0}"\r\nexit /b {1}\r\n'
+    if EN_WINDOWS
+    else "#!/bin/sh\nprintf '%s' '{0}'\nexit {1}\n"
+)
 
 
 def _ejecutar(
@@ -44,11 +52,49 @@ def _ejecutable(ruta: Path, contenido: str) -> Path:
     return ruta
 
 
+def _herramienta_falsa(carpeta: Path, nombre: str, salida: str = "", codigo: int = 0) -> Path:
+    """Ejecutable que imprime `salida` sin salto de línea y termina con `codigo`.
+
+    En Windows es un .cmd (lo encuentra PATHEXT); en el resto, un script de sh.
+    """
+    return _ejecutable(carpeta / f"{nombre}{EXTENSION}", PLANTILLA.format(salida, codigo))
+
+
+def _misma_ruta(a: str | None, b: Path) -> bool:
+    return a is not None and os.path.normcase(a) == os.path.normcase(str(b))
+
+
 def test_herramienta_prefiere_el_venv_del_proyecto(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    propia = _ejecutable(tmp_path / ".venv" / "bin" / "ruff", "#!/bin/sh\n")
+    propia = _herramienta_falsa(tmp_path / ".venv" / CARPETA, "ruff")
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+
+    assert _misma_ruta(guardian.herramienta("ruff"), propia)
+
+
+def test_herramienta_en_windows_busca_en_la_carpeta_scripts_del_venv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    propia = _ejecutable(tmp_path / ".venv" / "Scripts" / "ruff", "#!/bin/sh\n")
+    monkeypatch.setattr(guardian, "CARPETA_DE_SCRIPTS", "Scripts")
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+
+    assert guardian.herramienta("ruff") == str(propia)
+
+
+@pytest.mark.parametrize(("sistema", "carpeta"), [("nt", "Scripts"), ("posix", "bin")])
+def test_carpeta_de_scripts_depende_del_sistema(sistema: str, carpeta: str) -> None:
+    assert guardian.carpeta_de_scripts(sistema) == carpeta
+
+
+def test_herramienta_busca_en_la_carpeta_scripts_del_interprete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    propia = _ejecutable(tmp_path / "python" / "Scripts" / "ruff", "#!/bin/sh\n")
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "python" / "python"))
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path / "proyecto"))
+    monkeypatch.setenv("PATH", "")
 
     assert guardian.herramienta("ruff") == str(propia)
 
@@ -56,29 +102,33 @@ def test_herramienta_prefiere_el_venv_del_proyecto(
 def test_herramienta_sin_variable_de_proyecto_usa_el_directorio_actual(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _ejecutable(tmp_path / ".venv" / "bin" / "ruff", "#!/bin/sh\n")
+    _herramienta_falsa(tmp_path / ".venv" / CARPETA, "ruff")
     monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
     monkeypatch.chdir(tmp_path)
 
-    assert guardian.herramienta("ruff") == os.path.join(".venv", "bin", "ruff")
+    assert _misma_ruta(guardian.herramienta("ruff"), Path(".venv", CARPETA, f"ruff{EXTENSION}"))
 
 
 def test_herramienta_sin_venv_usa_la_del_interprete(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+    interprete = Path(sys.executable).parent
 
-    assert guardian.herramienta("ruff") == str(Path(sys.executable).parent / "ruff")
+    encontrada = Path(guardian.herramienta("ruff") or "")
+
+    assert encontrada.stem.lower() == "ruff"
+    assert encontrada.parent in {interprete, interprete / "Scripts"}
 
 
 def test_herramienta_por_ultimo_busca_en_el_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    en_path = _ejecutable(tmp_path / "bin" / "herramienta-falsa", "#!/bin/sh\n")
+    en_path = _herramienta_falsa(tmp_path / "bin", "herramienta-falsa")
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
     monkeypatch.setenv("PATH", str(en_path.parent))
 
-    assert guardian.herramienta("herramienta-falsa") == str(en_path)
+    assert _misma_ruta(guardian.herramienta("herramienta-falsa"), en_path)
 
 
 def _formatear(ruta: Path, monkeypatch: pytest.MonkeyPatch) -> int:
@@ -241,12 +291,12 @@ def test_main_cierre_usa_el_python_del_venv_del_proyecto(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _crear_proyecto(tmp_path, "reglas\n", "assert True")
-    _ejecutable(tmp_path / ".venv" / "bin" / "python", "#!/bin/sh\necho pytest-falso\nexit 1\n")
+    _herramienta_falsa(tmp_path / ".venv" / CARPETA, "python", "pytest-falso", codigo=1)
 
     _cerrar(tmp_path, monkeypatch)
 
     assert _motivo_de_cierre(capsys) == (
-        "Las pruebas unitarias rápidas fallan (Ley Cero):\npytest-falso\n"
+        "Las pruebas unitarias rápidas fallan (Ley Cero):\npytest-falso"
     )
 
 
@@ -255,9 +305,7 @@ def test_main_cierre_recorta_la_salida_de_las_pruebas_a_los_ultimos_caracteres(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _crear_proyecto(tmp_path, "reglas\n", "assert True")
-    _ejecutable(
-        tmp_path / ".venv" / "bin" / "python", "#!/bin/sh\nprintf 'a%.0s' $(seq 2500)\nexit 1\n"
-    )
+    _herramienta_falsa(tmp_path / ".venv" / CARPETA, "python", "a" * 2500, codigo=1)
 
     _cerrar(tmp_path, monkeypatch)
 

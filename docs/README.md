@@ -47,6 +47,11 @@ calidad sin enlazar.
 - [Expediente para la revisión legal (D9)](legal/revision_d9.md) — hechos y decisiones humanas
   pendientes antes del release (no es asesoría legal).
 
+## Runbooks (tareas humanas)
+
+- [A-16: contraer la migración del motor](runbooks/a16_contraer_motor.md) — requiere D8, el
+  modelo ONNX aprobado y la prueba de humo del ejecutable.
+
 ## Seguridad
 
 - [Auditoría de seguridad](security_audit_report.md) — informe heredado.

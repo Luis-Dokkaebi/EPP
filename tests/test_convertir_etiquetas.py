@@ -70,8 +70,15 @@ def test_convertir_produce_un_coco_que_cumple_el_contrato_de_datos() -> None:
 
 @pytest.mark.parametrize(
     "marca",
-    [{"iscrowd": 1}, {"attributes": {"ignorar": True}}, {"attributes": {"ignorar": "true"}}],
-    ids=["iscrowd", "atributo-bool", "atributo-texto"],
+    [
+        {"iscrowd": 1},
+        {"attributes": {"ignorar": True}},
+        {"attributes": {"ignorar": "true"}},
+        {"attributes": {"ignorar": "True"}},
+        {"attributes": {"ignorar": "1"}},
+        {"attributes": {"ignorar": 1}},
+    ],
+    ids=["iscrowd", "atributo-bool", "texto", "texto-mayuscula", "texto-uno", "entero-uno"],
 )
 def test_convertir_marca_como_ignorar_lo_que_el_etiquetador_ignoro(marca: dict[str, Any]) -> None:
     convertido = convertir(_exportado(_anotacion(**marca)), [METADATOS], TAXONOMIA_V1)
@@ -92,8 +99,19 @@ def test_convertir_rechaza_etiquetas_fuera_de_la_taxonomia() -> None:
     exportado = _exportado(_anotacion(category_id=3))
     exportado["categories"].append({"id": 3, "name": "Casco"})
 
-    with pytest.raises(ConversionInvalidaError, match='Etiqueta "Casco" fuera de la taxonomía'):
+    with pytest.raises(ConversionInvalidaError) as error:
         convertir(exportado, [METADATOS], TAXONOMIA_V1)
+
+    assert str(error.value) == (
+        'Etiqueta "Casco" fuera de la taxonomía (persona, cabeza, casco, chaleco): renómbrala en '
+        "la herramienta de etiquetado (docs/ml/guia_etiquetado.md §1)."
+    )
+
+
+def test_convertir_acepta_rutas_de_windows_en_el_exportado() -> None:
+    exportado = _exportado(file_name=f"images\\{ARCHIVO}")
+
+    assert convertir(exportado, [METADATOS], TAXONOMIA_V1)["images"][0]["file_name"] == ARCHIVO
 
 
 def test_convertir_acepta_etiquetas_de_la_herramienta_que_no_se_usaron() -> None:
@@ -104,14 +122,27 @@ def test_convertir_acepta_etiquetas_de_la_herramienta_que_no_se_usaron() -> None
 
 
 def test_convertir_rechaza_imagenes_sin_metadatos_de_captura() -> None:
-    with pytest.raises(ConversionInvalidaError, match="no tiene metadatos de captura"):
+    with pytest.raises(ConversionInvalidaError) as error:
         convertir(_exportado(), [], TAXONOMIA_V1)
 
+    assert str(error.value) == (
+        f"{ARCHIVO} no tiene metadatos de captura: solo entran imágenes capturadas con "
+        "tools/capturar_dataset.py y su autorización."
+    )
 
-@pytest.mark.parametrize(("campo", "valor"), [("width", 641), ("height", 479)])
-def test_convertir_rechaza_tamanos_distintos_de_los_capturados(campo: str, valor: int) -> None:
-    with pytest.raises(ConversionInvalidaError, match="no coincide con la captura"):
+
+@pytest.mark.parametrize(
+    ("campo", "valor", "capturado"), [("width", 641, 640), ("height", 479, 480)]
+)
+def test_convertir_rechaza_tamanos_distintos_de_los_capturados(
+    campo: str, valor: int, capturado: int
+) -> None:
+    with pytest.raises(ConversionInvalidaError) as error:
         convertir(_exportado(**{campo: valor}), [METADATOS], TAXONOMIA_V1)
+
+    assert str(error.value) == (
+        f'{ARCHIVO}: "{campo}" ({valor}) no coincide con la captura ({capturado}).'
+    )
 
 
 def test_convertir_renumera_imagenes_y_cajas_en_orden_de_nombre() -> None:

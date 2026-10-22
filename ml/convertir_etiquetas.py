@@ -12,7 +12,8 @@ from typing import Any
 
 from ml.contrato_datos import categorias
 
-VERDADEROS = frozenset({True, "true", "True", "1", 1})
+# True también cubre al entero 1: en Python True == 1 y ambos tienen el mismo hash.
+VERDADEROS = frozenset({True, "true", "True", "1"})
 
 
 class ConversionInvalidaError(ValueError):

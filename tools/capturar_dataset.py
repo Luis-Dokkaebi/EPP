@@ -5,10 +5,12 @@ nombra cada imagen según el contrato de datos (docs/ml/contrato_datos.md). El p
 está en docs/runbooks/captura_dataset.md.
 """
 
+import argparse
 import hashlib
 import json
 import re
-from collections.abc import Callable, Iterable, Iterator, Mapping
+import sys
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -28,6 +30,11 @@ SECUENCIA_MAXIMA = 9999
 DIMENSIONES_GRIS = 2
 HORA = r"(?:[01]?\d|2[0-4])"  # 0 a 24
 TURNO = re.compile(rf"(?P<nombre>[a-z0-9-]+)=(?P<inicio>{HORA})-(?P<fin>{HORA})")
+CREDENCIALES_EN_URL = re.compile(r"//[^/@]+@")
+# Propuesta del borrador: dHash a 5 bits o menos de 64 es la misma escena; se ajusta con las
+# primeras capturas reales del piloto (docs/runbooks/captura_dataset.md).
+DISTANCIA_MAXIMA_PROPUESTA = 5
+CODIGO_DE_ERROR = 2
 
 
 class CapturaInvalidaError(ValueError):
@@ -288,3 +295,80 @@ def _jpeg(imagen: np.ndarray) -> bytes:
     if not codificada_bien:
         raise CapturaInvalidaError("OpenCV no pudo codificar el fotograma como JPEG.")
     return bytes(codificada.tobytes())
+
+
+def ocultar_credenciales(fuente: str) -> str:
+    """Quita de una URL RTSP el usuario y la clave (lo que va entre "//" y "@") para mostrarla."""
+    return CREDENCIALES_EN_URL.sub("//***@", fuente)
+
+
+def abrir_fuente(fuente: str) -> CapturaDeVideo:
+    """Un número es el índice de una cámara USB; el resto, un archivo o una URL RTSP."""
+    captura = cv2.VideoCapture(int(fuente)) if fuente.isdigit() else cv2.VideoCapture(fuente)
+    if not captura.isOpened():
+        raise CapturaInvalidaError(f"No se pudo abrir la fuente {ocultar_credenciales(fuente)}.")
+    return captura
+
+
+def _analizar(argv: Sequence[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--fuente", required=True, help="video, URL RTSP o índice de cámara")
+    parser.add_argument("--camara", required=True, help="identificador corto: a-z, 0-9 y -")
+    parser.add_argument("--salida", required=True, type=Path, help="carpeta cifrada, fuera de git")
+    parser.add_argument("--autorizacion", required=True, help="ID de la autorización del cliente")
+    parser.add_argument(
+        "--retencion-dias", required=True, type=int, help="plazo de borrado (decisión D5)"
+    )
+    parser.add_argument("--turnos", required=True, help="por ejemplo: manana=6-14,tarde=14-22")
+    parser.add_argument("--intervalo-segundos", required=True, type=float)
+    parser.add_argument("--distancia-maxima", type=int, default=DISTANCIA_MAXIMA_PROPUESTA)
+    parser.add_argument("--maximo", type=int, default=None, help="tope de imágenes guardadas")
+    modo = parser.add_mutually_exclusive_group(required=True)
+    modo.add_argument("--inicio", type=datetime.fromisoformat, help="hora del primer fotograma")
+    modo.add_argument("--en-vivo", action="store_true", help="fecha cada fotograma con el reloj")
+    return parser.parse_args(argv)
+
+
+def _configuracion(argumentos: argparse.Namespace) -> ConfiguracionDeCaptura:
+    return ConfiguracionDeCaptura(
+        camara=argumentos.camara,
+        salida=argumentos.salida,
+        autorizacion=argumentos.autorizacion,
+        retencion_dias=argumentos.retencion_dias,
+        turnos=TablaDeTurnos.desde_texto(argumentos.turnos),
+        intervalo=timedelta(seconds=argumentos.intervalo_segundos),
+        distancia_maxima=argumentos.distancia_maxima,
+        maximo_de_imagenes=argumentos.maximo,
+    )
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    abrir: Callable[[str], CapturaDeVideo] = abrir_fuente,
+    reloj: Callable[[], datetime] = datetime.now,
+) -> int:
+    argumentos = _analizar(argv)
+    try:
+        configuracion = _configuracion(argumentos)
+        captura = abrir(argumentos.fuente)
+        try:
+            fotogramas = (
+                fotogramas_en_vivo(captura, reloj)
+                if argumentos.en_vivo
+                else fotogramas_de_archivo(captura, argumentos.inicio)
+            )
+            resumen = capturar(fotogramas, configuracion)
+        finally:
+            captura.release()
+    except CapturaInvalidaError as error:
+        sys.stderr.write(f"{error}\n")
+        return CODIGO_DE_ERROR
+    sys.stdout.write(
+        f"Guardadas: {resumen.guardadas}; descartadas por casi duplicadas: "
+        f"{resumen.duplicadas}; carpeta: {configuracion.salida}\n"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

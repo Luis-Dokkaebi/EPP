@@ -5,17 +5,22 @@ nombra cada imagen según el contrato de datos (docs/ml/contrato_datos.md). El p
 está en docs/runbooks/captura_dataset.md.
 """
 
+import hashlib
+import json
 import re
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import NamedTuple
+from pathlib import Path
+from typing import Any, NamedTuple, Protocol
 
 import cv2
 import numpy as np
 
 from ml.contrato_datos import NOMBRE_DE_ARCHIVO
 
+RAIZ_DEL_REPOSITORIO = Path(__file__).resolve().parents[1]
+ARCHIVO_DE_METADATOS = "metadatos.jsonl"
 BITS_DE_HUELLA = 64
 LADO_DE_HUELLA = (9, 8)  # 9 columnas para comparar 8 pares por fila: 8 x 8 = 64 bits
 HORAS_DEL_DIA = 24
@@ -150,3 +155,136 @@ def nombre_de_archivo(camara: str, momento: datetime, secuencia: int) -> str:
             "nombres de personas ni direcciones IP."
         )
     return nombre
+
+
+class CapturaDeVideo(Protocol):
+    """Lo que la captura usa de cv2.VideoCapture."""
+
+    def read(self) -> tuple[bool, Any]: ...
+
+    def get(self, propiedad: int, /) -> float: ...
+
+    def release(self) -> None: ...
+
+
+def fotogramas_de_archivo(captura: CapturaDeVideo, inicio: datetime) -> Iterator[Fotograma]:
+    """Video grabado: cada fotograma se fecha desde `inicio` según los FPS del archivo."""
+    fps = captura.get(cv2.CAP_PROP_FPS)
+    if not fps > 0:
+        raise CapturaInvalidaError(
+            f"La fuente no informa sus FPS ({fps}): conviértela a un video con FPS fijos."
+        )
+    for indice, imagen in enumerate(_imagenes(captura)):
+        yield Fotograma(inicio + timedelta(seconds=indice / fps), imagen)
+
+
+def fotogramas_en_vivo(
+    captura: CapturaDeVideo, reloj: Callable[[], datetime]
+) -> Iterator[Fotograma]:
+    """Cámara en vivo: cada fotograma lleva la hora del reloj; termina si la cámara se corta."""
+    for imagen in _imagenes(captura):
+        yield Fotograma(reloj(), imagen)
+
+
+def _imagenes(captura: CapturaDeVideo) -> Iterator[np.ndarray]:
+    leida, imagen = captura.read()
+    while leida:
+        yield imagen
+        leida, imagen = captura.read()
+
+
+@dataclass(frozen=True)
+class ConfiguracionDeCaptura:
+    """Parámetros de una captura; se validan al crearla (privacidad y custodia, SPEC/9 §2.6)."""
+
+    camara: str
+    salida: Path
+    autorizacion: str
+    retencion_dias: int
+    turnos: TablaDeTurnos
+    intervalo: timedelta
+    distancia_maxima: int
+    maximo_de_imagenes: int | None
+
+    def __post_init__(self) -> None:
+        if not self.autorizacion.strip():
+            raise CapturaInvalidaError(
+                "Falta el identificador de la autorización escrita del cliente (SPEC/9 §2.3)."
+            )
+        if self.retencion_dias <= 0:
+            raise CapturaInvalidaError(
+                "El plazo de retención debe ser un número positivo de días. El valor lo fija la "
+                "decisión PENDIENTE (D5); no hay uno por omisión."
+            )
+        if self.maximo_de_imagenes is not None and self.maximo_de_imagenes <= 0:
+            raise CapturaInvalidaError("El máximo de imágenes debe ser positivo.")
+        if self.salida.resolve().is_relative_to(RAIZ_DEL_REPOSITORIO):
+            raise CapturaInvalidaError(
+                f"{self.salida} está dentro del repositorio: las imágenes nunca van a git. Usa "
+                "una carpeta en el almacenamiento cifrado (docs/runbooks/captura_dataset.md)."
+            )
+
+
+class ResumenDeCaptura(NamedTuple):
+    guardadas: int
+    duplicadas: int
+
+
+def capturar(
+    fotogramas: Iterable[Fotograma], configuracion: ConfiguracionDeCaptura
+) -> ResumenDeCaptura:
+    """Guarda las imágenes muestreadas y no duplicadas, con una línea de metadatos cada una."""
+    filtro = FiltroDeDuplicados(configuracion.distancia_maxima)
+    configuracion.salida.mkdir(parents=True, exist_ok=True)
+    guardadas = duplicadas = 0
+    ruta_metadatos = configuracion.salida / ARCHIVO_DE_METADATOS
+    with ruta_metadatos.open("a", encoding="utf-8") as metadatos:
+        for fotograma in muestrear(fotogramas, configuracion.intervalo):
+            huella = dhash(fotograma.imagen)
+            if filtro.es_duplicado(huella):
+                duplicadas += 1
+                continue
+            filtro.registrar(huella)
+            guardadas += 1
+            registro = _guardar_imagen(fotograma, guardadas, configuracion)
+            metadatos.write(json.dumps(registro, ensure_ascii=False) + "\n")
+            metadatos.flush()
+            if guardadas == configuracion.maximo_de_imagenes:
+                break
+    return ResumenDeCaptura(guardadas, duplicadas)
+
+
+def _guardar_imagen(
+    fotograma: Fotograma, secuencia: int, configuracion: ConfiguracionDeCaptura
+) -> dict[str, Any]:
+    momento = fotograma.momento
+    nombre = nombre_de_archivo(configuracion.camara, momento, secuencia)
+    contenido = _jpeg(fotograma.imagen)
+    try:
+        with (configuracion.salida / nombre).open("xb") as archivo:
+            archivo.write(contenido)
+    except FileExistsError as error:
+        raise CapturaInvalidaError(
+            f"{nombre} ya existe: la captura nunca sobrescribe imágenes."
+        ) from error
+    alto, ancho = fotograma.imagen.shape[:2]
+    borrado = momento.date() + timedelta(days=configuracion.retencion_dias)
+    return {
+        "file_name": nombre,
+        "width": ancho,
+        "height": alto,
+        "camara": configuracion.camara,
+        "fecha": f"{momento:%Y-%m-%d}",
+        "hora": f"{momento:%H:%M:%S}",
+        "turno": configuracion.turnos.turno_de(momento),
+        "autorizacion": configuracion.autorizacion,
+        "sha256": hashlib.sha256(contenido).hexdigest(),
+        "eliminar_despues_de": borrado.isoformat(),
+    }
+
+
+def _jpeg(imagen: np.ndarray) -> bytes:
+    codificada_bien, codificada = cv2.imencode(".jpg", imagen)
+    if not codificada_bien:
+        raise CapturaInvalidaError("OpenCV no pudo codificar el fotograma como JPEG.")
+    return bytes(codificada.tobytes())

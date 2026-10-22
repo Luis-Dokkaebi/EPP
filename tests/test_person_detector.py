@@ -43,7 +43,7 @@ def _make_detector(sv_mock, ul_mock, fake_dets, confidence_threshold=0.4):
 
     # Import (or reimport) with mocks in place
     import importlib
-    import detection.person_detector as _pd_mod
+    import src.detection.person_detector as _pd_mod
     importlib.reload(_pd_mod)
 
     detector = _pd_mod.PersonDetector(model_path="fake.pt", confidence_threshold=confidence_threshold)

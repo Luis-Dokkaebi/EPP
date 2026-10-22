@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 # Add src to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from analysis.efficiency_calculator import EfficiencyCalculator
-from storage.database_manager import DatabaseManager
+from src.analysis.efficiency_calculator import EfficiencyCalculator
+from src.storage.database_manager import DatabaseManager
 
 class TestReportGeneration(unittest.TestCase):
     def setUp(self):

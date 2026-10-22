@@ -42,7 +42,6 @@ import threading
 from tkcalendar import DateEntry
 import pandas as pd
 from datetime import datetime, date, timedelta
-from storage.database_manager import DatabaseManager
 
 import sys
 import subprocess
@@ -51,9 +50,11 @@ import threading
 # Add the project root directory to the python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from src.storage.database_manager import DatabaseManager
+
 # Explicitly import main so PyInstaller bundles all its heavy dependencies (ultralytics, supervision)
-import main
-from recognition.face_recognizer import FaceRecognizer
+from src import main
+from src.recognition.face_recognizer import FaceRecognizer
 import face_recognition
 
 class SystemGUI:
@@ -1074,7 +1075,7 @@ class SystemGUI:
             self.root.destroy()
             
             try:
-                import main
+                from src import main
                 main.start_video_stream()
             except Exception as e:
                 print(f"Error al iniciar el sistema principal: {e}")

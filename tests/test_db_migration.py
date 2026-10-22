@@ -6,7 +6,7 @@ import sys
 # Add src to path
 sys.path.append(os.path.join(os.getcwd(), 'src'))
 
-from storage.database_manager import DatabaseManager
+from src.storage.database_manager import DatabaseManager
 
 class TestDBMigration(unittest.TestCase):
     def setUp(self):

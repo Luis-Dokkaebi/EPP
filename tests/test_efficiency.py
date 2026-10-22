@@ -6,7 +6,7 @@ import sys
 
 sys.path.append(os.path.join(os.getcwd(), 'src'))
 
-from analysis.efficiency_calculator import EfficiencyCalculator
+from src.analysis.efficiency_calculator import EfficiencyCalculator
 
 class TestEfficiency(unittest.TestCase):
     def setUp(self):

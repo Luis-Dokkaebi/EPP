@@ -1,7 +1,7 @@
 import json
 import pytest
 
-from zones.zone_checker import ZoneChecker
+from src.zones.zone_checker import ZoneChecker
 
 
 @pytest.fixture

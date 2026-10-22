@@ -177,19 +177,6 @@ module = [
 ]
 ignore_missing_imports = true
 
-[[tool.mypy.overrides]]
-# WAIVER-#4 (caduca 2027-01-19): imports heredados sin el prefijo `src.`; A-04 los unifica.
-module = [
-    "analysis.*",
-    "detection.*",
-    "main",
-    "recognition.*",
-    "storage.*",
-    "tracking.*",
-    "zones.*",
-]
-ignore_missing_imports = true
-
 # WAIVER-#4 (caduca 2027-01-19): módulos heredados sin anotar. Cada override desactiva solo
 # los códigos que hoy incumple el módulo; al tocarlo se anota y se borra su bloque.
 

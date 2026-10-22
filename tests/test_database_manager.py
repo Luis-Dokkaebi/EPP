@@ -2,7 +2,7 @@ import sqlite3
 import pytest
 from datetime import datetime
 
-from storage.database_manager import DatabaseManager
+from src.storage.database_manager import DatabaseManager
 
 
 @pytest.fixture

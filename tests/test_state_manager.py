@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from unittest.mock import MagicMock
 
-from analysis.state_manager import StateManager
+from src.analysis.state_manager import StateManager
 
 
 @pytest.fixture

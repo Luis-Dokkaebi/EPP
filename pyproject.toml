@@ -157,6 +157,7 @@ source = ["src"]
 python_version = "3.11"
 warn_unused_ignores = true
 disallow_untyped_defs = true
+files = ["src", "scripts/check_*.py"]
 
 [[tool.mypy.overrides]]
 # Librerías de terceros sin anotaciones de tipos publicadas (no es un waiver).
@@ -164,6 +165,7 @@ module = [
     "customtkinter.*",
     "face_recognition.*",
     "pandas.*",
+    "radon.*",
     "reportlab.*",
     "seaborn.*",
     "shapely.*",

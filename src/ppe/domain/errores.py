@@ -7,3 +7,7 @@ class DominioEPPError(Exception):
 
 class CajaInvalidaError(DominioEPPError):
     """La caja tiene coordenadas no finitas o esquinas invertidas."""
+
+
+class ObservacionInvalidaError(DominioEPPError):
+    """Lo observado en un frame es incoherente (por ejemplo, un track_id repetido)."""

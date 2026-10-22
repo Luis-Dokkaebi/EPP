@@ -13,6 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.tracking.camera_worker import CameraWorker
 
 _FACES_TMP = os.path.join(tempfile.gettempdir(), 'test_faces_cw')
+SEGUNDOS_PARA_DETENERSE = 30
 
 class MockModel:
     def __call__(self, frame, verbose=False):
@@ -51,7 +52,10 @@ class TestCameraWorkerLeaks(unittest.TestCase):
         
         # Stop background worker and clean up
         worker.stop()
-        worker.join(timeout=2)
+        worker.join(timeout=SEGUNDOS_PARA_DETENERSE)
+        # CLAUDE.md §16: todo start() tiene su stop() probado. Un worker vivo seguiría
+        # consumiendo CPU en las pruebas siguientes (en la CI de Windows ahogaba al dashboard).
+        self.assertFalse(worker.is_alive(), "El worker debe terminar tras stop().")
 
         mem_end = process.memory_info().rss
         mem_diff_mb = (mem_end - mem_start) / (1024 * 1024)

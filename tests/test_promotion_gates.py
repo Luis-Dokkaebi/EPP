@@ -32,6 +32,20 @@ def test_las_puertas_del_plan_existen_y_ninguna_tiene_umbral_inventado() -> None
     assert {puerta.umbral for puerta in PUERTAS_DE_PROMOCION} == {None}
 
 
+def test_cada_puerta_explica_que_mide() -> None:
+    assert [puerta.descripcion for puerta in PUERTAS_DE_PROMOCION] == [
+        "recall de infracciones de casco a nivel evento",
+        "recall de infracciones de chaleco a nivel evento",
+        "falsas alarmas por cámara y por hora en los videos dorados",
+        "FPS por cámara con N cámaras en el hardware del piloto",
+        "recall de persona menos el del modelo de producción",
+    ]
+
+
+def test_la_direccion_se_escribe_como_en_el_plan() -> None:
+    assert (Direccion("min"), Direccion("max")) == (Direccion.MINIMO, Direccion.MAXIMO)
+
+
 def test_sin_umbrales_ningun_modelo_se_promueve_aunque_sus_metricas_sean_perfectas() -> None:
     perfectas = {puerta.metrica: 1.0 for puerta in PUERTAS_DE_PROMOCION}
 

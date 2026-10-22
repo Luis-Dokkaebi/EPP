@@ -27,12 +27,21 @@ function Invoke-Paso([string]$Nombre, [scriptblock]$Comando) {
     Write-Host "==> [$Nombre] $Comando"
     $archivo = Join-Path $Reportes "$Nombre.txt"
     $global:LASTEXITCODE = 0
-    & $Comando *> $archivo
+    $sinErrores = $true
+    try {
+        & $Comando *> $archivo
+        $sinErrores = $?
+    } catch {
+        # Un comando inexistente no cambia $LASTEXITCODE: sin esto el paso quedaba en verde.
+        $_ | Out-File -Append -FilePath $archivo
+        $sinErrores = $false
+    }
     $codigo = $global:LASTEXITCODE
-    if ($codigo -eq 0) {
+    if ($sinErrores -and $codigo -eq 0) {
         Write-Host "    OK -> $archivo"
         return
     }
+    if ($codigo -eq 0) { $codigo = 1 }
     Get-Content $archivo | Write-Host
     [Console]::Error.WriteLine("FALLA en el paso '$Nombre' (código $codigo). Corrige y reinicia desde el paso 1 (CLAUDE.md §10).")
     exit $codigo

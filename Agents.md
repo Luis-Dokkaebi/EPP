@@ -246,7 +246,7 @@ Característica: Reporte de eficiencia por empleado
 | Cobertura de **ramas** del código nuevo/modificado | **90 %** | Bloqueante |
 | Cobertura global del proyecto | **nunca puede bajar** respecto a `main` | Bloqueante (trinquete P4) |
 | Cobertura global — objetivo | ≥ 85 % líneas | Se sube por trinquete, nunca se baja |
-| Módulos críticos (`src/security/`, `src/storage/`, `src/analysis/`) | **100 % de ramas** | Bloqueante |
+| Módulos críticos (`src/security/`, `src/storage/`, `src/analysis/`, `src/ppe/`) | **100 % de ramas** | Bloqueante |
 
 Reglas:
 
@@ -269,7 +269,7 @@ La cobertura demuestra que el código **se ejecuta**; la mutación demuestra que
 
 | Alcance | Mutation score mínimo |
 |---------|----------------------|
-| Módulos críticos: `src/security/`, `src/storage/`, `src/analysis/efficiency_calculator.py`, `src/zones/zone_checker.py` | **90 %** |
+| Módulos críticos: `src/security/`, `src/storage/`, `src/analysis/efficiency_calculator.py`, `src/zones/zone_checker.py`, `src/ppe/` | **90 %** |
 | Código nuevo o modificado en el PR | **85 %** |
 | Resto del proyecto | trinquete: nunca baja |
 
@@ -535,6 +535,9 @@ src/detection/    → detección de personas (YOLO)
 src/tracking/     → seguimiento, workers por cámara, pipeline
 src/recognition/  → reconocimiento facial
 src/zones/        → geometría de zonas y pertenencia
+src/inference/    → puerto DetectorPort y adaptadores de motor (ONNX Runtime; Ultralytics temporal)
+src/ppe/          → EPP: dominio (elementos, asociación, reglas) y casos de uso
+src/alerts/       → alertas: dominio, outbox y adaptadores de canal (email, webhook)
 src/analysis/     → estado, eficiencia, generación de reportes
 src/storage/      → persistencia (SQLite + cifrado)
 src/security/     → DRM, cifrado de DB, crash logger
@@ -543,8 +546,9 @@ config/           → configuración y utilidades de rutas
 ```
 
 Reglas de dependencia: `gui` → `analysis`/`storage` → dominio. **La lógica de dominio
-(`zones`, `analysis`, `storage`) no importa `gui`, `cv2`, `ultralytics` ni `customtkinter`.**
-Si necesita un detector, recibe una interfaz inyectada. Un import prohibido es un fallo de PR.
+(`zones`, `analysis`, `storage`, `ppe`, `alerts`) no importa `gui`, `cv2`, `ultralytics`, `torch`,
+`onnxruntime` ni `customtkinter`.** Si necesita un detector, recibe `DetectorPort` inyectado.
+Un import prohibido es un fallo de PR: lo verifican `.importlinter` y `scripts/check_architecture.py`.
 
 ### Pruebas en este dominio
 

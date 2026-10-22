@@ -1,8 +1,8 @@
 """Caracterización de CameraWorker.run() antes de migrar el motor (SPEC/9 §1.3.1, A-09).
 
 Fijan lo que hoy hace el worker con dobles de sus colaboradores (cámara, modelo, reloj, pipeline y
-reconocedor facial). Deben pasar antes y después de cada paso de la migración: cuando el worker
-reciba un DetectorPort (A-11), solo cambia la fixture `crear_worker`, no las aserciones.
+reconocedor facial). Deben pasar antes y después de cada paso de la migración: desde A-11 el worker
+recibe un DetectorPort y solo cambió la fixture `crear_worker`, no las aserciones.
 """
 
 import queue
@@ -13,6 +13,8 @@ from typing import Any
 import numpy as np
 import pytest
 
+from src.inference.adapters.ultralytics_detector import DetectorUltralytics
+from src.inference.types import CATALOGO_COCO
 from src.tracking import camera_worker as modulo_worker
 from src.tracking.camera_worker import CameraWorker
 from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
@@ -121,7 +123,8 @@ def crear_worker(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> Callable[...
         monkeypatch.setattr(modulo_worker, "time", reloj)
         cola: queue.Queue[tuple[int | str, np.ndarray]] = queue.Queue(maxsize=tamano_cola)
         modelo = ModeloFalso(detecciones or [])
-        worker = CameraWorker(camera_id=camara, frame_queue=cola, model=modelo, fps_limit=10)
+        detector = DetectorUltralytics(modelo, CATALOGO_COCO, confianza_minima=0.0)
+        worker = CameraWorker(camera_id=camara, frame_queue=cola, detector=detector, fps_limit=10)
         capturas: list[tuple[tuple[Any, ...], CapturaFalsa]] = []
 
         def _abrir(*argumentos: Any) -> CapturaFalsa:

@@ -2,16 +2,21 @@ import cv2
 import queue
 import threading
 import time
-from typing import Tuple, Any
 import numpy as np
+from src.inference.ports import DetectorPort
 from src.recognition.face_recognizer import FaceRecognizer
+from src.tracking.annotator import AnotadorDeFrames
+from src.tracking.person_tracker import separar_personas_y_celulares
 
 class CameraWorker(threading.Thread):
-    def __init__(self, camera_id: int | str, frame_queue: queue.Queue, model: Any, fps_limit: int = 15):
+    def __init__(self, camera_id: int | str, frame_queue: queue.Queue, detector: DetectorPort,
+                 fps_limit: int = 15):
         super().__init__(daemon=True) # El hilo muere al cerrar la app
         self.camera_id = camera_id
         self.frame_queue = frame_queue
-        self.model = model
+        # SPEC/9 §1.3.5: el worker no conoce el motor de IA, solo el puerto de detección.
+        self.detector = detector
+        self.anotador = AnotadorDeFrames()
         self.fps_limit = fps_limit
         self.running = False
         self._delay = 1.0 / self.fps_limit
@@ -117,9 +122,8 @@ class CameraWorker(threading.Thread):
                     cap = cv2.VideoCapture(self.camera_id)
                 continue
 
-            # Inferencia YOLOv8
-            results = self.model(frame, verbose=False)
-            annotated_frame = results[0].plot() # numpy array (BGR)
+            detecciones = self.detector.detectar(frame)
+            annotated_frame = self.anotador.anotar(frame, detecciones)
 
             self.frame_counter += 1
 
@@ -133,15 +137,7 @@ class CameraWorker(threading.Thread):
             # try/except para que un fallo de persistencia NUNCA congele el video.
             if self.pipeline is not None:
                 try:
-                    import supervision as sv
-                    detections = sv.Detections.from_ultralytics(results[0])
-                    person_detections = detections[detections.class_id == 0]
-                    phone_detections = detections[detections.class_id == 67]
-                    phones_data = []
-                    if len(phone_detections) > 0:
-                        for b in phone_detections.xyxy:
-                            phones_data.append(tuple(map(int, b)))
-
+                    person_detections, phones_data = separar_personas_y_celulares(detecciones)
                     track_data = self.pipeline.process(
                         frame, person_detections, phones_data, time.time())
 

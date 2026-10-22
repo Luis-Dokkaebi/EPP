@@ -63,7 +63,7 @@ con_pantalla() {
 
 paquetes_medidos() {
     local paquete
-    for paquete in src scripts tools ml; do
+    for paquete in src scripts tools ml .claude/hooks; do
         [ -d "$paquete" ] && printf -- "--cov=%s " "$paquete"
     done
 }
@@ -74,7 +74,7 @@ piso_de_cobertura() {
 
 objetivos_de_mutacion() {
     if [ "$CAMBIADOS" = 1 ]; then
-        git diff --name-only --diff-filter=AM "$BASE"...HEAD -- 'src/*.py' 'scripts/*.py' 'tools/*.py' 'ml/*.py'
+        git diff --name-only --diff-filter=AM "$BASE"...HEAD -- 'src/*.py' 'scripts/*.py' 'tools/*.py' 'ml/*.py' '.claude/hooks/*.py'
     else
         echo "$MODULOS_CRITICOS"
     fi
@@ -114,7 +114,7 @@ mutar() {
             echo "mutmut falló al mutar $objetivo (código $codigo): revisa la salida de arriba."
             return 1
         fi
-        if find src scripts tools ml -name '*.py.bak' 2>/dev/null | grep -q .; then
+        if find src scripts tools ml .claude/hooks -name '*.py.bak' 2>/dev/null | grep -q .; then
             echo "mutmut dejó código mutado (*.py.bak): restaura con git checkout y borra los .bak."
             return 1
         fi

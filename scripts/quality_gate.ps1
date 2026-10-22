@@ -59,20 +59,20 @@ function Get-PruebasDe([string]$Archivo) {
     return ($pruebas -join ' ')
 }
 
-function Invoke-Mutacion([double]$Umbral, [string[]]$Objetivos) {
+function Invoke-Mutacion([double]$Umbral, [string[]]$Objetivos, [string[]]$Parche = @()) {
     if ($Objetivos.Count -eq 0) {
-        Write-Output "Sin código de src/ cambiado respecto de ${Base}: no hay mutantes que generar."
+        Write-Output "Sin código Python cambiado respecto de ${Base}: no hay mutantes que generar."
         return
     }
     Remove-Item -Force -ErrorAction SilentlyContinue .mutmut-cache
     foreach ($objetivo in $Objetivos) {
         if (Test-Path $objetivo) {
             $pruebas = Get-PruebasDe $objetivo
-            mutmut run --paths-to-mutate $objetivo --runner "python scripts/ejecutar_pruebas_mutacion.py -x -q -p no:randomly -m 'not slow' $pruebas"
+            mutmut run @Parche --paths-to-mutate $objetivo --runner "python scripts/ejecutar_pruebas_mutacion.py -x -q -p no:randomly -m 'not slow' $pruebas"
         }
     }
-    if (Get-ChildItem -Path src -Recurse -Filter '*.py.bak') {
-        Write-Output 'mutmut dejó código mutado (*.py.bak): restaura con git checkout -- src y borra los .bak.'
+    if (Get-ChildItem -Path src, scripts -Recurse -Filter '*.py.bak') {
+        Write-Output 'mutmut dejó código mutado (*.py.bak): restaura con git checkout y borra los .bak.'
         $global:LASTEXITCODE = 1
         return
     }
@@ -102,8 +102,11 @@ Invoke-Paso '6b-pip-audit' { pip-audit }
 if ($SinMutacion) {
     Write-Omitido '7-mutacion' '-SinMutacion'
 } elseif ($Changed) {
-    $objetivos = @(git diff --name-only "$Base...HEAD" -- 'src/*.py')
-    Invoke-Paso '7-mutacion' { Invoke-Mutacion 85 $objetivos }
+    $objetivos = @(git diff --name-only --diff-filter=AM "$Base...HEAD" -- 'src/*.py' 'scripts/*.py' 'tools/*.py' 'ml/*.py')
+    # Solo se mutan las líneas que cambió el PR (mutmut --use-patch-file).
+    $archivoParche = Join-Path $Reportes 'cambios.patch'
+    git diff -U0 "$Base...HEAD" | Out-File -Encoding utf8 $archivoParche
+    Invoke-Paso '7-mutacion' { Invoke-Mutacion 85 $objetivos @('--use-patch-file', $archivoParche) }
 } else {
     Invoke-Paso '7-mutacion' { Invoke-Mutacion 90 $ModulosCriticos }
 }

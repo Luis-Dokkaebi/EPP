@@ -20,6 +20,7 @@ pytestmark = pytest.mark.integration
 class Lanzador:
     comando: tuple[str, ...]
     opciones_rapidas: tuple[str, ...]
+    sin_instalar: str
 
 
 def _pwsh() -> str:
@@ -34,6 +35,7 @@ def _lanzador_bash() -> Lanzador:
     return Lanzador(
         comando=(bash, str(RAIZ / "scripts" / "quality_gate.sh")),
         opciones_rapidas=("--sin-instalar", "--sin-mutacion"),
+        sin_instalar="--sin-instalar",
     )
 
 
@@ -41,6 +43,7 @@ def _lanzador_powershell() -> Lanzador:
     return Lanzador(
         comando=(_pwsh(), "-NoProfile", "-File", str(RAIZ / "scripts" / "quality_gate.ps1")),
         opciones_rapidas=("-SinInstalar", "-SinMutacion"),
+        sin_instalar="-SinInstalar",
     )
 
 
@@ -75,9 +78,15 @@ def _entorno(tmp_path: Path, fallan: frozenset[str] = frozenset()) -> dict[str, 
 def _correr(
     lanzador: Lanzador, entorno: dict[str, str], *opciones: str
 ) -> subprocess.CompletedProcess[str]:
+    return _correr_con_opciones(lanzador, entorno, *lanzador.opciones_rapidas, *opciones)
+
+
+def _correr_con_opciones(
+    lanzador: Lanzador, entorno: dict[str, str], *opciones: str
+) -> subprocess.CompletedProcess[str]:
     # S603: ejecuta los scripts propios del repositorio; los argumentos no vienen de fuera.
     return subprocess.run(
-        [*lanzador.comando, *lanzador.opciones_rapidas, *opciones],  # noqa: S603
+        [*lanzador.comando, *opciones],  # noqa: S603
         env=entorno,
         capture_output=True,
         text=True,
@@ -131,3 +140,12 @@ def test_quality_gate_powershell_opcion_desconocida_falla(tmp_path: Path) -> Non
     resultado = _correr(_lanzador_powershell(), _entorno(tmp_path), "-Inventada")
 
     assert resultado.returncode != 0
+
+
+def test_quality_gate_falla_si_mutmut_termina_con_error(lanzador: Lanzador, tmp_path: Path) -> None:
+    entorno = _entorno(tmp_path, fallan=frozenset({"mutmut"}))
+
+    resultado = _correr_con_opciones(lanzador, entorno, lanzador.sin_instalar)
+
+    assert resultado.returncode != 0
+    assert "FALLA en el paso '7-mutacion'" in resultado.stderr

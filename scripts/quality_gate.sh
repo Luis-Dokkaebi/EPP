@@ -95,7 +95,7 @@ pruebas_de() {
 mutar() {
     local umbral="$1"
     shift
-    local objetivo
+    local objetivo codigo
     if [ "$#" -eq 0 ]; then
         echo "Sin código Python cambiado respecto de $BASE: no hay mutantes que generar."
         return 0
@@ -104,8 +104,14 @@ mutar() {
     for objetivo in "$@"; do
         [ -e "$objetivo" ] || continue
         con_pantalla mutmut run "${PARCHE[@]}" --paths-to-mutate "$objetivo" \
-            --runner "python scripts/ejecutar_pruebas_mutacion.py -x -q -p no:randomly -m 'not slow' $(pruebas_de "$objetivo")" \
-            || true
+            --runner "python scripts/ejecutar_pruebas_mutacion.py -x -q -p no:randomly -m 'not slow' $(pruebas_de "$objetivo")"
+        codigo=$?
+        # mutmut 2 combina bits: 2 sobrevivientes, 4 timeouts, 8 sospechosos (los evalúa
+        # check_mutacion.py); el bit 1 significa que mutmut mismo falló.
+        if (( codigo & 1 )); then
+            echo "mutmut falló al mutar $objetivo (código $codigo): revisa la salida de arriba."
+            return 1
+        fi
     done
     if find src scripts tools ml -name '*.py.bak' 2>/dev/null | grep -q .; then
         echo "mutmut dejó código mutado (*.py.bak): restaura con git checkout y borra los .bak."

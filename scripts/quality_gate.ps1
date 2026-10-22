@@ -69,6 +69,12 @@ function Invoke-Mutacion([double]$Umbral, [string[]]$Objetivos, [string[]]$Parch
         if (Test-Path $objetivo) {
             $pruebas = Get-PruebasDe $objetivo
             mutmut run @Parche --paths-to-mutate $objetivo --runner "python scripts/ejecutar_pruebas_mutacion.py -x -q -p no:randomly -m 'not slow' $pruebas"
+            # mutmut 2 combina bits: 2, 4 y 8 los evalúa check_mutacion.py; el bit 1 es un fallo de mutmut.
+            if ($LASTEXITCODE -band 1) {
+                Write-Output "mutmut falló al mutar $objetivo (código $LASTEXITCODE)."
+                $global:LASTEXITCODE = 1
+                return
+            }
         }
     }
     if (Get-ChildItem -Path src, scripts -Recurse -Filter '*.py.bak') {

@@ -6,9 +6,15 @@ from unittest.mock import MagicMock, patch
 
 @pytest.fixture(autouse=True)
 def _mock_supervision():
+    import importlib
+    import src.tracking.person_tracker as _pt_mod
+
     sv_mock = MagicMock()
     with patch.dict(sys.modules, {"supervision": sv_mock}):
         yield sv_mock
+    # _make_tracker recarga el módulo con supervision falso: se recarga de nuevo con el real
+    # para no contaminar a las pruebas que corran después (orden aleatorio, CLAUDE.md §4).
+    importlib.reload(_pt_mod)
 
 
 def _make_tracker(sv_mock):

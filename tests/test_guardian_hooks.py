@@ -101,6 +101,8 @@ def test_motivo_de_bloqueo_bash_push_normal_devuelve_none(comando: str) -> None:
         ("python -m pip install numpy pandas==2.2.0", "numpy"),
         ("uv pip install --index-strategy unsafe-best-match torch", "torch"),
         ('pip install "./ruta con espacios/pkg.whl" otro', "otro"),
+        ("pip install requests > registro.log six", "requests, six"),
+        ("pip install >salida.log requests", "requests"),
     ],
 )
 def test_motivo_de_bloqueo_bash_pip_sin_version_nombra_los_paquetes(
@@ -131,6 +133,8 @@ def test_motivo_de_bloqueo_bash_pip_opcion_con_valor_no_es_un_paquete(opcion: st
         'pip install "./ruta con espacios/pkg.whl"',
         "pip install",
         "pip install -r requirements.txt  # comentario de shell, no un paquete",
+        "uv pip install numpy==1.26.4 2>&1 | tail -3",
+        "pip install numpy==1.26.4 > instalacion.log",
         "ls -la",
     ],
 )

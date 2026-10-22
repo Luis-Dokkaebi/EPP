@@ -79,6 +79,18 @@ def test_ci_licencias_no_pierde_el_codigo_de_salida_en_la_tuberia() -> None:
     assert paso["shell"] == "bash"
 
 
+def test_ci_licencias_genera_los_avisos_de_terceros_del_runtime_antes_del_gate() -> None:
+    """El gate falla por diseño (W-011): los avisos se generan antes para no perderlos."""
+    nombres = [paso.get("name") for paso in _job("licencias")["steps"]]
+    paso = _job("licencias")["steps"][nombres.index("Avisos de terceros del runtime")]
+
+    assert nombres.index("Avisos de terceros del runtime") < nombres.index("Gate de licencias")
+    assert "--python .venv-licencias/bin/python" in paso["run"]
+    assert "--with-license-file --with-notice-file --no-license-path" in paso["run"]
+    assert "scripts/generar_avisos_terceros.py" in paso["run"]
+    assert "--salida reports/licencias/THIRD_PARTY_NOTICES.txt" in paso["run"]
+
+
 def test_ci_publica_los_reportes_aunque_el_job_falle() -> None:
     for nombre in ("gate", "licencias", "mutacion"):
         subidas = [

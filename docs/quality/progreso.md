@@ -24,11 +24,14 @@ Fuente de verdad del alcance: `SPEC/9_PLAN_EPP_Y_LICENCIA.md` (§17 para el orde
 | Entrega | Estado | PR | Nota |
 |---------|--------|----|------|
 | A-01 | Terminada | #1 | Dependencias fijadas; pip-audit limpio |
-| A-02 | Terminada | (rama `-a02`) | `pyproject.toml`, línea base, waivers #2–#8, 3 pruebas heredadas aisladas |
+| A-02 | Terminada | #9 | `pyproject.toml`, línea base, waivers #2–#8, 3 pruebas heredadas aisladas |
+| A-03 | Terminada (4 PRs) | #11, #12, #13, #14 | Trinquete radon, caducidad de waivers, runner y puntaje de mutación, `quality_gate.sh/.ps1` |
+| A-04 | Terminada | (rama `-a04`) | Imports con prefijo `src.`, import-linter + `check_architecture.py`, waiver #10, mutación por parche |
 
 ## En curso
 
-- A-03: `scripts/quality_gate.sh/.ps1` + su prueba.
+- A-03e (subagente): diagnóstico del crash intermitente (SIGSEGV/SIGILL) de la suite heredada de GUI.
+- A-05: gate de licencias + `models/manifest.json`.
 
 ## Bloqueadas
 
@@ -36,4 +39,4 @@ Ninguna todavía.
 
 ## Próxima entrega
 
-A-03.
+A-05.

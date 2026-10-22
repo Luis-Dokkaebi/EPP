@@ -44,6 +44,8 @@ calidad sin enlazar.
 ## Runbooks (`docs/runbooks/`, tareas humanas)
 
 - [Captura del dataset](runbooks/captura_dataset.md) — capturar imágenes del piloto (D5, D6).
+- [Etiquetado y versionado](runbooks/etiquetado.md) — etiquetar, medir el acuerdo, convertir y
+  versionar el dataset (D6).
 
 ## Licencias y modelos
 

@@ -26,17 +26,19 @@ Fuente de verdad del alcance: `SPEC/9_PLAN_EPP_Y_LICENCIA.md` (§17 para el orde
 | A-01 | Terminada | #1 | Dependencias fijadas; pip-audit limpio |
 | A-02 | Terminada | #9 | `pyproject.toml`, línea base, waivers #2–#8, 3 pruebas heredadas aisladas |
 | A-03 | Terminada (4 PRs) | #11, #12, #13, #14 | Trinquete radon, caducidad de waivers, runner y puntaje de mutación, `quality_gate.sh/.ps1` |
-| A-04 | Terminada | (rama `-a04`) | Imports con prefijo `src.`, import-linter + `check_architecture.py`, waiver #10, mutación por parche |
+| A-04 | Terminada | #15 | Imports con prefijo `src.`, import-linter + `check_architecture.py`, waiver #10, mutación por parche |
+| A-05 | Terminada (2 PRs) | (ramas `-a05`, `-a05b`) | Gate de licencias del runtime + manifiesto de modelos; **falla a propósito** por la AGPL |
 
 ## En curso
 
 - A-03e (subagente): diagnóstico del crash intermitente (SIGSEGV/SIGILL) de la suite heredada de GUI.
-- A-05: gate de licencias + `models/manifest.json`.
 
 ## Bloqueadas
 
-Ninguna todavía.
+| Entrega / criterio | Motivo | Decisión que falta |
+|--------------------|--------|--------------------|
+| Gate de licencias en verde (AC-001) | `ultralytics` y `yolov8n.pt` (AGPL) siguen en el runtime hasta A-16; `certifi`, `tqdm`, `pycryptodome` esperan revisión humana | D8 (A-16) y aprobación humana en `docs/legal/licencias_revisadas.json` |
 
 ## Próxima entrega
 
-A-05.
+A-06.

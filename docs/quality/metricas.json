@@ -1,7 +1,7 @@
 {
   "fecha_linea_base": "2026-10-21",
   "entorno": "Linux, Python 3.11.15, Xvfb, requirements-ci.txt + requirements-dev.txt",
-  "cobertura_global_minima": 41.0,
+  "cobertura_global_minima": 44.0,
   "cobertura_global_objetivo": 85.0,
   "radon_cc_waiver": [
     "src/acquisition/camera_enumerator.py:enumerate_cameras",

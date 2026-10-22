@@ -35,11 +35,25 @@ def test_caja_degenerada_lanza_error_tipado(coordenadas: tuple[float, ...]) -> N
         Caja(*coordenadas)
 
 
+def test_caja_degenerada_explica_que_coordenadas_recibio() -> None:
+    with pytest.raises(CajaInvalidaError) as error:
+        Caja(5, 0, 4, 10)
+
+    assert str(error.value) == "Caja degenerada (5, 0, 4, 10): se necesita x2 > x1 y y2 > y1."
+
+
 def test_caja_es_inmutable() -> None:
     caja = Caja(0, 0, 1, 1)
 
     with pytest.raises(AttributeError):
         caja.x1 = 5  # type: ignore[misc]  # se verifica justamente que no se pueda asignar
+
+
+def test_deteccion_es_inmutable() -> None:
+    deteccion = Deteccion(ClaseObjeto.PERSONA, 0.5, Caja(0, 0, 1, 1))
+
+    with pytest.raises(AttributeError):
+        deteccion.confianza = 1.0  # type: ignore[misc]  # se verifica que no se pueda asignar
 
 
 def test_clase_objeto_usa_nombres_semanticos() -> None:
@@ -55,8 +69,10 @@ def test_deteccion_acepta_confianza_entre_cero_y_uno(confianza: float) -> None:
 
 @pytest.mark.parametrize("confianza", [-0.01, 1.01, math.nan])
 def test_deteccion_con_confianza_fuera_de_rango_lanza_error_tipado(confianza: float) -> None:
-    with pytest.raises(ConfianzaInvalidaError, match="entre 0 y 1"):
+    with pytest.raises(ConfianzaInvalidaError) as error:
         Deteccion(ClaseObjeto.PERSONA, confianza, Caja(0, 0, 1, 1))
+
+    assert str(error.value) == f"La confianza debe estar entre 0 y 1; llegó {confianza}."
 
 
 @pytest.mark.parametrize(

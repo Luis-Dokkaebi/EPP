@@ -14,12 +14,17 @@ from src.inference.types import (
     ConfianzaInvalidaError,
     Deteccion,
 )
-from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
+from tests.dobles_ultralytics import CajasFalsas, DeteccionCruda, ModeloFalso, TensorFalso
 
 ID_PERSONA = 0
 ID_AUTO = 2
 ID_CELULAR = 67
 FRAME = np.zeros((10, 10, 3), dtype=np.uint8)
+
+
+class _Resultado:
+    def __init__(self, cajas: CajasFalsas) -> None:
+        self.boxes = cajas
 
 
 def _detectar(filas: list[DeteccionCruda], confianza_minima: float = 0.0) -> list[Deteccion]:
@@ -52,13 +57,14 @@ def test_detector_ultralytics_descarta_clases_fuera_del_catalogo() -> None:
     assert _detectar([DeteccionCruda(ID_AUTO, (1.0, 2.0, 3.0, 4.0))]) == []
 
 
+# Valores exactos en float32 (el tensor del modelo): el borde "igual" no depende del redondeo.
 @pytest.mark.parametrize(
-    ("confianza", "cantidad"), [(0.39, 0), (0.4, 1), (0.41, 1)], ids=["debajo", "igual", "encima"]
+    ("confianza", "cantidad"), [(0.25, 0), (0.5, 1), (0.75, 1)], ids=["debajo", "igual", "encima"]
 )
 def test_detector_ultralytics_filtra_por_confianza_minima(confianza: float, cantidad: int) -> None:
     filas = [DeteccionCruda(ID_PERSONA, (1.0, 2.0, 3.0, 4.0), confianza)]
 
-    assert len(_detectar(filas, confianza_minima=0.4)) == cantidad
+    assert len(_detectar(filas, confianza_minima=0.5)) == cantidad
 
 
 def test_detector_ultralytics_descarta_cajas_degeneradas_y_lo_registra(
@@ -69,7 +75,22 @@ def test_detector_ultralytics_descarta_cajas_degeneradas_y_lo_registra(
     detecciones = _detectar([DeteccionCruda(ID_PERSONA, (3.0, 2.0, 3.0, 4.0))])
 
     assert detecciones == []
-    assert "Caja degenerada descartada" in caplog.text
+    assert caplog.messages == [
+        "Caja degenerada descartada: Caja degenerada (3.0, 2.0, 3.0, 4.0): "
+        "se necesita x2 > x1 y y2 > y1."
+    ]
+
+
+def test_detector_ultralytics_con_salidas_de_distinto_largo_falla_ruidosamente() -> None:
+    modelo = ModeloFalso([DeteccionCruda(ID_PERSONA, (1.0, 2.0, 3.0, 4.0))])
+    cajas = modelo(FRAME)[0].boxes
+    cajas.conf = TensorFalso([0.9, 0.8])
+    detector = DetectorUltralytics(
+        lambda _frame, **_opciones: [_Resultado(cajas)], CATALOGO_COCO, 0
+    )
+
+    with pytest.raises(ValueError, match="zip"):
+        detector.detectar(FRAME)
 
 
 def test_detector_ultralytics_pide_inferencia_silenciosa_del_frame() -> None:

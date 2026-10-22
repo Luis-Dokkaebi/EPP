@@ -20,12 +20,13 @@ from src.inference.types import (
 
 _logger = logging.getLogger(__name__)
 
-ModeloUltralytics = Callable[..., Sequence[Any]]
-
 
 class DetectorUltralytics:
     def __init__(
-        self, modelo: ModeloUltralytics, catalogo: CatalogoDeClases, confianza_minima: float
+        self,
+        modelo: Callable[..., Sequence[Any]],
+        catalogo: CatalogoDeClases,
+        confianza_minima: float,
     ) -> None:
         validar_confianza(confianza_minima)
         self._modelo = modelo

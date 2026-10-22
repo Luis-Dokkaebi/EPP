@@ -4,6 +4,7 @@ from typing import Any
 
 from ml.contrato_datos import TAXONOMIA_V1, categorias
 
+LADO_MINIMO = 10.0
 ARCHIVO = "cam-01_20261021_083005_0001.jpg"
 
 

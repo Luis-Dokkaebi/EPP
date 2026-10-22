@@ -11,12 +11,12 @@ from ml.contrato_datos import (
     categorias,
     validar_anotaciones,
 )
-from tests.coco_sintetico import ARCHIVO, coco, imagen
+from tests.coco_sintetico import ARCHIVO, LADO_MINIMO, coco, imagen
 
 
 def _violaciones(dataset: dict[str, Any]) -> list[str]:
     with pytest.raises(ContratoDeDatosError) as error:
-        validar_anotaciones(dataset, TAXONOMIA_V1)
+        validar_anotaciones(dataset, TAXONOMIA_V1, LADO_MINIMO)
     return error.value.violaciones
 
 
@@ -36,13 +36,13 @@ def test_categorias_numera_desde_uno_en_el_orden_de_la_taxonomia() -> None:
 
 
 def test_validar_anotaciones_acepta_un_coco_que_cumple_el_contrato() -> None:
-    validar_anotaciones(coco(), TAXONOMIA_V1)
+    validar_anotaciones(coco(), TAXONOMIA_V1, LADO_MINIMO)
 
 
 def test_validar_anotaciones_acepta_un_dataset_sin_cajas() -> None:
     dataset = {"images": [imagen()], "annotations": [], "categories": categorias(TAXONOMIA_V1)}
 
-    validar_anotaciones(dataset, TAXONOMIA_V1)
+    validar_anotaciones(dataset, TAXONOMIA_V1, LADO_MINIMO)
 
 
 @pytest.mark.parametrize("seccion", ["images", "annotations", "categories"])

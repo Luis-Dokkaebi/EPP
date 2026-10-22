@@ -124,6 +124,12 @@ def _escribir_json(ruta: Path, contenido: object) -> Path:
     return ruta
 
 
+def _sin_modelos(raiz: Path) -> list[str]:
+    """Aísla las pruebas de paquetes del manifiesto de modelos del repositorio."""
+    manifiesto = _escribir_json(raiz / "manifest.json", {"modelos": []})
+    return ["--raiz", str(raiz), "--manifiesto", str(manifiesto)]
+
+
 def test_main_con_paquetes_prohibidos_devuelve_uno(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -133,7 +139,9 @@ def test_main_con_paquetes_prohibidos_devuelve_uno(
     )
     revisadas = _escribir_json(tmp_path / "r.json", {})
 
-    codigo = main(["--paquetes", str(paquetes), "--revisadas", str(revisadas)])
+    codigo = main(
+        ["--paquetes", str(paquetes), "--revisadas", str(revisadas), *_sin_modelos(tmp_path)]
+    )
 
     assert codigo == 1
     assert capsys.readouterr().out.startswith("tkcalendar 1.6.1: licencia prohibida")
@@ -144,10 +152,9 @@ def test_main_con_paquetes_permitidos_devuelve_cero(tmp_path: Path) -> None:
         tmp_path / "p.json", [{"Name": "numpy", "Version": "1.26.4", "License": "BSD"}]
     )
     revisadas = _escribir_json(tmp_path / "r.json", {})
-
     argumentos = ["--paquetes", str(paquetes), "--revisadas", str(revisadas)]
 
-    assert main([*argumentos]) == 0
+    assert main([*argumentos, *_sin_modelos(tmp_path)]) == 0
 
 
 @pytest.mark.integration
@@ -167,7 +174,7 @@ def test_main_sin_revisadas_usa_el_registro_de_docs_legal(
     )
     monkeypatch.chdir(RAIZ)
 
-    assert main(["--paquetes", str(paquetes)]) == 0
+    assert main(["--paquetes", str(paquetes), *_sin_modelos(tmp_path)]) == 0
 
 
 @pytest.mark.integration
@@ -181,6 +188,8 @@ def test_script_ejecutado_como_programa_devuelve_el_codigo_de_main(
         tmp_path / "p.json", [{"Name": "paquete", "Version": "1", "License": licencia}]
     )
 
-    resultado = ejecutar_script("check_licenses.py", "--paquetes", str(paquetes))
+    resultado = ejecutar_script(
+        "check_licenses.py", "--paquetes", str(paquetes), *_sin_modelos(tmp_path)
+    )
 
     assert resultado.returncode == codigo_esperado, resultado.stdout + resultado.stderr

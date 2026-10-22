@@ -1,0 +1,26 @@
+{
+  "certifi": {
+    "licencia_declarada": "Mozilla Public License 2.0 (MPL 2.0)",
+    "veredicto_propuesto": "permitida",
+    "motivo": "MPL-2.0 es copyleft por archivo: se distribuye sin modificar y con su aviso. Llega como dependencia de requests (ultralytics); puede desaparecer en A-16.",
+    "evidencia": "https://github.com/certifi/python-certifi/blob/master/LICENSE",
+    "aprobado_por": null,
+    "fecha_aprobacion": null
+  },
+  "tqdm": {
+    "licencia_declarada": "MPL-2.0 AND MIT",
+    "veredicto_propuesto": "permitida",
+    "motivo": "Partes MPL-2.0 y MIT; se distribuye sin modificar y con su aviso. Llega como dependencia de ultralytics; puede desaparecer en A-16.",
+    "evidencia": "https://github.com/tqdm/tqdm/blob/master/LICENCE",
+    "aprobado_por": null,
+    "fecha_aprobacion": null
+  },
+  "pycryptodome": {
+    "licencia_declarada": "Apache Software License; BSD License; Public Domain",
+    "veredicto_propuesto": "permitida",
+    "motivo": "BSD-2-Clause, partes en dominio público (Unlicense) y la parte de OCB bajo Apache-2.0 (patente liberada).",
+    "evidencia": "https://github.com/Legrandin/pycryptodome/blob/master/LICENSE.rst",
+    "aprobado_por": null,
+    "fecha_aprobacion": null
+  }
+}

@@ -58,11 +58,14 @@ class EventoInfraccion:
     version_modelo: str
 
 
+@dataclass(frozen=True)
 class InfraccionIniciada(EventoInfraccion):
     """Empieza una infracción: es el evento que genera la alerta.
 
-    Sin campos propios, hereda el dataclass inmutable de EventoInfraccion.
+    `evidencia` es la referencia a la imagen del evento; la asigna el caso de uso al guardarla.
     """
+
+    evidencia: str | None
 
 
 @dataclass(frozen=True)
@@ -104,7 +107,7 @@ class GestorInfracciones:
         return eventos
 
     def _iniciar(self, incumplimiento: Incumplimiento, ahora: datetime) -> InfraccionIniciada:
-        iniciada = InfraccionIniciada(incumplimiento, ahora, self._version_modelo)
+        iniciada = InfraccionIniciada(incumplimiento, ahora, self._version_modelo, evidencia=None)
         self._abiertas[incumplimiento.clave] = iniciada
         self._ultimos_inicios[incumplimiento.clave] = ahora
         return iniciada

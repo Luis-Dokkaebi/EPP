@@ -33,7 +33,7 @@ def gestor(reloj: RelojFalso) -> GestorInfracciones:
 
 
 def _iniciada(incumplimiento: Incumplimiento, minuto: float) -> InfraccionIniciada:
-    return InfraccionIniciada(incumplimiento, INICIO + minuto * UN_MINUTO, VERSION)
+    return InfraccionIniciada(incumplimiento, INICIO + minuto * UN_MINUTO, VERSION, None)
 
 
 def test_gestor_infracciones_un_incumplimiento_nuevo_inicia_una_infraccion(

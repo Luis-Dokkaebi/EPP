@@ -17,10 +17,8 @@ import hashlib
 import hmac as _hmac_mod
 from unittest.mock import MagicMock
 
-# Stub heavy native libs not present in the test environment
-_cv2_stub = MagicMock()
-_cv2_stub.COLOR_BGR2RGB = 4
-sys.modules.setdefault('cv2', _cv2_stub)
+# Stub heavy native libs not present in the test environment. cv2 no: está fijado en los
+# requisitos y un doble en sys.modules contaminaba al resto de la sesión.
 
 _fr_stub = MagicMock()
 _fr_stub.face_locations = lambda *a, **kw: []

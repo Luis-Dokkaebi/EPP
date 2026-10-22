@@ -14,7 +14,14 @@ HERRAMIENTAS = (
     "ruff", "mypy", "python", "bandit", "pip-audit", "diff-cover", "mutmut", "detect-secrets-hook",
 )  # fmt: skip
 CODIGO_OPCION_INVALIDA_BASH = 2
-MODULOS_CRITICOS = 4
+# Rutas que el gate muta por omisión (MODULOS_CRITICOS de los scripts); solo deben existir.
+ARCHIVOS_CRITICOS = (
+    "src/security/drm.py",
+    "src/storage/database_manager.py",
+    "src/analysis/efficiency_calculator.py",
+    "src/zones/zone_checker.py",
+)
+MODULOS_CRITICOS = len(ARCHIVOS_CRITICOS)
 
 pytestmark = pytest.mark.integration
 
@@ -32,28 +39,51 @@ def _pwsh() -> str:
     return ejecutable
 
 
-def _lanzador_bash() -> Lanzador:
+def _lanzador_bash(raiz: Path) -> Lanzador:
     bash = shutil.which("bash")
     assert bash, "Se necesita bash para probar scripts/quality_gate.sh"
     return Lanzador(
-        comando=(bash, str(RAIZ / "scripts" / "quality_gate.sh")),
+        comando=(bash, str(raiz / "scripts" / "quality_gate.sh")),
         opciones_rapidas=("--sin-instalar", "--sin-mutacion"),
         sin_instalar="--sin-instalar",
     )
 
 
-def _lanzador_powershell() -> Lanzador:
+def _lanzador_powershell(raiz: Path) -> Lanzador:
     return Lanzador(
-        comando=(_pwsh(), "-NoProfile", "-File", str(RAIZ / "scripts" / "quality_gate.ps1")),
+        comando=(_pwsh(), "-NoProfile", "-File", str(raiz / "scripts" / "quality_gate.ps1")),
         opciones_rapidas=("-SinInstalar", "-SinMutacion"),
         sin_instalar="-SinInstalar",
     )
 
 
+@pytest.fixture
+def repo(tmp_path: Path) -> Path:
+    """Copia mínima del repositorio para correr el gate.
+
+    El gate trabaja en la raíz donde vive el script y borra su `.mutmut-cache`: corrido sobre el
+    repositorio real, borraba la caché de un mutmut en curso (CLAUDE.md §4: nada fuera de tmp_path).
+    """
+    raiz = tmp_path / "repo"
+    (raiz / "scripts").mkdir(parents=True)
+    for script in ("quality_gate.sh", "quality_gate.ps1"):
+        shutil.copy2(RAIZ / "scripts" / script, raiz / "scripts" / script)
+    for gemelo in ("CLAUDE.md", "Agents.md"):
+        shutil.copy2(RAIZ / gemelo, raiz / gemelo)
+    for archivo in ARCHIVOS_CRITICOS:
+        (raiz / archivo).parent.mkdir(parents=True, exist_ok=True)
+        (raiz / archivo).touch()
+    git = shutil.which("git")
+    assert git, "Se necesita git: el gate lista los archivos versionados"
+    # S603: git del sistema con argumentos fijos sobre un directorio temporal.
+    subprocess.run([git, "init", "-q", str(raiz)], check=True)  # noqa: S603
+    return raiz
+
+
 @pytest.fixture(params=["bash", "powershell"])
-def lanzador(request: pytest.FixtureRequest) -> Lanzador:
+def lanzador(request: pytest.FixtureRequest, repo: Path) -> Lanzador:
     fabricas = {"bash": _lanzador_bash, "powershell": _lanzador_powershell}
-    return fabricas[request.param]()
+    return fabricas[request.param](repo)
 
 
 def _crear_herramienta(carpeta: Path, nombre: str, codigo: int) -> None:
@@ -156,14 +186,14 @@ def test_quality_gate_registra_los_pasos_omitidos_como_omitidos(
     assert "omitido" in reporte
 
 
-def test_quality_gate_bash_opcion_desconocida_devuelve_dos(tmp_path: Path) -> None:
-    resultado = _correr(_lanzador_bash(), _entorno(tmp_path), "--inventada")
+def test_quality_gate_bash_opcion_desconocida_devuelve_dos(repo: Path, tmp_path: Path) -> None:
+    resultado = _correr(_lanzador_bash(repo), _entorno(tmp_path), "--inventada")
 
     assert resultado.returncode == CODIGO_OPCION_INVALIDA_BASH
 
 
-def test_quality_gate_powershell_opcion_desconocida_falla(tmp_path: Path) -> None:
-    resultado = _correr(_lanzador_powershell(), _entorno(tmp_path), "-Inventada")
+def test_quality_gate_powershell_opcion_desconocida_falla(repo: Path, tmp_path: Path) -> None:
+    resultado = _correr(_lanzador_powershell(repo), _entorno(tmp_path), "-Inventada")
 
     assert resultado.returncode != 0
 
@@ -213,3 +243,25 @@ def test_quality_gate_falla_si_falta_una_herramienta(lanzador: Lanzador, tmp_pat
 
     assert resultado.returncode != 0
     assert "FALLA en el paso '6a-bandit'" in resultado.stderr
+
+
+def test_quality_gate_reinicia_la_cache_de_mutmut_de_su_raiz_en_cada_objetivo(
+    lanzador: Lanzador, repo: Path, tmp_path: Path
+) -> None:
+    cache = repo / ".mutmut-cache"
+    cache.write_text("corrida anterior", encoding="utf-8")
+
+    _correr_con_opciones(lanzador, _entorno(tmp_path), lanzador.sin_instalar)
+
+    assert not cache.exists()
+
+
+def test_quality_gate_falla_si_los_gemelos_difieren(
+    lanzador: Lanzador, repo: Path, tmp_path: Path
+) -> None:
+    (repo / "Agents.md").write_text("versión divergente\n", encoding="utf-8")
+
+    resultado = _correr(lanzador, _entorno(tmp_path))
+
+    assert resultado.returncode != 0
+    assert "FALLA en el paso '9a-gemelos'" in resultado.stderr

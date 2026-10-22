@@ -8,9 +8,10 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from src.models.manifiesto_aprobado import MODELOS_APROBADOS
 from src.models.model_verifier import (
     compute_model_hash, verify_model, assert_model_integrity,
-    ModelIntegrityError, EXPECTED_MODEL_SHA256,
+    ModelIntegrityError,
 )
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'yolov8n.pt')
@@ -20,7 +21,7 @@ MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'yolov8n.pt')
 def test_real_model_matches_embedded_hash():
     """El modelo distribuido coincide con el hash pre-aprobado embebido."""
     assert verify_model(MODEL_PATH) is True
-    assert compute_model_hash(MODEL_PATH) == EXPECTED_MODEL_SHA256
+    assert compute_model_hash(MODEL_PATH) == MODELOS_APROBADOS["yolov8n.pt"]
 
 
 def test_tampered_model_is_rejected(tmp_path):

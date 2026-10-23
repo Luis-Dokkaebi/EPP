@@ -41,7 +41,6 @@ exclude = [
     "src/tracking/camera_worker.py",
     "src/tracking/person_tracker.py",
     "src/tracking/tracking_pipeline.py",
-    "src/zones/zone_checker.py",
     "src/zones/zone_editor.py",
     "tests/test_async_excel.py",
     "tests/test_camera_selector.py",
@@ -67,7 +66,6 @@ exclude = [
     "tests/test_tenant_routing.py",
     "tests/test_tracking_pipeline.py",
     "tests/test_ui_navigation.py",
-    "tests/test_zone_checker.py",
     "utils/register_face.py",
 ]
 
@@ -106,7 +104,6 @@ exclude = [
 "src/tracking/camera_worker.py" = ["C901", "E501", "F401", "I001", "PLR0912", "PLR0915", "PLR2004", "T201", "UP035", "W291", "W293"]
 "src/tracking/person_tracker.py" = ["I001"]
 "src/tracking/tracking_pipeline.py" = ["B905", "C901", "PLR0912", "PLR0913", "PLW2901", "RUF003", "T201"]
-"src/zones/zone_checker.py" = ["E501", "I001", "T201", "UP015"]
 "src/zones/zone_editor.py" = ["I001", "PLR0913", "T201", "UP015"]
 "tests/test_async_excel.py" = ["E501", "F401", "I001", "W293"]
 "tests/test_camera_selector.py" = ["F841", "I001", "W293"]
@@ -131,7 +128,6 @@ exclude = [
 "tests/test_tenant_routing.py" = ["E501", "I001", "T201", "W293"]
 "tests/test_tracking_pipeline.py" = ["I001", "PLR2004"]
 "tests/test_ui_navigation.py" = ["E501", "I001", "T201", "W293"]
-"tests/test_zone_checker.py" = ["I001"]
 "utils/register_face.py" = ["E402", "I001", "PLR2004", "T201", "W293"]
 
 [tool.pytest.ini_options]
@@ -280,10 +276,6 @@ disable_error_code = ["no-untyped-def"]
 [[tool.mypy.overrides]]
 module = "src.tracking.tracking_pipeline"
 disable_error_code = ["no-untyped-def"]
-
-[[tool.mypy.overrides]]
-module = "src.zones.zone_checker"
-disable_error_code = ["attr-defined", "no-untyped-def"]
 
 [[tool.mypy.overrides]]
 module = "src.zones.zone_editor"

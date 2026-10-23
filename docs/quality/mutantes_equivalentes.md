@@ -13,3 +13,6 @@ matarlo. Cada uno se justifica aquí. Los demás sobrevivientes se matan con pru
 | `src/main_ui.py` | `INTERVALO_SONDEO_ESCANEO_MS = 100` | `INTERVALO_SONDEO_ESCANEO_MS = 101` | Solo corre 1 ms el sondeo con el que el hilo de Tk revisa si terminó el escaneo de cámaras: se muestra el mismo resultado, en el mismo hilo y en el mismo orden. Distinguir 100 de 101 ms exigiría una prueba atada al reloj real (§4 prohíbe esa dependencia) |
 | `scripts/check_mutacion.py` | `.strip("`")` (nombre de archivo) | `.strip("XX`XX")` | Además de las comillas quitaría `X` en los extremos del nombre; ningún archivo del repositorio empieza ni termina con `X` |
 | `scripts/check_mutacion.py` | `... if tabla.is_file() else ""` | `else "XXXX"` | Un texto sin filas de tabla da el mismo conteo vacío que la cadena vacía |
+| `scripts/check_licenses.py` | `PROHIBIDA = 2` | `PROHIBIDA = 3` | El valor solo se usa para ordenar la gravedad (`max`/`min`); 3 conserva el orden |
+| `scripts/check_licenses.py` | `text=True` (pip-licenses) | `text=False` | `json.loads` acepta `bytes`: el resultado es el mismo |
+| `scripts/check_licenses.py` | `check=True` (pip-licenses) | `check=False` | Si pip-licenses falla, ambos fallan ruidosamente (`CalledProcessError` o `JSONDecodeError` sobre una salida vacía) |

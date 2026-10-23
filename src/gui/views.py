@@ -4,6 +4,7 @@ Extraído de main_ui.py para respetar el límite de ofuscación de PyArmor trial
 """
 import customtkinter as ctk
 import os
+from pathlib import Path
 
 
 def create_employees_view(app_instance, workspace):
@@ -231,40 +232,15 @@ def create_employees_view(app_instance, workspace):
 
 
 def create_zones_view(workspace):
-    """Panel informativo de configuración de zonas."""
+    """Editor de EPP exigido por zona (SPEC/9 §8.3); escribe el formato v2 de zonas."""
     from config.config import get_zonas_file
-    import json
-    
-    frame = ctk.CTkFrame(workspace, fg_color="#1E1E1E")
-    ctk.CTkLabel(frame, text="Configuración de Zonas", font=("Roboto", 24, "bold"), text_color="#FFFFFF").pack(pady=10, anchor="w")
-    
-    zonas_file = get_zonas_file()
-    
-    info_frame = ctk.CTkFrame(frame, fg_color="#2B2B2B", corner_radius=10)
-    info_frame.pack(fill="both", expand=True, pady=10)
-    
-    zone_scroll = ctk.CTkScrollableFrame(info_frame, fg_color="#1E1E1E")
-    zone_scroll.pack(fill="both", expand=True, padx=15, pady=15)
+    from src.gui.panel_zonas import PanelZonas
+    from src.gui.presentador_zonas import PresentadorZonas
+    from src.ppe.domain.elementos import ElementoEPP
 
-    def refresh_zones():
-        for w in zone_scroll.winfo_children():
-            w.destroy()
-        if os.path.exists(zonas_file):
-            try:
-                with open(zonas_file, 'r') as f:
-                    data = json.load(f)
-                for zone_name, points in data.items():
-                    ctk.CTkLabel(zone_scroll, text=f"📍 {zone_name}: {len(points)} puntos", font=("Roboto", 14), text_color="#2ECC71").pack(pady=4, anchor="w")
-            except Exception:
-                ctk.CTkLabel(zone_scroll, text="Error leyendo zonas.", text_color="#E74C3C").pack(pady=10)
-        else:
-            ctk.CTkLabel(zone_scroll, text="No hay zonas configuradas para esta sucursal.", text_color="#A0A0A0").pack(pady=10)
-    
-    ctk.CTkButton(info_frame, text="🔄 Actualizar Lista de Zonas", fg_color="#1f6aa5", command=refresh_zones).pack(pady=10)
-    ctk.CTkLabel(info_frame, text="Nota: Para crear zonas, use el editor externo 'zone_editor.py'.", font=("Roboto", 12), text_color="#A0A0A0").pack(pady=5)
-    
-    refresh_zones()
-    return frame
+    # D3: la primera versión ofrece casco y chaleco.
+    ofrecidos = (ElementoEPP.CASCO, ElementoEPP.CHALECO)
+    return PanelZonas(workspace, PresentadorZonas(Path(get_zonas_file()), ofrecidos))
 
 
 def create_reports_view(workspace):

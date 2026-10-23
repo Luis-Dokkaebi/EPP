@@ -1,0 +1,22 @@
+# Runtime instalable en Linux para CI y sesiones en la nube (SPEC/9 §0.1 y §0.6).
+# Mismas versiones que requirements.txt (lo verifica tests/test_harness_dependencias.py).
+# Se excluyen: wmi (solo Windows), face_recognition (compila dlib; las pruebas usan dobles),
+# pyarmor y pyinstaller (solo build del ejecutable).
+# torch y torchvision (CPU) son transitivas de ultralytics y salen con la contracción A-16.
+--extra-index-url https://download.pytorch.org/whl/cpu
+customtkinter==5.2.2
+ultralytics==8.1.15
+torch==2.14.1+cpu
+torchvision==0.29.1+cpu
+opencv-python-headless==4.9.0.80
+supervision==0.18.0
+shapely==2.0.3
+pandas==2.2.0
+openpyxl==3.1.2
+cryptography==50.0.2
+pycryptodome==3.20.0
+numpy==1.26.4
+pillow==13.0.0
+matplotlib==3.11.2
+seaborn==0.13.2
+tkcalendar==1.6.1

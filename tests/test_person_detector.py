@@ -32,6 +32,12 @@ def _mock_ml_modules():
     ul_mock = MagicMock()
     with patch.dict(sys.modules, {"ultralytics": ul_mock, "supervision": sv_mock}):
         yield sv_mock, ul_mock
+    # _make_detector recarga el módulo con dobles: se recarga de nuevo con los módulos reales
+    # para no contaminar a las pruebas que corran después (orden aleatorio, CLAUDE.md §4).
+    import importlib
+    import src.detection.person_detector as _pd_mod
+
+    importlib.reload(_pd_mod)
 
 
 # Re-import PersonDetector inside tests so the patched modules are active.

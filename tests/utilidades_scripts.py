@@ -1,8 +1,10 @@
 """Ayudas compartidas para probar los scripts del harness como programas."""
 
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 RAIZ = Path(__file__).resolve().parents[1]
 SEGUNDOS_MAXIMOS = 60
@@ -21,3 +23,14 @@ def ejecutar_script(
         timeout=SEGUNDOS_MAXIMOS,
         cwd=carpeta,
     )
+
+
+def cargar_hook(nombre: str) -> ModuleType:
+    """Importa .claude/hooks/<nombre>.py, que no es un paquete importable."""
+    ruta = RAIZ / ".claude" / "hooks" / f"{nombre}.py"
+    especificacion = importlib.util.spec_from_file_location(nombre, ruta)
+    if especificacion is None or especificacion.loader is None:
+        raise ImportError(f"No se puede cargar {ruta}")
+    modulo = importlib.util.module_from_spec(especificacion)
+    especificacion.loader.exec_module(modulo)
+    return modulo

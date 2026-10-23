@@ -15,3 +15,7 @@ class ConfiguracionInvalidaError(DominioEPPError):
 
 class ObservacionInvalidaError(DominioEPPError):
     """Lo observado en un frame es incoherente (por ejemplo, un track_id repetido)."""
+
+
+class RelojRetrocedioError(DominioEPPError):
+    """El reloj inyectado devolvió un instante anterior al último observado."""

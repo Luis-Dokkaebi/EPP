@@ -61,9 +61,11 @@ con_pantalla() {
     fi
 }
 
+ARCHIVOS_POR_LOTE=50
 revisar_secretos() {
     # -z: los nombres versionados con espacios o acentos llegan intactos a detect-secrets.
-    git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
+    # -n: lotes que caben en la línea de comandos de Windows, igual que quality_gate.ps1.
+    git ls-files -z | xargs -0 -n "$ARCHIVOS_POR_LOTE" detect-secrets-hook --baseline .secrets.baseline
 }
 
 paquetes_medidos() {

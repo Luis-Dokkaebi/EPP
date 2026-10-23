@@ -21,6 +21,7 @@ Set-Location (Join-Path $PSScriptRoot '..')
 $Reportes = if ($env:GATE_REPORTES) { $env:GATE_REPORTES } else { 'reports/gate' }
 $Base = if ($env:GATE_BASE) { $env:GATE_BASE } else { 'origin/main' }
 $ModulosCriticos = @('src/security', 'src/storage', 'src/analysis/efficiency_calculator.py', 'src/zones/zone_checker.py')
+$ArchivosPorLote = 50
 New-Item -ItemType Directory -Force -Path $Reportes | Out-Null
 
 function Invoke-Paso([string]$Nombre, [scriptblock]$Comando) {
@@ -119,8 +120,15 @@ Invoke-Paso '5b-tamano' { python scripts/check_tamano.py }
 Invoke-Paso '6a-bandit' { bandit -r src -ll }
 Invoke-Paso '6b-pip-audit' { pip-audit }
 Invoke-Paso '6c-secretos' {
+    # Por lotes: cmd.exe no acepta líneas de más de 8191 caracteres.
     $versionados = @(git -c core.quotePath=false ls-files)
-    detect-secrets-hook --baseline .secrets.baseline @versionados
+    $peor = 0
+    for ($i = 0; $i -lt $versionados.Count; $i += $ArchivosPorLote) {
+        $lote = $versionados[$i..([Math]::Min($i + $ArchivosPorLote, $versionados.Count) - 1)]
+        detect-secrets-hook --baseline .secrets.baseline @lote
+        if ($LASTEXITCODE -ne 0) { $peor = $LASTEXITCODE }
+    }
+    $global:LASTEXITCODE = $peor
 }
 if ($SinMutacion) {
     Write-Omitido '7-mutacion' '-SinMutacion'

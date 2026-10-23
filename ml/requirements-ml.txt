@@ -1,0 +1,15 @@
+# Entrenamiento y exportación del modelo EPP (SPEC/9 §3.1). NO va al ejecutable ni a CI: se instala
+# en un entorno aparte (docs/runbooks/entrenamiento.md). Las pruebas de ml/ usan dobles y no lo
+# necesitan.
+#
+# Licencias (pip-licenses 5.5.5 sobre el entorno instalado, 2026-10-22): rfdetr Apache-2.0; ningún
+# paquete AGPL ni GPL (sin ultralytics). Revisión humana pendiente: certifi y tqdm (MPL-2.0).
+# faster-coco-eval y torch-hungarian no declaran licencia en sus metadatos; su LICENSE es Apache-2.0.
+# pip-audit 2.7.3 (2026-10-22): sin vulnerabilidades conocidas; torch y torchvision auditados con
+# su versión publicada en PyPI (2.14.1 y 0.29.1).
+# Para entrenar con GPU NVIDIA se cambia el índice y el sufijo +cpu por los de CUDA.
+--extra-index-url https://download.pytorch.org/whl/cpu
+rfdetr[train]==1.11.2
+rfdetr[onnx]==1.11.2
+torch==2.14.1+cpu
+torchvision==0.29.1+cpu

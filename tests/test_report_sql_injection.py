@@ -6,7 +6,7 @@ de inyección en el campo de fecha NO debe volcar toda la tabla.
 import os
 import re
 import sys
-import time
+import threading
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
@@ -17,6 +17,18 @@ from src.storage.database_manager import DatabaseManager
 from src.analysis.report_generator import DatabaseWorker
 
 _DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+# La exportación corre en un hilo: se espera un evento (sin sondear con sleep, CLAUDE.md §4).
+# En la CI de Windows el primer import de openpyxl tardaba más que el sondeo de 2.5 s.
+SEGUNDOS_MAXIMOS = 30
+
+
+def _avisar(done, **resultado):
+    done.update(resultado)
+    done["listo"].set()
+
+
+def _esperar(done):
+    assert done["listo"].wait(SEGUNDOS_MAXIMOS), "la exportación no terminó"
 
 
 @pytest.fixture
@@ -37,17 +49,14 @@ def test_parametrized_export_respects_range(db, tmp_path):
     """La exportación parametrizada debe respetar el rango de fechas."""
     worker = DatabaseWorker(db)
     out = str(tmp_path / "rep.xlsx")
-    done = {}
+    done = {"listo": threading.Event()}
     query = ("SELECT employee_name, date(timestamp) as fecha, zone, inside_zone "
              "FROM tracking WHERE date(timestamp) BETWEEN ? AND ?")
     worker.generate_excel_async(query, out,
-                                on_success=lambda p, n: done.update(rows=n),
-                                on_error=lambda e: done.update(err=e),
+                                on_success=lambda p, n: _avisar(done, rows=n),
+                                on_error=lambda e: _avisar(done, err=e),
                                 params=("2026-01-01", "2026-06-30"))
-    for _ in range(50):
-        if done:
-            break
-        time.sleep(0.05)
+    _esperar(done)
     assert done.get("rows") == 1, f"se esperaba solo la fila dentro de rango, se obtuvo {done}"
     df = pd.read_excel(out)
     assert list(df["employee_name"]) == ["Alice"]
@@ -73,17 +82,14 @@ def test_injection_payload_is_inert_with_params(db, tmp_path):
     # La ruta corregida: params enlazados -> el payload es un literal inerte -> 0 filas.
     worker = DatabaseWorker(db)
     out = str(tmp_path / "rep2.xlsx")
-    done = {}
+    done = {"listo": threading.Event()}
     query = ("SELECT employee_name, date(timestamp) as fecha, zone, inside_zone "
              "FROM tracking WHERE date(timestamp) BETWEEN ? AND ?")
     worker.generate_excel_async(query, out,
-                                on_success=lambda p, n: done.update(rows=n),
-                                on_error=lambda e: done.update(err=e),
+                                on_success=lambda p, n: _avisar(done, rows=n),
+                                on_error=lambda e: _avisar(done, err=e),
                                 params=("2026-01-01", payload_end))
-    for _ in range(50):
-        if done:
-            break
-        time.sleep(0.05)
+    _esperar(done)
     assert done.get("rows") == 0, f"la inyección filtró filas vía params: {done}"
 
 

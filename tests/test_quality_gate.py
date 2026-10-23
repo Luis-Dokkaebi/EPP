@@ -226,7 +226,27 @@ def test_quality_gate_revisa_tamano_de_archivos_y_secretos(
     _correr(lanzador, _entorno(tmp_path))
 
     assert _invocaciones(tmp_path, "python scripts/check_tamano.py") == 1
-    assert _invocaciones(tmp_path, "detect-secrets-hook --baseline .secrets.baseline") == 1
+    assert _invocaciones(tmp_path, "detect-secrets-hook --baseline .secrets.baseline") >= 1
+
+
+LIMITE_DE_CMD = 8191  # caracteres por línea de comandos de cmd.exe
+
+
+def test_quality_gate_revisa_cada_archivo_versionado_en_lotes_que_caben_en_cmd(
+    lanzador: Lanzador, tmp_path: Path
+) -> None:
+    # S603/S607: git del sistema con argumentos fijos.
+    versionados = subprocess.run(
+        ["git", "-c", "core.quotePath=false", "ls-files"],  # noqa: S603, S607
+        capture_output=True, text=True, check=True, cwd=RAIZ,
+    ).stdout.splitlines()  # fmt: skip
+
+    _correr(lanzador, _entorno(tmp_path))
+
+    registro = (tmp_path / "registro.txt").read_text(encoding="utf-8").splitlines()
+    lotes = [linea for linea in registro if linea.startswith("detect-secrets-hook --baseline")]
+    assert max(len(lote) for lote in lotes) < LIMITE_DE_CMD
+    assert [archivo for archivo in versionados if not any(archivo in lote for lote in lotes)] == []
 
 
 def test_quality_gate_falla_si_aparece_un_secreto_nuevo(lanzador: Lanzador, tmp_path: Path) -> None:

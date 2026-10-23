@@ -76,11 +76,11 @@ def test_herramienta_prefiere_el_venv_del_proyecto(
 def test_herramienta_en_windows_busca_en_la_carpeta_scripts_del_venv(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    propia = _ejecutable(tmp_path / ".venv" / "Scripts" / "ruff", "#!/bin/sh\n")
+    propia = _herramienta_falsa(tmp_path / ".venv" / "Scripts", "ruff")
     monkeypatch.setattr(guardian, "CARPETA_DE_SCRIPTS", "Scripts")
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
 
-    assert guardian.herramienta("ruff") == str(propia)
+    assert _misma_ruta(guardian.herramienta("ruff"), propia)
 
 
 @pytest.mark.parametrize(("sistema", "carpeta"), [("nt", "Scripts"), ("posix", "bin")])
@@ -91,12 +91,12 @@ def test_carpeta_de_scripts_depende_del_sistema(sistema: str, carpeta: str) -> N
 def test_herramienta_busca_en_la_carpeta_scripts_del_interprete(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    propia = _ejecutable(tmp_path / "python" / "Scripts" / "ruff", "#!/bin/sh\n")
+    propia = _herramienta_falsa(tmp_path / "python" / "Scripts", "ruff")
     monkeypatch.setattr(sys, "executable", str(tmp_path / "python" / "python"))
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path / "proyecto"))
     monkeypatch.setenv("PATH", "")
 
-    assert guardian.herramienta("ruff") == str(propia)
+    assert _misma_ruta(guardian.herramienta("ruff"), propia)
 
 
 def test_herramienta_sin_variable_de_proyecto_usa_el_directorio_actual(

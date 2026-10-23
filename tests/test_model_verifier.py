@@ -54,7 +54,9 @@ def test_camera_worker_disabled_when_model_tampered(monkeypatch, tmp_path):
 
     import queue
     from src.tracking.camera_worker import CameraWorker
-    w = CameraWorker(camera_id=0, frame_queue=queue.Queue(maxsize=2), model=object(), fps_limit=15)
+    w = CameraWorker(
+        camera_id=0, frame_queue=queue.Queue(maxsize=2), detector=object(), fps_limit=15
+    )
     assert w.model_verified is False
     # run() debe retornar inmediatamente sin tocar cv2.
     w.run()

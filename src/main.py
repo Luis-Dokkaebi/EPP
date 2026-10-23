@@ -16,8 +16,8 @@ except ImportError:
     sys.path.append(os.getcwd())
     from config import config
 
-from src.detection.person_detector import PersonDetector
-from src.tracking.person_tracker import PersonTracker
+from src.composition import crear_detector
+from src.tracking.person_tracker import PersonTracker, separar_personas_y_celulares
 from src.zones.zone_checker import ZoneChecker
 from src.storage.database_manager import DatabaseManager
 from src.recognition.face_recognizer import FaceRecognizer
@@ -87,7 +87,7 @@ def start_video_stream():
 
     # Inicializamos los módulos
     model_path = getattr(config, 'MODEL_PATH', 'yolov8n.pt')
-    detector = PersonDetector(model_path=model_path, confidence_threshold=config.CONFIDENCE_THRESHOLD)
+    detector = crear_detector(model_path, config.CONFIDENCE_THRESHOLD)
     tracker = PersonTracker()
     zone_checker = ZoneChecker(zones_path=zonas_file)
     db_manager = DatabaseManager(db_path=config.get_db_path())
@@ -122,17 +122,8 @@ def start_video_stream():
 
         current_time = time.time()
 
-        # Detección y tracking
-        detections = detector.detect(frame)
-
-        # Separar personas de celulares
-        person_detections = detections[detections.class_id == 0]
-        phone_detections = detections[detections.class_id == 67]
-
-        phones_data = []  # Lista de bboxes
-        if len(phone_detections) > 0:
-            for xyxy in phone_detections.xyxy:
-                phones_data.append(tuple(map(int, xyxy)))
+        # Detección (DetectorPort, SPEC/9 §1.3.5) y separación de personas y celulares
+        person_detections, phones_data = separar_personas_y_celulares(detector.detectar(frame))
 
         # CR-04: toda la lógica (tracking IDs, zonas, reconocimiento, snapshots y
         # persistencia a BD) ocurre en el pipeline compartido.

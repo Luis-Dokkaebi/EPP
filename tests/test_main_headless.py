@@ -3,6 +3,8 @@
 Mismo criterio que las pruebas de CameraWorker: la fixture cambia de motor, las aserciones no.
 """
 
+import sys
+import types
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -65,8 +67,10 @@ class Corrida:
 def correr_headless(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Callable[..., Corrida]:
     def _correr(frames: list[np.ndarray], detecciones: list[DeteccionCruda]) -> Corrida:
         modelo = ModeloFalso(detecciones)
-        monkeypatch.setattr("ultralytics.YOLO", lambda _ruta: modelo)
-        monkeypatch.setattr("src.detection.person_detector.YOLO", lambda _ruta: modelo)
+        # Paquete `ultralytics` falso: la prueba no importa el motor real ni carga pesos.
+        monkeypatch.setitem(
+            sys.modules, "ultralytics", types.SimpleNamespace(YOLO=lambda _r: modelo)
+        )
         corrida = Corrida(pipelines=[], capturas=[], ventanas_cerradas=[])
         _aislar_entorno(monkeypatch, tmp_path)
         monkeypatch.setattr(main.time, "time", lambda: MARCA_TIEMPO)

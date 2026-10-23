@@ -11,14 +11,18 @@ import threading
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from config.path_utils import ConfigManager
 from src.main_ui import AppMain
+from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
 
 Camaras = list[dict[str, object]]
 
 INDICES_DE_CAMARA_A_REVISAR = 10
+FPS_DE_LA_GUI = 15
+CONFIANZA_BAJA = 0.125
 # Solo se agota si la condición esperada nunca se cumple, es decir, si la prueba va a fallar.
 PLAZO_BUCLE_TK_MS = 5000
 INTERVALO_REVISION_MS = 10
@@ -32,11 +36,13 @@ CAMARA_3: dict[str, object] = {
 }
 
 
-class ModeloYoloFalso:
+def modelo_yolo_falso(_ruta_modelo: str) -> ModeloFalso:
     """Doble de `ultralytics.YOLO`: la prueba no carga pesos reales (CLAUDE.md §16)."""
+    return ModeloFalso([DeteccionCruda(0, (1.0, 2.0, 3.0, 4.0), CONFIANZA_BAJA)])
 
-    def __init__(self, ruta_modelo: str) -> None:
-        self.ruta_modelo = ruta_modelo
+
+def modelo_que_no_carga(_ruta_modelo: str) -> ModeloFalso:
+    raise RuntimeError("pesos corruptos")
 
 
 class EscaneoEnHiloFalso:
@@ -75,6 +81,7 @@ class TrabajadorDeCamaraFalso:
         self, camara: object, cola: queue.Queue[object], modelo: object, fps_limit: int
     ) -> None:
         self.camara = camara
+        self.fps_limit = fps_limit
         self.iniciado = False
 
     def start(self) -> None:
@@ -121,15 +128,22 @@ def trabajadores(monkeypatch: pytest.MonkeyPatch) -> FabricaDeTrabajadoresFalsa:
 
 
 @pytest.fixture
+def motor() -> Callable[[str], ModeloFalso]:
+    return modelo_yolo_falso
+
+
+@pytest.fixture
 def app(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     escaneo: EscaneoEnHiloFalso,
     trabajadores: FabricaDeTrabajadoresFalsa,
+    motor: Callable[[str], ModeloFalso],
 ) -> Iterator[AppMain]:
     monkeypatch.setenv("APPDATA", str(tmp_path))
     monkeypatch.setattr(ConfigManager, "_active_tenant_id", "Prueba_Escaneo")
-    monkeypatch.setattr("ultralytics.YOLO", ModeloYoloFalso)
+    monkeypatch.setattr("ultralytics.YOLO", motor)
+    monkeypatch.setattr("tkinter.messagebox.showerror", lambda *_argumentos: None)
     aplicacion = AppMain()
     yield aplicacion
     escaneo.terminar()
@@ -184,6 +198,25 @@ def test_escaneo_con_una_camara_la_conecta_automaticamente(
     # Assert
     assert texto_de_estado(app) == "✅ Activa: índice 3"
     assert trabajadores.camaras_iniciadas() == [3]
+    assert [trabajador.fps_limit for trabajador in trabajadores.creados] == [FPS_DE_LA_GUI]
+
+
+@pytest.mark.integration
+def test_la_app_no_agrega_un_filtro_de_confianza_al_del_motor(app: AppMain) -> None:
+    detecciones = app.detector.detectar(np.zeros((4, 4, 3), dtype=np.uint8))
+
+    assert [deteccion.confianza for deteccion in detecciones] == [pytest.approx(CONFIANZA_BAJA)]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("motor", [modelo_que_no_carga], ids=["motor_que_no_carga"])
+def test_sin_motor_no_inicia_ninguna_camara(
+    app: AppMain, trabajadores: FabricaDeTrabajadoresFalsa
+) -> None:
+    app._start_local_camera(3)
+
+    assert app.detector is None
+    assert trabajadores.creados == []
 
 
 @pytest.mark.integration

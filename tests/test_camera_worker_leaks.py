@@ -17,12 +17,11 @@ SEGUNDOS_PARA_DETENERSE = 30
 CAPACIDAD = 5
 FRAMES_DE_MAS = 5
 
-class MockModel:
-    def __call__(self, frame, verbose=False):
-        # Simulando el objeto Results de YOLOv8
-        mock_result = MagicMock()
-        mock_result.plot.return_value = frame # just return original frame for test
-        return [mock_result]
+class MockDetector:
+    """Doble de DetectorPort: ninguna detección (SPEC/9 §1.3.5)."""
+
+    def detectar(self, frame):
+        return []
 
 class TestCameraWorkerLeaks(unittest.TestCase):
     @patch('config.config.get_faces_dir', return_value=_FACES_TMP)
@@ -48,10 +47,10 @@ class TestCameraWorkerLeaks(unittest.TestCase):
 
         # Queue limited to 5 frames
         q = queue.Queue(maxsize=CAPACIDAD)
-        model = MockModel()
+        detector = MockDetector()
 
         # Instantiate Camera Worker acting un-throttled to flood queue faster (30 ops)
-        worker = CameraWorker(camera_id=0, frame_queue=q, model=model, fps_limit=30)
+        worker = CameraWorker(camera_id=0, frame_queue=q, detector=detector, fps_limit=30)
         
         process = psutil.Process(os.getpid())
         mem_start = process.memory_info().rss

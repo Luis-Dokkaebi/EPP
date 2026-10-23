@@ -1,8 +1,8 @@
 """Caracterización de CameraWorker.run() antes de migrar el motor (SPEC/9 §1.3.1, A-09).
 
 Fijan lo que hoy hace el worker con dobles de sus colaboradores (cámara, modelo, reloj, pipeline y
-reconocedor facial). Deben pasar antes y después de cada paso de la migración: cuando el worker
-reciba un DetectorPort (A-11), solo cambia la fixture `crear_worker`, no las aserciones.
+reconocedor facial). Deben pasar antes y después de cada paso de la migración: desde A-11 el worker
+recibe un DetectorPort y solo cambió la fixture `crear_worker`, no las aserciones.
 """
 
 import queue
@@ -13,6 +13,8 @@ from typing import Any
 import numpy as np
 import pytest
 
+from src.inference.adapters.ultralytics_detector import DetectorUltralytics
+from src.inference.types import CATALOGO_COCO
 from src.tracking import camera_worker as modulo_worker
 from src.tracking.camera_worker import CameraWorker
 from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
@@ -25,6 +27,7 @@ BLANCO = 255
 MARCA_TIEMPO = 1_000.0
 FRAMES_ENTRE_RECARGAS = 60
 ESPERA_RECONEXION_S = 2.0
+FPS_POR_OMISION = 15
 
 
 def frame_blanco() -> np.ndarray:
@@ -121,7 +124,8 @@ def crear_worker(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> Callable[...
         monkeypatch.setattr(modulo_worker, "time", reloj)
         cola: queue.Queue[tuple[int | str, np.ndarray]] = queue.Queue(maxsize=tamano_cola)
         modelo = ModeloFalso(detecciones or [])
-        worker = CameraWorker(camera_id=camara, frame_queue=cola, model=modelo, fps_limit=10)
+        detector = DetectorUltralytics(modelo, CATALOGO_COCO, confianza_minima=0.0)
+        worker = CameraWorker(camera_id=camara, frame_queue=cola, detector=detector, fps_limit=10)
         capturas: list[tuple[tuple[Any, ...], CapturaFalsa]] = []
 
         def _abrir(*argumentos: Any) -> CapturaFalsa:
@@ -318,6 +322,18 @@ def test_camera_worker_busca_una_camara_de_respaldo_si_la_pedida_falla(
 
     assert escenario.worker.camera_id == 1
     assert [camara for camara, _ in escenario.encolados()] == [1]
+
+
+def test_camera_worker_por_omision_limita_a_15_fps(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    monkeypatch.setattr("config.config.get_faces_dir", lambda: str(tmp_path))
+    monkeypatch.setattr("config.config.get_db_path", _sin_tenant)
+    monkeypatch.setattr(modulo_worker, "FaceRecognizer", ReconocedorFalso)
+
+    worker = CameraWorker(0, queue.Queue(), DetectorUltralytics(ModeloFalso([]), CATALOGO_COCO, 0))
+
+    assert worker.fps_limit == FPS_POR_OMISION
 
 
 def test_camera_worker_libera_la_captura_al_detenerse(

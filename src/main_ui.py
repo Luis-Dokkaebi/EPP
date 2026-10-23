@@ -1,8 +1,13 @@
+import queue
+
 import customtkinter as ctk
 
 # Configuracion global de tema segun 1_SPECIFICATIONS.md
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
+
+# Cada cuánto el hilo de la UI revisa si el escaneo de cámaras (hilo de fondo) terminó.
+INTERVALO_SONDEO_ESCANEO_MS = 100
 
 class ViewManager:
     """Clase singleton-like para manejar el renderizado condicional de vistas (caching de frames)."""
@@ -183,19 +188,29 @@ class AppMain(ctk.CTk):
         from src.gui.views import build_camera_selector
         build_camera_selector(self, self.sidebar_frame)
     
-    def _scan_cameras(self):
+    def _scan_cameras(self) -> None:
         from src.acquisition.camera_enumerator import enumerate_cameras_async
         
         self._cam_status_label.configure(text="⏳ Escaneando...", text_color="#F39C12")
         self._cam_combo.configure(values=["Escaneando..."])
         self._cam_combo.set("Escaneando...")
-        
-        def on_scan_complete(cameras):
-            self._detected_cameras = cameras
-            self.after(0, lambda: self._update_camera_list(cameras))
-        
-        enumerate_cameras_async(on_scan_complete, max_index=10)
-    
+
+        # Tk solo se usa desde su hilo: el escaneo deja el resultado en una cola y la UI la
+        # sondea con after(). Llamar a Tk desde el hilo de fondo usaba el intérprete Tcl desde
+        # dos hilos a la vez (Segmentation fault / Illegal instruction intermitentes).
+        resultado_escaneo: queue.Queue[list[dict]] = queue.Queue()
+        enumerate_cameras_async(resultado_escaneo.put, max_index=10)
+        self._recibir_escaneo(resultado_escaneo)
+
+    def _recibir_escaneo(self, resultado_escaneo: queue.Queue[list[dict]]) -> None:
+        try:
+            cameras = resultado_escaneo.get_nowait()
+        except queue.Empty:
+            self.after(INTERVALO_SONDEO_ESCANEO_MS, self._recibir_escaneo, resultado_escaneo)
+            return
+        self._detected_cameras = cameras
+        self._update_camera_list(cameras)
+
     def _update_camera_list(self, cameras):
         if cameras:
             labels = [cam["label"] for cam in cameras]

@@ -6,8 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from scripts.check_mutacion import ResultadoMutacion, leer_resultados, main
-from tests.utilidades_scripts import ejecutar_script
+from scripts.check_mutacion import (
+    ResultadoMutacion,
+    equivalentes_documentados,
+    leer_resultados,
+    main,
+)
+from tests.utilidades_scripts import RAIZ, ejecutar_script
 
 UMBRAL_CODIGO_NUEVO = 85.0
 
@@ -126,9 +131,9 @@ def test_main_reporta_todos_los_archivos_que_fallan(
     salida = capsys.readouterr().out.splitlines()
     assert salida == [
         "src/a.py: 100.0 % (ResultadoMutacion(archivo='src/a.py', muertos=0, sobrevivientes=0, "
-        "sin_probar=1))",
+        "sin_probar=1, equivalentes=0))",
         "src/b.py: 0.0 % (ResultadoMutacion(archivo='src/b.py', muertos=0, sobrevivientes=1, "
-        "sin_probar=0))",
+        "sin_probar=0, equivalentes=0))",
         "src/a.py: 1 mutantes sin probar",
         "src/b.py: 0.0 % < 85.0 %. Mata los sobrevivientes con pruebas nuevas "
         "(`mutmut results` / `mutmut show <id>`); los equivalentes van en "
@@ -152,3 +157,55 @@ def test_script_ejecutado_como_programa_devuelve_el_codigo_de_main(
     )
 
     assert resultado.returncode == codigo_esperado, resultado.stdout + resultado.stderr
+
+
+TABLA_EQUIVALENTES = (
+    "| Archivo | Línea original | Mutación | Por qué es equivalente |\n"
+    "|---------|----------------|----------|------------------------|\n"
+    "| `src/a.py` | `x = 1` | `x = 2`, `x = None` | motivo |\n"
+    '| `src/a.py` | `strip("\\|")` | `strip("XX\\|XX")` | motivo con \\| escapado |\n'
+    "| `src/b.py` | `w` | `v` | motivo |\n"
+)
+
+
+def test_equivalentes_documentados_cuenta_cada_mutacion_entre_comillas_por_archivo() -> None:
+    assert equivalentes_documentados(TABLA_EQUIVALENTES) == {"src/a.py": 3, "src/b.py": 1}
+
+
+def test_resultado_descuenta_los_equivalentes_documentados_del_puntaje() -> None:
+    resultado = ResultadoMutacion(
+        archivo="a.py", muertos=5, sobrevivientes=1, sin_probar=0, equivalentes=1
+    )
+
+    assert resultado.puntaje == pytest.approx(100.0)
+
+
+def test_resultado_no_descuenta_mas_equivalentes_que_sobrevivientes() -> None:
+    resultado = ResultadoMutacion(
+        archivo="a.py", muertos=1, sobrevivientes=1, sin_probar=0, equivalentes=3
+    )
+
+    assert resultado.puntaje == pytest.approx(100.0)
+
+
+def test_main_aprueba_si_los_sobrevivientes_son_equivalentes_documentados(tmp_path: Path) -> None:
+    cache = _crear_cache(tmp_path, {"src/a.py": ["ok_killed"] * 5 + ["bad_survived"]})
+    documentados = tmp_path / "equivalentes.md"
+    documentados.write_text(
+        TABLA_EQUIVALENTES.replace("`x = 2`, `x = None`", "`x = 2`"), encoding="utf-8"
+    )
+
+    assert main([str(cache), str(UMBRAL_CODIGO_NUEVO), str(documentados)]) == 0
+
+
+def test_main_sin_tabla_de_equivalentes_lee_la_del_repositorio(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cache = _crear_cache(tmp_path, {"src/main_ui.py": ["ok_killed"] * 5 + ["bad_survived"]})
+    monkeypatch.chdir(RAIZ)
+
+    assert main([str(cache), str(UMBRAL_CODIGO_NUEVO)]) == 0
+
+
+def test_equivalentes_documentados_ignora_filas_incompletas() -> None:
+    assert equivalentes_documentados("| `src/x.py` | fila incompleta") == {}

@@ -26,6 +26,10 @@ calidad sin enlazar.
 - [Plantilla de ADR](adr/plantilla.md)
 - [ADR-001: Motor de IA con licencia Apache/MIT](adr/001-motor-ia.md) — provisional hasta A-13.
 
+## Benchmarks (`docs/benchmarks/`)
+
+- [Motores de IA](benchmarks/motor_ia.md) — bitácora de A-13 que cierra ADR-001 (bloqueada por D2).
+
 ## Calidad (`docs/quality/`)
 
 - [Progreso del plan](quality/progreso.md) — entregas terminadas, en curso y bloqueadas.
@@ -35,11 +39,37 @@ calidad sin enlazar.
 - [Lecciones de los agentes](quality/lecciones_agentes.md) — cada error convertido en mecanismo.
 - [Métricas del trinquete](quality/metricas.json) — pisos que solo pueden subir.
 
+## Datos y modelo EPP (`docs/ml/`, pista B)
+
+- [Iteration Compact](ml/iteration_compact.md) — objetivo, métricas y decisiones abiertas del modelo.
+- [Contrato de datos](ml/contrato_datos.md) — taxonomía, formato, split sin fuga, licencias y custodia.
+- [Guía de etiquetado](ml/guia_etiquetado.md) — definiciones operativas por clase y doble etiquetado.
+- [Bitácora del modelo](ml/bitacora.md) — Observation Ledger de cada iteración (vacía hasta la
+  primera corrida real).
+- [Plantilla de ficha del modelo](ml/ficha_modelo_plantilla.md) — base de `models/cards/epp-vX.Y.md`.
+
+## Runbooks (`docs/runbooks/`, tareas humanas)
+
+- [Captura del dataset](runbooks/captura_dataset.md) — capturar imágenes del piloto (D5, D6).
+- [Etiquetado y versionado](runbooks/etiquetado.md) — etiquetar, medir el acuerdo, convertir y
+  versionar el dataset (D6).
+- [Entrenamiento](runbooks/entrenamiento.md) — entorno aparte, baseline, análisis de errores y
+  promoción (D2, D4, D6).
+- [Exportación del modelo](runbooks/exportacion_modelo.md) — ONNX, paridad, ficha y entrada en el
+  manifiesto de modelos (D8).
+
 ## Licencias y modelos
 
 - [Licencias revisadas](legal/licencias_revisadas.json) — aprobaciones humanas del gate de
   licencias (las propuestas sin `aprobado_por` no cuentan).
 - [Manifiesto de modelos](../models/manifest.json) — hash y licencias de cada modelo distribuido.
+- [Expediente para la revisión legal (D9)](legal/revision_d9.md) — hechos y decisiones humanas
+  pendientes antes del release (no es asesoría legal).
+
+## Runbooks (tareas humanas)
+
+- [A-16: contraer la migración del motor](runbooks/a16_contraer_motor.md) — requiere D8, el
+  modelo ONNX aprobado y la prueba de humo del ejecutable.
 
 ## Seguridad
 

@@ -78,42 +78,22 @@ class AppMain(ctk.CTk):
         """Inicializa las vistas con lógica de negocio REAL."""
         import queue
         from src.gui.dashboard import DashboardFrame
-        from config.config import MODEL_PATH
         from src.gui.views import create_employees_view, create_zones_view, create_reports_view, create_tenant_view
         
         self.camera_workers = []
         self.camera_queues = {}
         
-        # CR-05: el parche global de torch.load (que fuerza weights_only=False)
-        # DEBE restaurarse en TODOS los caminos. Antes se restauraba solo si YOLO
-        # cargaba sin excepción; si fallaba, torch.load quedaba inseguro toda la
-        # sesión (deserialización RCE persistente). El `finally` cierra la fuga.
-        import torch
-        _original_load = torch.load
-        def _patched_load(*args, **kwargs):
-            kwargs['weights_only'] = False
-            return _original_load(*args, **kwargs)
-        torch.load = _patched_load
+        # CR-05: el parche de torch.load vive confinado en la raíz de composición (A-15).
         try:
-            from ultralytics.nn.tasks import DetectionModel
+            from src.composition import crear_detector_configurado
 
-            from src.composition import crear_detector
-
-            if hasattr(torch.serialization, 'add_safe_globals'):
-                try:
-                    torch.serialization.add_safe_globals([DetectionModel])
-                except Exception:
-                    pass
-
-            detector = crear_detector(MODEL_PATH, CONFIANZA_MINIMA_GUI)
+            detector = crear_detector_configurado(CONFIANZA_MINIMA_GUI)
 
         except Exception as e:
             print(f"[VMS] No se pudo cargar YOLO: {e}")
             import tkinter.messagebox
             tkinter.messagebox.showerror("Error Crítico de IA", f"No se pudo cargar el motor YOLO B2B:\n\n{e}\n\nFavor de reportar este problema.")
             detector = None
-        finally:
-            torch.load = _original_load  # SIEMPRE se restaura
         
         self.detector = detector
         self.view_dashboard = DashboardFrame(self.main_workspace, self.camera_queues)

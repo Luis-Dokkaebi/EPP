@@ -71,6 +71,11 @@ calidad sin enlazar.
 - [A-16: contraer la migración del motor](runbooks/a16_contraer_motor.md) — requiere D8, el
   modelo ONNX aprobado y la prueba de humo del ejecutable.
 
+## Operación (`docs/runbooks/`)
+
+- [Build 2.0.0 y piloto en modo sombra](runbooks/piloto_sombra.md) — pasos humanos de C-14;
+  **no ejecutado**, bloqueado por D8 y D9.
+
 ## Seguridad
 
 - [Auditoría de seguridad](security_audit_report.md) — informe heredado.

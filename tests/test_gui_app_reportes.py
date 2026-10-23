@@ -10,7 +10,9 @@ from typing import Any
 
 import pytest
 
-pytestmark = [pytest.mark.slow, pytest.mark.usefixtures("importacion_sin_efectos")]
+# integration y no slow: usan Tk real y el import pesado de la GUI, pero cada prueba es rápida y
+# la mutación de src/gui_app.py (que excluye las slow) las necesita.
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("importacion_sin_efectos")]
 
 AVISO_FECHA = "Fecha inválida: «22/10/2026». Usa el formato AAAA-MM-DD."
 FILA = ("Ana", "2026-10-22")

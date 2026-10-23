@@ -27,6 +27,7 @@ class PuertosEnMemoria:
 
     def __init__(self) -> None:
         self.llamadas: list[tuple[str, object]] = []
+        self.evidencias: dict[str, object] = {}
 
     def guardar(self, evento: EventoInfraccion) -> None:
         self.llamadas.append(("guardar", evento))
@@ -35,7 +36,9 @@ class PuertosEnMemoria:
         self, imagen: object, caja_persona: Caja, infraccion: InfraccionIniciada
     ) -> str:
         self.llamadas.append(("guardar_evidencia", (imagen, caja_persona, infraccion)))
-        return f"evidencia/{imagen}"
+        referencia = f"evidencia/{imagen}"
+        self.evidencias[referencia] = imagen
+        return referencia
 
     def publicar(self, evento: EventoInfraccion) -> None:
         self.llamadas.append(("publicar", evento))

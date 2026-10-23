@@ -7,7 +7,7 @@ el archivo afectado.
 
 | ID | Regla incumplida | Archivo | Motivo técnico | Riesgo | Fecha límite | Issue |
 |----|------------------|---------|----------------|--------|--------------|-------|
-| W-001 | `ruff format --check` (§8, §10.1) | 56 archivos heredados listados en `[tool.ruff.format] exclude` | Código previo al formateador; reformatear en masa está prohibido sin instrucción (§14.10) | Bajo | 2027-01-19 | #2 |
+| W-001 | `ruff format --check` (§8, §10.1) | 55 archivos heredados listados en `[tool.ruff.format] exclude` | Código previo al formateador; reformatear en masa está prohibido sin instrucción (§14.10) | Bajo | 2027-01-19 | #2 |
 | W-002 | `ruff check` (§8, §10.2) | Archivos heredados de `[tool.ruff.lint.per-file-ignores]`, solo con los códigos que hoy incumplen | Deuda previa al gate | Medio (C901, PLR09xx, S110, E722) | 2027-01-19 | #3 |
 | W-003 | `mypy` con `disallow_untyped_defs` (§3, §8) | 22 módulos de `src/` y 2 de `config/` con `[[tool.mypy.overrides]]` | Código sin anotar; imports sin prefijo `src.` hasta A-04 | Medio | 2027-01-19 | #4 |
 | W-004 | `radon cc -n C` y `radon mi -n B` (§3, §10.5) | 11 bloques listados en `docs/quality/metricas.json` (`radon_cc_waiver`) y `src/gui_app.py` (`radon_mi_waiver`) | Funciones heredadas largas | Alto en `CameraWorker.run` y `TrackingPipeline.process` | 2027-01-19 | #5 |

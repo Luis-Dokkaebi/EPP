@@ -1,19 +1,83 @@
 """Servidores locales falsos para probar los canales de aviso sin red real (SPEC/9 §7.5; §4).
 
 Todo escucha en 127.0.0.1, en un puerto libre, dentro de un hilo que la prueba arranca y detiene
-con `with`.
+con `with`. El certificado TLS es autofirmado y se genera en `tmp_path`; su vigencia de un día
+hacia atrás y otro hacia adelante es lo único que depende del reloj real, porque la verificación
+TLS lo exige.
 """
 
+import ipaddress
 import socket
 import ssl
 import threading
+from datetime import UTC, datetime, timedelta
 from email.message import Message
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from types import TracebackType
 from typing import NamedTuple
 
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
+
 LOCAL = "127.0.0.1"
+UN_DIA = timedelta(days=1)
+
+
+class CertificadoLocal(NamedTuple):
+    certificado: Path
+    clave: Path
+    pem: str
+
+
+def certificado_autofirmado(carpeta: Path) -> CertificadoLocal:
+    """Certificado válido para 127.0.0.1 y localhost, con su clave, guardados en `carpeta`."""
+    clave = ec.generate_private_key(ec.SECP256R1())
+    nombre = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "localhost")])
+    ahora = datetime.now(UTC)
+    certificado = (
+        x509.CertificateBuilder()
+        .subject_name(nombre)
+        .issuer_name(nombre)
+        .public_key(clave.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(ahora - UN_DIA)
+        .not_valid_after(ahora + UN_DIA)
+        .add_extension(
+            x509.SubjectAlternativeName(
+                [x509.DNSName("localhost"), x509.IPAddress(ipaddress.ip_address(LOCAL))]
+            ),
+            critical=False,
+        )
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .sign(clave, hashes.SHA256())
+    )
+    pem = certificado.public_bytes(serialization.Encoding.PEM)
+    ruta_certificado = carpeta / "local.crt"
+    ruta_clave = carpeta / "local.key"
+    ruta_certificado.write_bytes(pem)
+    ruta_clave.write_bytes(
+        clave.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        )
+    )
+    return CertificadoLocal(ruta_certificado, ruta_clave, pem.decode())
+
+
+def contexto_cliente(certificado: CertificadoLocal) -> ssl.SSLContext:
+    """Contexto TLS de cliente que confía solo en el certificado local."""
+    return ssl.create_default_context(cadata=certificado.pem)
+
+
+def contexto_servidor(certificado: CertificadoLocal) -> ssl.SSLContext:
+    contexto = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    contexto.load_cert_chain(certificado.certificado, certificado.clave)
+    return contexto
 
 
 def puerto_cerrado() -> int:

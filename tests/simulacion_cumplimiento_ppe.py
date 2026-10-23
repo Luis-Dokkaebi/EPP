@@ -38,9 +38,10 @@ def elementos_de(texto: str) -> frozenset[ElementoEPP]:
 class SimulacionCumplimiento:
     """Un operario frente a una cámara, con las zonas y el EPP que pide el escenario."""
 
-    def __init__(self) -> None:
+    def __init__(self, puertos: PuertosEnMemoria | None = None) -> None:
         self.reloj = RelojFalso()
-        self.puertos = PuertosEnMemoria()
+        self.puertos = PuertosEnMemoria() if puertos is None else puertos
+        self.nombre: str | None = None
         self.estados: list[EstadoCumplimiento] = []
         self._zonas: list[ReglaZona] = []
         self._operario = Operario(track_id=1)
@@ -94,7 +95,8 @@ class SimulacionCumplimiento:
         return f"frame-{(instante - INICIO) // UN_SEGUNDO}"
 
     def _fotograma(self) -> FotogramaEPP:
-        persona = PersonaEnEscena(1, self._operario.persona.caja, self._zonas_del_operario, None)
+        caja = self._operario.persona.caja
+        persona = PersonaEnEscena(1, caja, self._zonas_del_operario, self.nombre)
         visibles = tuple(d for d in self._epp if not self._esta_oculto(d))
         return FotogramaEPP((persona,), self._anclas, visibles, f"frame-{self._segundo}")
 

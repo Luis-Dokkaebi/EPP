@@ -39,6 +39,12 @@ calidad sin enlazar.
 - [Lecciones de los agentes](quality/lecciones_agentes.md) — cada error convertido en mecanismo.
 - [Métricas del trinquete](quality/metricas.json) — pisos que solo pueden subir.
 
+## Datos y modelo EPP (`docs/ml/`, pista B)
+
+- [Iteration Compact](ml/iteration_compact.md) — objetivo, métricas y decisiones abiertas del modelo.
+- [Contrato de datos](ml/contrato_datos.md) — taxonomía, formato, split sin fuga, licencias y custodia.
+- [Guía de etiquetado](ml/guia_etiquetado.md) — definiciones operativas por clase y doble etiquetado.
+
 ## Licencias y modelos
 
 - [Licencias revisadas](legal/licencias_revisadas.json) — aprobaciones humanas del gate de

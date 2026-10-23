@@ -67,10 +67,10 @@ Qué cámaras y qué días van a cada split: **PENDIENTE (D6)**; se registra en 
 | Licencia de la fuente | Resultado |
 |-----------------------|-----------|
 | `propia-con-autorizacion` (cámaras del cliente con autorización escrita), `CC-BY-4.0`, `CC0-1.0`, `MIT` | Permitida; se registra en el manifiesto y en THIRD_PARTY_NOTICES |
-| `CC-BY-NC*` (incluye **SH17**), `CC-BY-SA-NC*`, `AGPL*`, `GPL*`, `PML*` | Prohibida: contamina los pesos distribuidos |
+| `CC-BY-NC*`, `AGPL*`, `GPL*`, `SSPL*`, `PML*`; y **SH17** con cualquier licencia declarada | Prohibida: contamina los pesos distribuidos |
 | Cualquier otra o vacía | Revisión humana antes de usarla; mientras tanto, falla |
 
-Lo verifica: `validar_licencia_de_fuente`.
+Lo verifica: `validar_licencia_de_fuente` (la comparación distingue mayúsculas: `cc-by-4.0` va a revisión).
 
 ## 6. Datos personales y custodia (SPEC/9 §2.6, CLAUDE.md §9)
 

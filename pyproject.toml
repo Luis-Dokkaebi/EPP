@@ -33,7 +33,6 @@ exclude = [
     "src/gui_app.py",
     "src/main.py",
     "src/main_ui.py",
-    "src/models/model_verifier.py",
     "src/recognition/face_recognizer.py",
     "src/security/crash_logger.py",
     "src/security/db_crypto.py",
@@ -99,7 +98,6 @@ exclude = [
 "src/gui_app.py" = ["C901", "E402", "E501", "E722", "F401", "F811", "F841", "I001", "PLR0912", "PLR0915", "PLR2004", "RUF005", "S110", "T201", "UP012", "W291", "W293"]
 "src/main.py" = ["C901", "E402", "E501", "F401", "I001", "PLR0912", "PLR0915", "PLR2004", "T201", "W292", "W293"]
 "src/main_ui.py" = ["E402", "E501", "E701", "F401", "I001", "S110", "T201", "W291", "W293"]
-"src/models/model_verifier.py" = ["UP007"]
 "src/recognition/face_recognizer.py" = ["C901", "E501", "F401", "I001", "N806", "PLR0912", "RUF100"]
 "src/security/crash_logger.py" = ["E702", "S110", "T201", "UP007"]
 "src/security/db_crypto.py" = ["UP007"]

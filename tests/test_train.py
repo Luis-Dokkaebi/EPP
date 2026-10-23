@@ -199,22 +199,50 @@ def test_entrenar_se_niega_si_el_dataset_no_coincide_con_su_manifiesto(tmp_path:
     assert entrenador.llamadas == []
 
 
+class EntrenadorQueEscribeAfuera(EntrenadorFalso):
+    def entrenar(self, config: ConfigEntrenamiento, carpeta: Path) -> ResultadoDelEntrenador:
+        afuera = carpeta.parent / "pesos.pth"
+        afuera.write_bytes(b"x")
+        return ResultadoDelEntrenador(pesos=afuera, metricas={})
+
+
+class EntrenadorConMetricaAcentuada(EntrenadorFalso):
+    def entrenar(self, config: ConfigEntrenamiento, carpeta: Path) -> ResultadoDelEntrenador:
+        resultado = super().entrenar(config, carpeta)
+        return resultado._replace(metricas={"precisión": 0.5})
+
+
 def test_entrenar_nunca_sobrescribe_un_artefacto_existente(tmp_path: Path) -> None:
     _dataset_versionado(tmp_path)
-    entrenar(_config(tmp_path), EntrenadorFalso(), SHA_CODIGO, tmp_path / "salidas")
+    registro = entrenar(_config(tmp_path), EntrenadorFalso(), SHA_CODIGO, tmp_path / "salidas")
 
-    with pytest.raises(EntrenamientoInvalidoError, match="ya existe: cambia la semilla"):
+    with pytest.raises(EntrenamientoInvalidoError) as error:
         entrenar(_config(tmp_path), EntrenadorFalso(), SHA_CODIGO, tmp_path / "salidas")
+
+    assert str(error.value) == (
+        f"{tmp_path / 'salidas' / registro['artefacto']} ya existe: cambia la semilla o la "
+        "configuración; nunca se sobrescribe."
+    )
 
 
 def test_entrenar_exige_pesos_dentro_de_la_carpeta_del_artefacto(tmp_path: Path) -> None:
     _dataset_versionado(tmp_path)
 
-    class EntrenadorQueEscribeAfuera(EntrenadorFalso):
-        def entrenar(self, config: ConfigEntrenamiento, carpeta: Path) -> ResultadoDelEntrenador:
-            afuera = tmp_path / "pesos.pth"
-            afuera.write_bytes(b"x")
-            return ResultadoDelEntrenador(pesos=afuera, metricas={})
-
-    with pytest.raises(EntrenamientoInvalidoError, match="fuera de la carpeta del artefacto"):
+    with pytest.raises(EntrenamientoInvalidoError) as error:
         entrenar(_config(tmp_path), EntrenadorQueEscribeAfuera(), SHA_CODIGO, tmp_path / "s")
+
+    afuera = tmp_path / "s" / "pesos.pth"
+    assert str(error.value) == (
+        f"El entrenador dejó los pesos fuera de la carpeta del artefacto: {afuera}."
+    )
+
+
+def test_entrenar_guarda_un_registro_legible_con_acentos_sin_escapar(tmp_path: Path) -> None:
+    _dataset_versionado(tmp_path)
+    entrenador = EntrenadorConMetricaAcentuada()
+
+    registro = entrenar(_config(tmp_path), entrenador, SHA_CODIGO, tmp_path / "salidas")
+
+    texto = (tmp_path / "salidas" / registro["artefacto"] / "registro.json").read_text("utf-8")
+    assert texto.startswith('{\n  "artefacto"')
+    assert '"precisión": 0.5' in texto

@@ -107,11 +107,21 @@ jobs:
           python -m venv .venv-licencias
           .venv-licencias/bin/python -m pip install -r requirements.txt \
             --extra-index-url https://download.pytorch.org/whl/cpu
-      - name: Gate de licencias
-        shell: bash # explícito: activa pipefail y `| tee` no oculta el código de salida
+      - name: Avisos de terceros del runtime
+        # Antes del gate: el gate falla por diseño (W-011) y los avisos no deben perderse.
+        shell: bash
         run: |
           python -m pip install pip-licenses==5.5.5
           mkdir -p reports/licencias
+          pip-licenses --python .venv-licencias/bin/python --from=mixed --format=json \
+            --with-license-file --with-notice-file --no-license-path \
+            > reports/licencias/paquetes_con_textos.json
+          python scripts/generar_avisos_terceros.py \
+            --paquetes reports/licencias/paquetes_con_textos.json \
+            --salida reports/licencias/THIRD_PARTY_NOTICES.txt
+      - name: Gate de licencias
+        shell: bash # explícito: activa pipefail y `| tee` no oculta el código de salida
+        run: |
           pip-licenses --python .venv-licencias/bin/python --from=mixed --format=json \
             > reports/licencias/paquetes.json
           python scripts/check_licenses.py --paquetes reports/licencias/paquetes.json \

@@ -6,6 +6,7 @@ from ml.contrato_datos import TAXONOMIA_V1, categorias
 
 LADO_MINIMO = 10.0
 ARCHIVO = "cam-01_20261021_083005_0001.jpg"
+ID_PERSONA, ID_CABEZA, ID_CASCO, ID_CHALECO = 1, 2, 3, 4
 
 
 def imagen(**cambios: Any) -> dict[str, Any]:
@@ -28,6 +29,21 @@ def caja(**cambios: Any) -> dict[str, Any]:
     """Caja de casco (categoría 3 de la taxonomía v1) de 30x40 px en la imagen 1."""
     base = {"id": 1, "image_id": 1, "category_id": 3, "bbox": [10, 20, 30, 40], "iscrowd": 0}
     return {**base, **cambios}
+
+
+def etiquetado(*cajas: tuple[int, list[float]], ignoradas: int = 0) -> dict[str, Any]:
+    """COCO mínimo de una imagen con cajas (categoría, bbox); las primeras `ignoradas` son
+    regiones "ignorar". Sirve para comparar el trabajo de dos etiquetadores."""
+    anotaciones = [
+        {"id": indice, "image_id": 7, "category_id": clase, "bbox": bbox, "iscrowd": 0}
+        for indice, (clase, bbox) in enumerate(cajas)
+    ]
+    anotaciones[:ignoradas] = [{**anotacion, "iscrowd": 1} for anotacion in anotaciones[:ignoradas]]
+    return {
+        "images": [{"id": 7, "file_name": ARCHIVO}],
+        "annotations": anotaciones,
+        "categories": categorias(TAXONOMIA_V1),
+    }
 
 
 def coco(una_imagen: dict[str, Any] | None = None, *cajas: dict[str, Any]) -> dict[str, Any]:

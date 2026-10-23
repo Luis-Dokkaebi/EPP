@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 import pytest
 
+from src import composition as composicion
 from src.inference.adapters.onnx_detector import DetectorOnnx
 from src.inference.adapters.ultralytics_detector import DetectorUltralytics
 from src.inference.types import Caja, ClaseObjeto, Deteccion
@@ -74,7 +75,7 @@ def test_crear_variante_onnx_toma_normalizacion_y_clases_del_manifiesto(
     sesion = types.SimpleNamespace(
         get_inputs=lambda: [types.SimpleNamespace(name="x", shape=(1, 3, 4, 4))]
     )
-    monkeypatch.setattr(bench_detectores, "crear_sesion", lambda ruta: sesion)
+    monkeypatch.setattr(composicion, "crear_sesion", lambda ruta: sesion)
     manifiesto = {
         "modelos": [
             {

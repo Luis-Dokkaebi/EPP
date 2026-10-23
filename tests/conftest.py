@@ -1,13 +1,14 @@
 """Configuración compartida de pytest."""
 
 import gc
+import os
 import sys
 from collections.abc import Iterator
 from unittest.mock import MagicMock
 
 import pytest
 
-from tests import higiene_tk
+from tests import higiene_tk, prueba_en_curso
 
 MARCADORES_DE_TIPO = frozenset({"bdd", "integration", "slow", "windows"})
 
@@ -29,6 +30,10 @@ def pytest_runtest_protocol(item: pytest.Item) -> Iterator[None]:
     yield
     if higiene_tk.interpretes_creados() != antes:
         gc.collect()
+
+
+def pytest_runtest_logstart(nodeid: str) -> None:
+    prueba_en_curso.anotar(nodeid, os.environ)
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:

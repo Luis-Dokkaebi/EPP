@@ -4,7 +4,9 @@ import pstats
 import io
 import time
 import os
+import shutil
 import sys
+import tempfile
 import threading
 import sqlite3
 
@@ -37,9 +39,10 @@ class TestSprint5Audits(unittest.TestCase):
         db_mock.populate_massive_data()
         
         worker = DatabaseWorker(db_mock)
-        output_file = "stress_test_export_50k.xlsx"
-        if os.path.exists(output_file):
-            os.remove(output_file)
+        # Regla §4: nada de disco fuera de un directorio temporal (antes escribía en la raíz del repo).
+        carpeta = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, carpeta, True)
+        output_file = os.path.join(carpeta, "stress_test_export_50k.xlsx")
             
         success_event = threading.Event()
         

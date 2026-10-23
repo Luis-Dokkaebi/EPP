@@ -23,11 +23,12 @@ Fuente de verdad del alcance: `SPEC/9_PLAN_EPP_Y_LICENCIA.md` (§17 para el orde
 
 | Entrega | Estado | PR | Nota |
 |---------|--------|----|------|
-| A-01 | Terminada | (ver PR de la rama `-a01`) | Dependencias fijadas; pip-audit limpio |
+| A-01 | Terminada | #1 | Dependencias fijadas; pip-audit limpio |
+| A-02 | Terminada | (rama `-a02`) | `pyproject.toml`, línea base, waivers #2–#8, 3 pruebas heredadas aisladas |
 
 ## En curso
 
-- A-02: `pyproject.toml`, línea base y waivers del código heredado.
+- A-03: `scripts/quality_gate.sh/.ps1` + su prueba.
 
 ## Bloqueadas
 
@@ -35,4 +36,4 @@ Ninguna todavía.
 
 ## Próxima entrega
 
-A-02.
+A-03.

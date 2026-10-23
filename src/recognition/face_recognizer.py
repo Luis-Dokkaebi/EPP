@@ -99,7 +99,7 @@ class FaceRecognizer:
             try:
                 import pickle  # noqa: S403 — controlled one-time migration from trusted local file
                 with open(legacy_pkl, 'rb') as f:
-                    data = pickle.load(f)  # noqa: S301
+                    data = pickle.load(f)  # noqa: S301  # nosec B301  # WAIVER-#6
                 self.known_face_encodings = data.get('encodings', [])
                 self.known_face_names = data.get('names', [])
                 _logger.info("[FaceRecognizer] Migrating %d encoding(s) from legacy .pkl to .npz.", len(self.known_face_names))

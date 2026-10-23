@@ -159,9 +159,9 @@ class DRMValidator:
 
         Retorna (payload_str, data_dict) si es valida, o (None, None) si falla.
         """
-        from Crypto.PublicKey import RSA
-        from Crypto.Signature import pkcs1_15
-        from Crypto.Hash import SHA256
+        from Crypto.PublicKey import RSA  # nosec B413  # WAIVER-#6: es pycryptodome
+        from Crypto.Signature import pkcs1_15  # nosec B413  # WAIVER-#6: es pycryptodome
+        from Crypto.Hash import SHA256  # nosec B413  # WAIVER-#6: es pycryptodome
 
         try:
             # 1. Decodificar Base64

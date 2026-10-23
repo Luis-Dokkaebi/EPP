@@ -26,7 +26,7 @@ import os
 import sqlite3
 from typing import Optional
 
-from Crypto.Cipher import AES
+from Crypto.Cipher import AES  # nosec B413  # WAIVER-#6: es pycryptodome
 
 _logger = logging.getLogger(__name__)
 

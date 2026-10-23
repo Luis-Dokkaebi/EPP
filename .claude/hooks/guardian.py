@@ -100,6 +100,8 @@ def _paquetes_sin_version(argumentos: list[str]) -> list[str]:
     restantes = iter(argumentos)
     paquetes = []
     for argumento in restantes:
+        if argumento.startswith("#"):  # comentario de shell: lo que sigue no son paquetes
+            break
         if argumento in OPCIONES_PIP_CON_VALOR:
             next(restantes, None)
         elif not argumento.startswith("-") and not _es_ruta_local(argumento):

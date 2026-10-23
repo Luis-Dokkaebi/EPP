@@ -18,5 +18,8 @@
   ],
   "radon_mi_waiver": [
     "src/gui_app.py"
+  ],
+  "longitud_waiver": [
+    "src/gui_app.py"
   ]
 }

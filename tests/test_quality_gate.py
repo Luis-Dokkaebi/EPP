@@ -10,7 +10,9 @@ from pathlib import Path
 import pytest
 
 RAIZ = Path(__file__).resolve().parents[1]
-HERRAMIENTAS = ("ruff", "mypy", "python", "bandit", "pip-audit", "diff-cover", "mutmut")
+HERRAMIENTAS = (
+    "ruff", "mypy", "python", "bandit", "pip-audit", "diff-cover", "mutmut", "detect-secrets-hook",
+)  # fmt: skip
 CODIGO_OPCION_INVALIDA_BASH = 2
 MODULOS_CRITICOS = 4
 
@@ -158,7 +160,7 @@ def test_quality_gate_mide_la_mutacion_de_cada_modulo_critico_por_separado(
 ) -> None:
     _correr_con_opciones(lanzador, _entorno(tmp_path), lanzador.sin_instalar)
 
-    assert _invocaciones(tmp_path, "scripts/check_mutacion.py") == MODULOS_CRITICOS
+    assert _invocaciones(tmp_path, "python scripts/check_mutacion.py") == MODULOS_CRITICOS
 
 
 def test_quality_gate_falla_si_mutmut_termina_con_error(lanzador: Lanzador, tmp_path: Path) -> None:
@@ -168,3 +170,21 @@ def test_quality_gate_falla_si_mutmut_termina_con_error(lanzador: Lanzador, tmp_
 
     assert resultado.returncode != 0
     assert "FALLA en el paso '7-mutacion'" in resultado.stderr
+
+
+def test_quality_gate_revisa_tamano_de_archivos_y_secretos(
+    lanzador: Lanzador, tmp_path: Path
+) -> None:
+    _correr(lanzador, _entorno(tmp_path))
+
+    assert _invocaciones(tmp_path, "python scripts/check_tamano.py") == 1
+    assert _invocaciones(tmp_path, "detect-secrets-hook --baseline .secrets.baseline") == 1
+
+
+def test_quality_gate_falla_si_aparece_un_secreto_nuevo(lanzador: Lanzador, tmp_path: Path) -> None:
+    entorno = _entorno(tmp_path, fallan=frozenset({"detect-secrets-hook"}))
+
+    resultado = _correr(lanzador, entorno)
+
+    assert resultado.returncode != 0
+    assert "FALLA en el paso '6c-secretos'" in resultado.stderr

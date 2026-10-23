@@ -106,8 +106,13 @@ $piso = Get-PisoDeCobertura
 Invoke-Paso '4b-cobertura-global' { python -m coverage report --include='src/*' --fail-under=$piso }
 Invoke-Paso '4c-cobertura-diff' { diff-cover coverage.xml --compare-branch=$Base --fail-under=95 }
 Invoke-Paso '5-complejidad' { python scripts/check_trinquete.py src docs/quality/metricas.json }
+Invoke-Paso '5b-tamano' { python scripts/check_tamano.py }
 Invoke-Paso '6a-bandit' { bandit -r src -ll }
 Invoke-Paso '6b-pip-audit' { pip-audit }
+Invoke-Paso '6c-secretos' {
+    $versionados = @(git -c core.quotePath=false ls-files)
+    detect-secrets-hook --baseline .secrets.baseline @versionados
+}
 if ($SinMutacion) {
     Write-Omitido '7-mutacion' '-SinMutacion'
 } elseif ($Changed) {

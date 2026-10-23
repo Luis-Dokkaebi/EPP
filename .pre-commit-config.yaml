@@ -1,0 +1,50 @@
+# Chequeos rápidos antes de cada commit (SPEC/9 §0.7). El Quality Gate completo sigue siendo
+# scripts/quality_gate.sh (o .ps1); esto solo adelanta los fallos más comunes.
+# Ganchos locales: usan las herramientas fijadas en requirements-dev.txt, sin descargas.
+# Instalación: pre-commit install
+default_install_hook_types: [pre-commit]
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format
+        entry: ruff format --force-exclude
+        language: system
+        types: [python]
+      - id: ruff-check
+        name: ruff check
+        entry: ruff check --force-exclude
+        language: system
+        types: [python]
+      - id: arquitectura
+        name: import-linter (capas y dominio sin detalles)
+        entry: python scripts/check_architecture.py .importlinter
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: gemelos
+        name: CLAUDE.md y Agents.md idénticos
+        entry: git diff --no-index --exit-code CLAUDE.md Agents.md
+        language: system
+        files: ^(CLAUDE|Agents)\.md$
+        pass_filenames: false
+      - id: tamano
+        name: archivos de 500 líneas o menos
+        entry: python scripts/check_tamano.py
+        language: system
+        types: [python]
+      - id: detect-secrets
+        name: detect-secrets
+        entry: detect-secrets-hook
+        args: [--baseline, .secrets.baseline]
+        language: system
+        exclude: ^\.secrets\.baseline$
+      # Manual (`pre-commit run licencias --hook-stage manual`) mientras AC-001 siga bloqueado:
+      # ultralytics (AGPL) y tkcalendar (GPL) lo dejan en rojo hasta la migración de A-14/A-17.
+      - id: licencias
+        name: gate de licencias
+        entry: python scripts/check_licenses.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [manual]

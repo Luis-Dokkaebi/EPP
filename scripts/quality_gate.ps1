@@ -43,7 +43,7 @@ function Write-Omitido([string]$Nombre, [string]$Motivo) {
 }
 
 function Get-OpcionesDeCobertura {
-    @('src', 'scripts', 'tools', 'ml') | Where-Object { Test-Path $_ } | ForEach-Object { "--cov=$_" }
+    @('src', 'scripts', 'tools', 'ml', '.claude/hooks') | Where-Object { Test-Path $_ } | ForEach-Object { "--cov=$_" }
 }
 
 function Get-PisoDeCobertura {
@@ -77,7 +77,7 @@ function Invoke-Mutacion([double]$Umbral, [string[]]$Objetivos, [string[]]$Parch
             $global:LASTEXITCODE = 1
             return
         }
-        if (Get-ChildItem -Path src, scripts -Recurse -Filter '*.py.bak') {
+        if (Get-ChildItem -Path src, scripts, .claude/hooks -Recurse -Filter '*.py.bak') {
             Write-Output 'mutmut dejó código mutado (*.py.bak): restaura con git checkout y borra los .bak.'
             $global:LASTEXITCODE = 1
             return
@@ -111,7 +111,7 @@ Invoke-Paso '6b-pip-audit' { pip-audit }
 if ($SinMutacion) {
     Write-Omitido '7-mutacion' '-SinMutacion'
 } elseif ($Changed) {
-    $objetivos = @(git diff --name-only --diff-filter=AM "$Base...HEAD" -- 'src/*.py' 'scripts/*.py' 'tools/*.py' 'ml/*.py')
+    $objetivos = @(git diff --name-only --diff-filter=AM "$Base...HEAD" -- 'src/*.py' 'scripts/*.py' 'tools/*.py' 'ml/*.py' '.claude/hooks/*.py')
     # Solo se mutan las líneas que cambió el PR (mutmut --use-patch-file).
     $archivoParche = Join-Path $Reportes 'cambios.patch'
     git diff -U0 "$Base...HEAD" | Out-File -Encoding utf8 $archivoParche

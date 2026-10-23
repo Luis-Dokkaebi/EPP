@@ -159,7 +159,12 @@ patch = ["subprocess"]
 python_version = "3.11"
 warn_unused_ignores = true
 disallow_untyped_defs = true
-files = ["src", "scripts/check_*.py", "scripts/ejecutar_pruebas_mutacion.py"]
+files = [
+    "src",
+    "scripts/check_*.py",
+    "scripts/ejecutar_pruebas_mutacion.py",
+    ".claude/hooks/guardian.py",
+]
 
 [[tool.mypy.overrides]]
 # Librerías de terceros sin anotaciones de tipos publicadas (no es un waiver).

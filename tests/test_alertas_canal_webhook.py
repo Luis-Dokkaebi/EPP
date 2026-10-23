@@ -19,18 +19,22 @@ import pytest
 
 from src.alerts.canal_webhook import CanalWebhook, ConfiguracionWebhook
 from src.alerts.domain.aviso import Aviso
-from src.alerts.domain.errores import NotificacionFallidaError
+from src.alerts.domain.errores import ConfiguracionAlertasError, NotificacionFallidaError
 from src.alerts.domain.mensaje import DatosDeLaPersona
 from src.alerts.evidencias import LectorEvidencias
 from tests.dobles_alertas import aviso
 from tests.servidores_falsos import (
     ServidorWebhookFalso,
+    certificado_autofirmado,
+    contexto_cliente,
+    contexto_servidor,
     puerto_cerrado,
 )
 
 SECRETO = b"secreto-de-prueba"
 JPEG = b"\xff\xd8\xff\xe0 imagen \xff\xd9"
 UN_SEGUNDO = timedelta(seconds=1)
+URL_INVALIDA = r"^La URL del webhook debe usar https \(http solo hacia la propia máquina\)$"
 
 
 @pytest.fixture(autouse=True)
@@ -200,3 +204,62 @@ def test_webhook_lento_corta_por_tiempo_y_es_una_falla_de_entrega(
 
     with pytest.raises(NotificacionFallidaError, match=r"^No se pudo contactar el webhook: "):
         canal.enviar(aviso(7))
+
+
+def test_webhook_por_https_verifica_el_certificado(carpeta: Path, tmp_path: Path) -> None:
+    certificado = certificado_autofirmado(tmp_path)
+    with ServidorWebhookFalso(tls=contexto_servidor(certificado)) as servidor:
+        confiable = _configuracion(servidor.url, tls=contexto_cliente(certificado))
+        _canal(carpeta, confiable, DatosDeLaPersona.NOMBRE).enviar(aviso(7))
+        desconocido = _canal(carpeta, _configuracion(servidor.url), DatosDeLaPersona.NOMBRE)
+
+        with pytest.raises(NotificacionFallidaError, match=r"^No se pudo contactar el webhook: "):
+            desconocido.enviar(aviso(8))
+
+    assert [json.loads(pedido.cuerpo)["aviso"] for pedido in servidor.recibidos] == [7]
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://avisos.example.com/epp",
+        "http://127.0.0.1:8080/x",
+        "http://[::1]:8080/x",
+        "http://localhost/x",
+    ],
+    ids=["https", "http-local-ipv4", "http-local-ipv6", "http-localhost"],
+)
+def test_webhook_acepta_https_o_http_hacia_la_propia_maquina(carpeta: Path, url: str) -> None:
+    canal = _con_nombre(carpeta, url)
+
+    assert isinstance(canal, CanalWebhook)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://avisos.example.com/epp?token=secreto-en-url",
+        "ftp://127.0.0.1/epp?token=secreto-en-url",
+        "secreto-en-url",
+    ],
+    ids=["http-remoto", "otro-esquema", "sin-esquema"],
+)
+def test_webhook_rechaza_urls_inseguras_sin_mostrarlas(carpeta: Path, url: str) -> None:
+    with pytest.raises(ConfiguracionAlertasError, match=URL_INVALIDA):
+        _con_nombre(carpeta, url)
+
+
+def test_webhook_exige_un_secreto_para_firmar(carpeta: Path) -> None:
+    configuracion = _configuracion("https://avisos.example.com")._replace(secreto=b"")
+
+    with pytest.raises(
+        ConfiguracionAlertasError, match=r"^El secreto del webhook no puede estar vacío$"
+    ):
+        _canal(carpeta, configuracion, DatosDeLaPersona.NOMBRE)
+
+
+def test_webhook_exige_un_tiempo_de_espera_positivo(carpeta: Path) -> None:
+    configuracion = _configuracion("https://avisos.example.com", timeout=timedelta(0))
+
+    with pytest.raises(ConfiguracionAlertasError, match=r"^timeout debe ser positivo: 0:00:00$"):
+        _canal(carpeta, configuracion, DatosDeLaPersona.NOMBRE)

@@ -17,9 +17,10 @@ import urllib.error
 import urllib.request
 from datetime import timedelta
 from typing import NamedTuple
+from urllib.parse import urlsplit
 
 from src.alerts.domain.aviso import Aviso
-from src.alerts.domain.errores import NotificacionFallidaError
+from src.alerts.domain.errores import ConfiguracionAlertasError, NotificacionFallidaError
 from src.alerts.domain.mensaje import DatosDeLaPersona, describir_persona, redactar
 from src.alerts.evidencias import LectorEvidencias
 
@@ -44,6 +45,7 @@ class CanalWebhook:
         datos: DatosDeLaPersona,
         evidencias: LectorEvidencias,
     ) -> None:
+        _validar(configuracion)
         self._configuracion = configuracion
         self._datos = datos
         self._evidencias = evidencias
@@ -99,3 +101,16 @@ def _abridor_sin_redirecciones(contexto_tls: ssl.SSLContext) -> urllib.request.O
     ):
         abridor.add_handler(manejador)
     return abridor
+
+
+def _validar(configuracion: ConfiguracionWebhook) -> None:
+    partes = urlsplit(configuracion.url)
+    local = partes.scheme == "http" and partes.hostname in PROPIA_MAQUINA
+    if partes.scheme != "https" and not local:
+        raise ConfiguracionAlertasError(
+            "La URL del webhook debe usar https (http solo hacia la propia máquina)"
+        )
+    if not configuracion.secreto:
+        raise ConfiguracionAlertasError("El secreto del webhook no puede estar vacío")
+    if configuracion.timeout <= timedelta(0):
+        raise ConfiguracionAlertasError(f"timeout debe ser positivo: {configuracion.timeout}")

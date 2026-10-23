@@ -37,6 +37,10 @@ def get_export_dir():
 
 # Read-only resource paths
 MODEL_PATH = get_resource_path('yolov8n.pt')
+MANIFEST_PATH = get_resource_path('models/manifest.json')
+# Motor de detección (SPEC/9 §1.3.6): pasa a "onnx" cuando un modelo ONNX supere la puerta
+# de promoción de A-13 (umbrales de D2). El interruptor se elimina al contraer (A-16, D8).
+DETECTION_ENGINE = "ultralytics"
 
 # Otros parámetros generales
 FRAME_SKIP = 1

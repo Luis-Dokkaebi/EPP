@@ -77,7 +77,16 @@ def repo(tmp_path: Path) -> Path:
     assert git, "Se necesita git: el gate lista los archivos versionados"
     # S603: git del sistema con argumentos fijos sobre un directorio temporal.
     subprocess.run([git, "init", "-q", str(raiz)], check=True)  # noqa: S603
+    _versionar(raiz)
     return raiz
+
+
+def _versionar(raiz: Path) -> None:
+    """Agrega al índice todo lo que hay en la copia: el gate revisa los archivos versionados."""
+    git = shutil.which("git")
+    assert git, "Se necesita git: el gate lista los archivos versionados"
+    # S603: git del sistema con argumentos fijos sobre un directorio temporal.
+    subprocess.run([git, "-C", str(raiz), "add", "-A"], check=True)  # noqa: S603
 
 
 @pytest.fixture(params=["bash", "powershell"])
@@ -232,14 +241,21 @@ def test_quality_gate_revisa_tamano_de_archivos_y_secretos(
 LIMITE_DE_CMD = 8191  # caracteres por línea de comandos de cmd.exe
 
 
+ARCHIVOS_DE_RELLENO = 300  # con sus nombres largos suman más que LIMITE_DE_CMD
+
+
 def test_quality_gate_revisa_cada_archivo_versionado_en_lotes_que_caben_en_cmd(
-    lanzador: Lanzador, tmp_path: Path
+    lanzador: Lanzador, repo: Path, tmp_path: Path
 ) -> None:
+    for numero in range(ARCHIVOS_DE_RELLENO):
+        (repo / f"documento_con_un_nombre_bastante_largo_numero_{numero:03d}.md").touch()
+    _versionar(repo)
     # S603/S607: git del sistema con argumentos fijos.
     versionados = subprocess.run(
         ["git", "-c", "core.quotePath=false", "ls-files"],  # noqa: S603, S607
-        capture_output=True, text=True, check=True, cwd=RAIZ,
+        capture_output=True, text=True, check=True, cwd=repo,
     ).stdout.splitlines()  # fmt: skip
+    assert len(" ".join(versionados)) > LIMITE_DE_CMD
 
     _correr(lanzador, _entorno(tmp_path))
 

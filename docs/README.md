@@ -45,6 +45,10 @@ calidad sin enlazar.
 - [Contrato de datos](ml/contrato_datos.md) — taxonomía, formato, split sin fuga, licencias y custodia.
 - [Guía de etiquetado](ml/guia_etiquetado.md) — definiciones operativas por clase y doble etiquetado.
 
+## Runbooks (`docs/runbooks/`, tareas humanas)
+
+- [Captura del dataset](runbooks/captura_dataset.md) — capturar imágenes del piloto (D5, D6).
+
 ## Licencias y modelos
 
 - [Licencias revisadas](legal/licencias_revisadas.json) — aprobaciones humanas del gate de

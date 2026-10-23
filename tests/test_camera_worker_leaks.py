@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import queue
-import time
+import threading
 import os
 import tempfile
 import psutil
@@ -13,6 +13,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.tracking.camera_worker import CameraWorker
 
 _FACES_TMP = os.path.join(tempfile.gettempdir(), 'test_faces_cw')
+SEGUNDOS_PARA_DETENERSE = 30
+CAPACIDAD = 5
+FRAMES_DE_MAS = 5
 
 class MockDetector:
     """Doble de DetectorPort: ninguna detección (SPEC/9 §1.3.5)."""
@@ -28,11 +31,22 @@ class TestCameraWorkerLeaks(unittest.TestCase):
         mock_cap = MagicMock()
         # Create a dummy frame like what a real camera would return
         dummy_frame = np.zeros((720, 1280, 3), dtype=np.uint8)
-        mock_cap.read.return_value = (True, dummy_frame)
+        # La cámara falsa avisa cuando el worker ya intentó encolar más frames de los que caben:
+        # la prueba espera ese hecho en lugar de dormir 5 s (CLAUDE.md §4, sin reloj real).
+        lecturas = []
+        cola_desbordada = threading.Event()
+
+        def leer():
+            lecturas.append(1)
+            if len(lecturas) > CAPACIDAD + FRAMES_DE_MAS:
+                cola_desbordada.set()
+            return (True, dummy_frame)
+
+        mock_cap.read.side_effect = leer
         mock_videocapture.return_value = mock_cap
 
         # Queue limited to 5 frames
-        q = queue.Queue(maxsize=5)
+        q = queue.Queue(maxsize=CAPACIDAD)
         detector = MockDetector()
 
         # Instantiate Camera Worker acting un-throttled to flood queue faster (30 ops)
@@ -44,13 +58,16 @@ class TestCameraWorkerLeaks(unittest.TestCase):
         # Start background worker
         worker.start()
         
-        # Wait 5 seconds, ignoring the queue output effectively filling it and leaking frames if bugged.
-        print("\nSaturando la cola compartida (esperando 5 segundos)..")
-        time.sleep(5)
+        # Nadie consume la cola: el worker debe descartar los frames que no caben.
+        self.assertTrue(cola_desbordada.wait(SEGUNDOS_PARA_DETENERSE),
+                        "El worker no llegó a leer más frames de los que caben en la cola.")
         
         # Stop background worker and clean up
         worker.stop()
-        worker.join(timeout=2)
+        worker.join(timeout=SEGUNDOS_PARA_DETENERSE)
+        # CLAUDE.md §16: todo start() tiene su stop() probado. Un worker vivo seguiría
+        # consumiendo CPU en las pruebas siguientes (en la CI de Windows ahogaba al dashboard).
+        self.assertFalse(worker.is_alive(), "El worker debe terminar tras stop().")
 
         mem_end = process.memory_info().rss
         mem_diff_mb = (mem_end - mem_start) / (1024 * 1024)

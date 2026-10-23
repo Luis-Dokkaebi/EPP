@@ -16,7 +16,7 @@ except ImportError:
     sys.path.append(os.getcwd())
     from config import config
 
-from src.composition import crear_detector
+from src.composition import crear_detector_configurado
 from src.tracking.person_tracker import PersonTracker, separar_personas_y_celulares
 from src.zones.zone_checker import ZoneChecker
 from src.storage.database_manager import DatabaseManager
@@ -86,8 +86,7 @@ def start_video_stream():
             f.write('{}')
 
     # Inicializamos los módulos
-    model_path = getattr(config, 'MODEL_PATH', 'yolov8n.pt')
-    detector = crear_detector(model_path, config.CONFIDENCE_THRESHOLD)
+    detector = crear_detector_configurado(config.CONFIDENCE_THRESHOLD)
     tracker = PersonTracker()
     zone_checker = ZoneChecker(zones_path=zonas_file)
     db_manager = DatabaseManager(db_path=config.get_db_path())

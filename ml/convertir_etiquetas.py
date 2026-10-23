@@ -6,11 +6,16 @@ etiquetador ignoró (iscrowd o atributo "ignorar") y agrega a cada imagen sus me
 registrada y se rechaza.
 """
 
+import argparse
+import json
+import sys
 from collections.abc import Iterable, Mapping, Sequence
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any
 
-from ml.contrato_datos import categorias
+from ml.contrato_datos import TAXONOMIAS, categorias
+
+CODIGO_INVALIDO = 2
 
 # True también cubre al entero 1: en Python True == 1 y ambos tienen el mismo hash.
 VERDADEROS = frozenset({True, "true", "True", "1"})
@@ -90,3 +95,37 @@ def _anotacion(
         "area": caja["area"],
         "iscrowd": 1 if ignorada else 0,
     }
+
+
+def _leer_metadatos(ruta: Path) -> list[dict[str, Any]]:
+    lineas = ruta.read_text(encoding="utf-8").splitlines()
+    return [json.loads(linea) for linea in lineas if linea.strip()]
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--exportado", required=True, type=Path, help="COCO de la herramienta")
+    parser.add_argument("--metadatos", required=True, type=Path, help="metadatos.jsonl")
+    parser.add_argument("--taxonomia", required=True, choices=sorted(TAXONOMIAS))
+    parser.add_argument("--salida", required=True, type=Path, help="anotaciones.json")
+    argumentos = parser.parse_args(argv)
+    exportado = json.loads(argumentos.exportado.read_text(encoding="utf-8"))
+    try:
+        convertido = convertir(
+            exportado, _leer_metadatos(argumentos.metadatos), TAXONOMIAS[argumentos.taxonomia]
+        )
+    except ConversionInvalidaError as error:
+        sys.stderr.write(f"{error}\n")
+        return CODIGO_INVALIDO
+    argumentos.salida.parent.mkdir(parents=True, exist_ok=True)
+    texto = json.dumps(convertido, ensure_ascii=False, indent=2)
+    argumentos.salida.write_text(texto, encoding="utf-8")
+    sys.stdout.write(
+        f"{len(convertido['images'])} imágenes y {len(convertido['annotations'])} cajas "
+        f"convertidas en {argumentos.salida}\n"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

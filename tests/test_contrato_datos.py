@@ -7,6 +7,7 @@ import pytest
 from ml.contrato_datos import (
     TAXONOMIA_V1,
     TAXONOMIA_V2,
+    TAXONOMIAS,
     ContratoDeDatosError,
     categorias,
     validar_anotaciones,
@@ -26,6 +27,10 @@ def test_taxonomia_v1_es_la_de_la_decision_d3() -> None:
 
 def test_taxonomia_v2_agrega_clases_al_final_sin_renumerar_la_v1() -> None:
     assert TAXONOMIA_V2 == (*TAXONOMIA_V1, "manos", "guantes", "gafas", "barbijo")
+
+
+def test_taxonomias_se_eligen_por_version() -> None:
+    assert TAXONOMIAS == {"v1": TAXONOMIA_V1, "v2": TAXONOMIA_V2}
 
 
 def test_categorias_numera_desde_uno_en_el_orden_de_la_taxonomia() -> None:

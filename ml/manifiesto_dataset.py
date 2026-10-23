@@ -4,9 +4,11 @@ Las imágenes nunca van a git; el manifiesto sí (solo nombres de archivo y sha2
 `ml/datasets/<version>/manifest.json` y cada modelo entrenado registra su huella.
 """
 
+import argparse
 import hashlib
 import json
 import re
+import sys
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -15,6 +17,7 @@ from typing import Any, NamedTuple
 
 from ml.contrato_datos import (
     SPLITS,
+    TAXONOMIAS,
     ContratoDeDatosError,
     ImagenDeSplit,
     validar_anotaciones,
@@ -25,6 +28,8 @@ from ml.contrato_datos import (
 ARCHIVO_DE_ANOTACIONES = "anotaciones.json"
 VERSION = re.compile(r"v\d+\.\d+")
 BLOQUE_DE_LECTURA = 1 << 20
+CODIGO_CAMBIADO = 1
+CODIGO_INVALIDO = 2
 
 
 class Fuente(NamedTuple):
@@ -155,3 +160,73 @@ def huella_del_manifiesto(manifiesto: Mapping[str, Any]) -> str:
     """sha256 del JSON canónico (claves ordenadas): identifica el dataset en el entrenamiento."""
     canonico = json.dumps(manifiesto, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonico.encode("utf-8")).hexdigest()
+
+
+def _fuente(texto: str) -> Fuente:
+    nombre, separador, licencia = texto.partition("=")
+    if not (separador and nombre.strip()):
+        raise argparse.ArgumentTypeError(f'"{texto}": usa <nombre>=<licencia>.')
+    return Fuente(nombre.strip(), licencia.strip())
+
+
+def _analizar(argv: Sequence[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    acciones = parser.add_subparsers(dest="accion", required=True)
+    crear = acciones.add_parser("crear", help="valida el dataset y escribe su manifiesto")
+    crear.add_argument("--carpeta", required=True, type=Path)
+    crear.add_argument("--version", required=True, help="vMAYOR.MENOR")
+    crear.add_argument("--taxonomia", required=True, choices=sorted(TAXONOMIAS))
+    crear.add_argument("--lado-minimo", required=True, type=float, help="decisión D6, en píxeles")
+    crear.add_argument("--fuente", required=True, action="append", type=_fuente)
+    crear.add_argument("--camara-test", action="append", default=[])
+    crear.add_argument("--dia-valid", action="append", default=[], help="AAAA-MM-DD")
+    crear.add_argument("--salida", required=True, type=Path, help="ml/datasets/<v>/manifest.json")
+    verificar = acciones.add_parser("verificar", help="compara la carpeta con el manifiesto")
+    verificar.add_argument("--carpeta", required=True, type=Path)
+    verificar.add_argument("--manifiesto", required=True, type=Path)
+    return parser.parse_args(argv)
+
+
+def _crear(argumentos: argparse.Namespace) -> int:
+    try:
+        definicion = DefinicionDelDataset(
+            version=argumentos.version,
+            taxonomia=TAXONOMIAS[argumentos.taxonomia],
+            fuentes=argumentos.fuente,
+            regla=ReglaDeSplit(frozenset(argumentos.camara_test), frozenset(argumentos.dia_valid)),
+            lado_minimo_px=argumentos.lado_minimo,
+        )
+        manifiesto = crear_manifiesto(argumentos.carpeta, definicion)
+    except ContratoDeDatosError as error:
+        sys.stderr.write(f"{error}\n")
+        return CODIGO_INVALIDO
+    argumentos.salida.parent.mkdir(parents=True, exist_ok=True)
+    texto = json.dumps(manifiesto, ensure_ascii=False, indent=2)
+    argumentos.salida.write_text(texto + "\n", encoding="utf-8")
+    conteo = ", ".join(
+        f"{split} {cantidad}" for split, cantidad in manifiesto["conteo_por_split"].items()
+    )
+    sys.stdout.write(
+        f"Dataset {definicion.version}: {conteo}. Huella: {huella_del_manifiesto(manifiesto)}\n"
+    )
+    return 0
+
+
+def _verificar(argumentos: argparse.Namespace) -> int:
+    manifiesto = json.loads(argumentos.manifiesto.read_text(encoding="utf-8"))
+    diferencias = verificar_manifiesto(argumentos.carpeta, manifiesto)
+    for diferencia in diferencias:
+        sys.stderr.write(f"{diferencia}\n")
+    if diferencias:
+        return CODIGO_CAMBIADO
+    sys.stdout.write("El dataset coincide con el manifiesto.\n")
+    return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    argumentos = _analizar(argv)
+    return _crear(argumentos) if argumentos.accion == "crear" else _verificar(argumentos)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

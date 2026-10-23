@@ -63,20 +63,31 @@ Fuente de verdad del alcance: `SPEC/9_PLAN_EPP_Y_LICENCIA.md` (§17 para el orde
 | C-13 | Terminada (3 PRs) | #102, #105, #106 | Resumen y Excel de cumplimiento con `reporte_cumplimiento_epp.feature` |
 | C-14 | **Bloqueada** (D8, D9) | #107 (solo runbook) | [Runbook](../runbooks/piloto_sombra.md) del build 2.0.0 y del piloto en sombra, **no ejecutado** |
 
-## Integración y orden de merge
+## Integración en `main`
 
-Las tres pistas parten de A-12 (#39) y se juntan en la rama `-cierre` (PR de cierre), que además
-actualiza este archivo y SPEC/9 §19. Los PRs están apilados: cada uno apunta a la rama del
-anterior. Orden para mergear con **merge commit** (nunca squash ni rebase, para no romper la pila):
+Todos los PRs del plan (#1 … #108) se mergearon en `main` el 2026-10-23, en este orden y con
+**merge commit** (sin squash ni rebase):
 
-1. `main` ← #1 … #39 (A-01..A-12), en orden.
-2. A-13..A-18: #40 … #48.
-3. B-01..B-06: #49 … #68.
+1. #1 … #39 (A-01..A-12), con #30 (cambio a la constitución) después de #29.
+2. #40 … #48 (A-13..A-18).
+3. #49 … #68 (B-01..B-06).
 4. C-01..C-14 siguiendo la cadena de bases: #69 … #92, #103, #104, #93 … #102, #105, #106, #107
-   (#103 y #104 se agregaron al dividir C-10 para quedar bajo 400 líneas).
-5. El PR de cierre (`-cierre`), que une las tres puntas.
+   (#103 y #104 salieron de dividir C-10 para quedar bajo 400 líneas).
+5. #108 (cierre: esta bitácora y SPEC/9 §19).
 
-Al mergear cada PR y borrar su rama, GitHub mueve la base del siguiente a `main`.
+Las tres pistas partían de A-12 y los arreglos de CI de A-07 (#28) llegaron después de abrir los
+PRs de arriba, así que algunas ramas recibieron un merge de `main` antes de su PR, con la suite
+completa en verde:
+
+- `-a11` (#36): prueba de fugas de `CameraWorker` (cola con nombre y espera por evento de #28 +
+  `DetectorPort` de A-11) y cuatro pruebas del gate que ahora usan la copia versionada del
+  repositorio.
+- `-c02`, `-c06b`, `-c07b`, `-c08`, `-c11`: filas de `docs/quality/mutantes_equivalentes.md` y
+  conteos de W-001/W-003 en `docs/quality/waivers.md`, unidos con los de las pistas A y B.
+
+Se mergeó con los checks `gate (windows-latest)` (fallas heredadas de Tk y rendimiento, #37) y
+`licencias` (en rojo por diseño hasta D8 y D9) en rojo, por decisión explícita del dueño del
+producto; `gate (ubuntu-latest)` y `mutacion` estaban en verde.
 
 ## Bloqueadas
 

@@ -19,7 +19,6 @@ numpy==1.26.4
 pillow==13.0.0
 matplotlib==3.11.2
 seaborn==0.13.2
-tkcalendar==1.6.1
 
 # === Motor de IA Apache/MIT (SPEC/9 §1.4, ADR-001): ONNX Runtime, licencia MIT ===
 onnxruntime==1.31.0

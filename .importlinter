@@ -33,3 +33,12 @@ layers =
     src.tracking
     (src.ppe.application) | (src.alerts.application)
     (src.ppe.domain) | (src.alerts.domain)
+
+[importlinter:contract:producto-sin-entrenamiento]
+name = El producto no importa el entrenamiento (ml) ni las herramientas (tools)
+type = forbidden
+source_modules =
+    src
+forbidden_modules =
+    ml
+    tools

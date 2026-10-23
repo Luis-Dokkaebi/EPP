@@ -3,6 +3,7 @@
 import importlib.util
 import subprocess
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 from types import ModuleType
 
@@ -47,3 +48,10 @@ def cargar_hook(nombre: str) -> ModuleType:
     modulo = importlib.util.module_from_spec(especificacion)
     especificacion.loader.exec_module(modulo)
     return modulo
+
+
+def textos_ausentes(salida: str, textos: Iterable[str]) -> list[str]:
+    """Textos que no aparecen como frase entera (entre espacios) en la salida, sin importar los
+    saltos de línea: "XXtextoXX" no cuenta como "texto"."""
+    normalizada = f" {' '.join(salida.split())} "
+    return [texto for texto in textos if f" {texto} " not in normalizada]

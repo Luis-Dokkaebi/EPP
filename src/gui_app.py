@@ -39,7 +39,12 @@ from PIL import Image, ImageTk
 import sys
 import subprocess
 import threading
-from tkcalendar import DateEntry
+from src.gui.selector_fecha import (
+    FechaInvalidaError,
+    RangoDeFechasInvalidoError,
+    SelectorDeFecha,
+    consultar_reporte,
+)
 import pandas as pd
 from datetime import datetime, date, timedelta
 
@@ -372,13 +377,11 @@ class SystemGUI:
         filter_frame.pack(fill=tk.X, padx=10, pady=10)
         
         tk.Label(filter_frame, text="Desde:").pack(side=tk.LEFT, padx=5)
-        self.att_date_from = DateEntry(filter_frame, width=12, background='darkblue', foreground='white', borderwidth=2, date_pattern='y-mm-dd')
-        # Default to 7 days ago
-        self.att_date_from.set_date(date.today() - timedelta(days=7))
+        self.att_date_from = SelectorDeFecha(filter_frame, inicial=date.today() - timedelta(days=7))
         self.att_date_from.pack(side=tk.LEFT, padx=5)
         
         tk.Label(filter_frame, text="Hasta:").pack(side=tk.LEFT, padx=5)
-        self.att_date_to = DateEntry(filter_frame, width=12, background='darkblue', foreground='white', borderwidth=2, date_pattern='y-mm-dd')
+        self.att_date_to = SelectorDeFecha(filter_frame, inicial=date.today())
         self.att_date_to.pack(side=tk.LEFT, padx=5)
         
         tk.Label(filter_frame, text="Empleado:").pack(side=tk.LEFT, padx=5)
@@ -421,12 +424,11 @@ class SystemGUI:
         filter_frame.pack(fill=tk.X, padx=10, pady=10)
         
         tk.Label(filter_frame, text="Desde:").pack(side=tk.LEFT, padx=5)
-        self.eff_date_from = DateEntry(filter_frame, width=12, background='darkblue', foreground='white', borderwidth=2, date_pattern='y-mm-dd')
-        self.eff_date_from.set_date(date.today() - timedelta(days=7))
+        self.eff_date_from = SelectorDeFecha(filter_frame, inicial=date.today() - timedelta(days=7))
         self.eff_date_from.pack(side=tk.LEFT, padx=5)
         
         tk.Label(filter_frame, text="Hasta:").pack(side=tk.LEFT, padx=5)
-        self.eff_date_to = DateEntry(filter_frame, width=12, background='darkblue', foreground='white', borderwidth=2, date_pattern='y-mm-dd')
+        self.eff_date_to = SelectorDeFecha(filter_frame, inicial=date.today())
         self.eff_date_to.pack(side=tk.LEFT, padx=5)
         
         tk.Label(filter_frame, text="Empleado:").pack(side=tk.LEFT, padx=5)
@@ -515,31 +517,39 @@ class SystemGUI:
             except Exception as e:
                 messagebox.showerror("Error", f"Ocurrió un error al intentar eliminar al empleado: {e}")
 
+    def _consultar_reporte(self, desde, hasta, empleado, consulta):
+        """Filas del reporte, o None si el rango es inválido (se avisa y no se consulta)."""
+        try:
+            return consultar_reporte(desde.get(), hasta.get(), empleado.get(), consulta)
+        except (FechaInvalidaError, RangoDeFechasInvalidoError) as error:
+            messagebox.showerror("Rango de fechas inválido", str(error))
+            return None
+
     def generate_attendance_report(self):
-        start_date = self.att_date_from.get()
-        end_date = self.att_date_to.get()
-        emp_filter = self.att_employee_combo.get()
-        
+        data = self._consultar_reporte(self.att_date_from, self.att_date_to,
+                                       self.att_employee_combo, self.db.get_attendance_report)
+        if data is None:
+            return
+
         # Clear tree
         for item in self.tree_att.get_children():
             self.tree_att.delete(item)
-            
-        data = self.db.get_attendance_report(start_date, end_date, emp_filter)
+
         self.current_att_data = data
         
         for row in data:
             self.tree_att.insert("", tk.END, values=row)
             
     def generate_efficiency_report(self):
-        start_date = self.eff_date_from.get()
-        end_date = self.eff_date_to.get()
-        emp_filter = self.eff_employee_combo.get()
-        
+        data = self._consultar_reporte(self.eff_date_from, self.eff_date_to,
+                                       self.eff_employee_combo, self.db.get_efficiency_report)
+        if data is None:
+            return
+
         # Clear tree
         for item in self.tree_eff.get_children():
             self.tree_eff.delete(item)
-            
-        data = self.db.get_efficiency_report(start_date, end_date, emp_filter)
+
         self.current_eff_data = data
         
         for row in data:

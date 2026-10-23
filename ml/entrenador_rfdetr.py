@@ -6,16 +6,29 @@ dataset en formato COCO con las carpetas train/, valid/ y test/, cada una con su
 `_annotations.coco.json`; `preparar_dataset` lo arma a partir del dataset versionado.
 """
 
+import argparse
 import importlib
 import json
 import shutil
-from collections.abc import Callable, Mapping
+import subprocess
+import sys
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from ml.contrato_datos import SPLITS
 from ml.manifiesto_dataset import ARCHIVO_DE_ANOTACIONES
-from ml.train import ConfigEntrenamiento, EntrenamientoInvalidoError, ResultadoDelEntrenador
+from ml.train import (
+    ARCHIVO_DE_REGISTRO,
+    ConfigEntrenamiento,
+    EntrenadorPort,
+    EntrenamientoInvalidoError,
+    ResultadoDelEntrenador,
+    entrenar,
+)
+
+RAIZ_DEL_REPOSITORIO = Path(__file__).resolve().parents[1]
+CODIGO_INVALIDO = 2
 
 CLASES_POR_TAMANO = {
     "nano": "RFDETRNano",
@@ -70,3 +83,62 @@ class EntrenadorRfDetr:
         if not pesos.is_file():
             raise EntrenamientoInvalidoError(f"RF-DETR terminó sin dejar {pesos}.")
         return ResultadoDelEntrenador(pesos=pesos, metricas={})
+
+
+def sha_del_codigo(raiz: Path, ejecutar: Callable[..., Any] = subprocess.run) -> str:
+    """SHA del commit actual; falla si hay cambios sin commitear (el SHA no los describiría)."""
+    base = ["git", "-C", str(raiz)]
+    opciones = {"capture_output": True, "text": True, "check": True}
+    if ejecutar([*base, "status", "--porcelain", "--untracked-files=no"], **opciones).stdout:
+        raise EntrenamientoInvalidoError(
+            "Hay cambios sin commitear: el SHA no describiría el código que entrena. Commitea o "
+            "descarta los cambios y vuelve a correr."
+        )
+    return str(ejecutar([*base, "rev-parse", "HEAD"], **opciones).stdout.strip())
+
+
+def _analizar(argv: Sequence[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--dataset", required=True, type=Path, help="dataset versionado")
+    parser.add_argument("--manifiesto", required=True, type=Path, help="su manifest.json")
+    parser.add_argument("--tamano", required=True, help="nano, small, medium o large (Apache-2.0)")
+    parser.add_argument("--resolucion", required=True, type=int, help="múltiplo de 32")
+    parser.add_argument("--epocas", required=True, type=int)
+    parser.add_argument("--lote", required=True, type=int)
+    parser.add_argument("--tasa", required=True, type=float, help="tasa de aprendizaje")
+    parser.add_argument("--semilla", required=True, type=int)
+    parser.add_argument(
+        "--salidas", required=True, type=Path, help="carpeta de artefactos, fuera de git"
+    )
+    return parser.parse_args(argv)
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    crear_entrenador: Callable[[], EntrenadorPort] = EntrenadorRfDetr,
+    sha: Callable[[], str] | None = None,
+) -> int:
+    argumentos = _analizar(argv)
+    try:
+        config = ConfigEntrenamiento(
+            dataset=argumentos.dataset,
+            manifiesto=argumentos.manifiesto,
+            tamano=argumentos.tamano,
+            resolucion=argumentos.resolucion,
+            epocas=argumentos.epocas,
+            lote=argumentos.lote,
+            tasa_de_aprendizaje=argumentos.tasa,
+            semilla=argumentos.semilla,
+        )
+        sha_codigo = sha() if sha else sha_del_codigo(RAIZ_DEL_REPOSITORIO)
+        registro = entrenar(config, crear_entrenador(), sha_codigo, argumentos.salidas)
+    except EntrenamientoInvalidoError as error:
+        sys.stderr.write(f"{error}\n")
+        return CODIGO_INVALIDO
+    destino = argumentos.salidas / registro["artefacto"]
+    sys.stdout.write(f"Artefacto {registro['artefacto']}: {destino / ARCHIVO_DE_REGISTRO}\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

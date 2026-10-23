@@ -9,7 +9,12 @@ from pathlib import Path
 import pytest
 
 RAIZ = Path(__file__).resolve().parents[1]
-ARCHIVOS_REQUISITOS = ["requirements.txt", "requirements-dev.txt", "requirements-ci.txt"]
+ARCHIVOS_REQUISITOS = [
+    "requirements.txt",
+    "requirements-dev.txt",
+    "requirements-ci.txt",
+    "ml/requirements-ml.txt",
+]
 PATRON_FIJADO = re.compile(r"^[A-Za-z0-9_.\-\[\]]+==[^=;\s]+(\s*;\s*\S.*)?$")
 SEPARADOR_NOMBRE = re.compile(r"[=;\s\[]")
 

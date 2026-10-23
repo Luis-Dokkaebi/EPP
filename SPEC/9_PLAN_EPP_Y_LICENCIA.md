@@ -1441,11 +1441,11 @@ B-01..B-06 (datos y modelo EPP) ────────────────
 
 | Criterio | Evidencia | Estado |
 |----------|-----------|--------|
-| AC-001 | Job `licencias` en CI + informe legal | En curso: gate y job listos (A-05, A-07, #20, #28); en rojo por diseño hasta A-16 (D8), A-17 y D9 |
-| AC-002 | `tests/test_model_verifier.py` + gate | En curso: manifiesto validado por el gate (A-05, #21); verificador por manifiesto en A-14 |
-| AC-003 | Prueba de humo del ejecutable (PR A-16) | Pendiente |
-| AC-004 | `docs/benchmarks/motor_ia.md` | Pendiente |
-| AC-005 | Test de `sys.modules` + grep | Pendiente |
+| AC-001 | Job `licencias` en CI + informe legal | En curso: gate y job listos (A-05, A-07); `tkcalendar` retirado (A-17); avisos de terceros y expediente legal (A-18). En rojo por diseño hasta A-16 (D8) y D9 |
+| AC-002 | `tests/test_model_verifier.py` + gate | Cumplido: manifiesto validado por el gate (A-05) y verificador por manifiesto embebido que falla cerrado (A-14) |
+| AC-003 | Prueba de humo del ejecutable (PR A-16) | Bloqueado (D8): checklist en `docs/runbooks/a16_contraer_motor.md` |
+| AC-004 | `docs/benchmarks/motor_ia.md` | Bloqueado (D2, D6): herramienta y bitácora listas (A-13), falta la corrida con el video del piloto |
+| AC-005 | Test de `sys.modules` + grep | En curso: el camino ONNX no carga torch (prueba en intérprete aparte, A-15); el parche de `torch.load` queda solo en el motor heredado hasta A-16 (D8) |
 | AC-010 | `tests/test_ppe_asociacion.py` + mutmut | Pendiente |
 | AC-011 | `features/cumplimiento_epp.feature` | Pendiente |
 | AC-012 | `tests/test_ppe_ventana_temporal.py` + feature | Pendiente |

@@ -44,6 +44,13 @@ calidad sin enlazar.
 - [Licencias revisadas](legal/licencias_revisadas.json) — aprobaciones humanas del gate de
   licencias (las propuestas sin `aprobado_por` no cuentan).
 - [Manifiesto de modelos](../models/manifest.json) — hash y licencias de cada modelo distribuido.
+- [Expediente para la revisión legal (D9)](legal/revision_d9.md) — hechos y decisiones humanas
+  pendientes antes del release (no es asesoría legal).
+
+## Runbooks (tareas humanas)
+
+- [A-16: contraer la migración del motor](runbooks/a16_contraer_motor.md) — requiere D8, el
+  modelo ONNX aprobado y la prueba de humo del ejecutable.
 
 ## Seguridad
 

@@ -1,7 +1,8 @@
 """Hooks de Claude Code del repositorio (SPEC/9 §0.6, CLAUDE.md §12 y §14).
 
 Subcomandos (el JSON del evento llega por stdin):
-  bash      PreToolUse/Bash: bloquea `git commit --no-verify` y `git push --force`.
+  bash      PreToolUse/Bash: bloquea `git commit --no-verify`, `git push --force` y
+            `pip install` de paquetes sin versión fijada.
   archivos  PreToolUse/Edit|Write: bloquea archivos de build y binarios salvo autorización.
 
 Un bloqueo sale con código 2 y explica por stderr cómo seguir (Claude Code se lo muestra al
@@ -31,6 +32,13 @@ OPCIONES_LARGAS_COMMIT_CON_VALOR = frozenset(
 )
 # Letras de opciones cortas de `git commit` que toman un valor (-m, -F, -C, -c, -t).
 LETRAS_COMMIT_CON_VALOR = frozenset("mFCct")
+OPCIONES_PIP_CON_VALOR = frozenset(
+    {
+        "-r", "--requirement", "-c", "--constraint", "-e", "--editable", "-i", "--index-url",
+        "--extra-index-url", "-f", "--find-links", "-t", "--target", "--python", "-p",
+        "--index-strategy", "--prefix", "--root",
+    }
+)  # fmt: skip
 
 
 def _segmentos(comando: str) -> Iterator[list[str]]:
@@ -80,6 +88,21 @@ def _commit_sin_verificar(argumentos: list[str]) -> bool:
     return False
 
 
+def _paquetes_sin_version(argumentos: list[str]) -> list[str]:
+    restantes = iter(argumentos)
+    paquetes = []
+    for argumento in restantes:
+        if argumento in OPCIONES_PIP_CON_VALOR:
+            next(restantes, None)
+        elif not argumento.startswith("-") and not _es_ruta_local(argumento):
+            paquetes.append(argumento)
+    return [paquete for paquete in paquetes if "==" not in paquete]
+
+
+def _es_ruta_local(argumento: str) -> bool:
+    return argumento.startswith((".", "/")) or argumento.endswith((".whl", ".tar.gz"))
+
+
 def _motivo_de_segmento(segmento: list[str]) -> str | None:
     commit = _argumentos_tras(segmento, "git", "commit")
     if commit is not None and _commit_sin_verificar(commit):
@@ -88,6 +111,14 @@ def _motivo_de_segmento(segmento: list[str]) -> str | None:
     if push is not None and {"--force", "-f"} & set(push):
         return (
             "`git push --force` está prohibido (CLAUDE.md §12): usa --force-with-lease y decláralo."
+        )
+    pip = _argumentos_tras(segmento, "pip", "install") or _argumentos_tras(
+        segmento, "pip3", "install"
+    )
+    if pip and (sin_version := _paquetes_sin_version(pip)):
+        return (
+            f"pip install sin versión fijada ({', '.join(sin_version)}) está prohibido "
+            "(CLAUDE.md §14.11): usa paquete==versión y corre pip-audit."
         )
     return None
 

@@ -14,6 +14,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.main_ui import AppMain
 from config.path_utils import ConfigManager
 from src.analysis.report_generator import DatabaseWorker
+import pytest
+
+# GUI heredada: crea ventanas Tk y carga el modelo YOLO; fuera del hook rápido (SPEC/9 §0.6).
+pytestmark = pytest.mark.slow
+
 
 class MockDBManager:
     def __init__(self, db_path=":memory:"):

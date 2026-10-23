@@ -6,6 +6,11 @@ import unittest
 import sys
 import os
 import threading
+import pytest
+
+# GUI heredada: crea ventanas Tk y carga el modelo YOLO; fuera del hook rápido (SPEC/9 §0.6).
+pytestmark = pytest.mark.slow
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 

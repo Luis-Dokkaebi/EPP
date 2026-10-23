@@ -172,6 +172,7 @@ module = [
     "face_recognition.*",
     "onnxruntime.*",
     "pandas.*",
+    "psutil.*",
     "radon.*",
     "reportlab.*",
     "seaborn.*",

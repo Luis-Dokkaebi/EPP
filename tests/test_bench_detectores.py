@@ -11,6 +11,7 @@ from tools.bench_detectores import (
     Medicion,
     emparejar,
     evaluar_puerta,
+    fila_bitacora,
     iou,
     medir_variante,
     percentil,
@@ -160,3 +161,12 @@ def test_puerta_sin_baseline_no_puede_aprobar() -> None:
 
 def test_los_umbrales_de_promocion_no_tienen_valores_inventados() -> None:
     assert UMBRALES_DE_PROMOCION == {"fps": ("min", None), "latencia_p95_ms": ("max", None)}
+
+
+def test_fila_bitacora_sigue_el_formato_de_la_bitacora() -> None:
+    fila = fila_bitacora(_medicion("rfdetr-nano-onnx"), "más preciso", "i5 CPU", "no")
+
+    assert fila == (
+        "rfdetr-nano-onnx | más preciso | i5 CPU | 12.0 | 80 | 300 | 0.900 | no | "
+        "precisión 0.800"
+    )

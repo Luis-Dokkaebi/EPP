@@ -1,7 +1,7 @@
 import cv2
 import os
 import sys
-import json
+from pathlib import Path
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
@@ -9,6 +9,8 @@ try:
     from config.config import ZONAS_FILE as _DEFAULT_ZONAS
 except ImportError:
     _DEFAULT_ZONAS = "data/zonas/zonas.json"
+
+from src.zones.edicion_zonas import guardar_poligono
 
 class ZoneEditor:
     def __init__(self, output_path=None):
@@ -27,20 +29,8 @@ class ZoneEditor:
             self.points.append((x, y))
 
     def save_zone(self, zone_name):
-        os.makedirs(os.path.dirname(self.output_path), exist_ok=True)
-
-        data = {}
-        if os.path.exists(self.output_path):
-            with open(self.output_path, 'r') as f:
-                try:
-                    data = json.load(f)
-                except json.JSONDecodeError:
-                    data = {}
-
-        data[zone_name] = self.points
-
-        with open(self.output_path, 'w') as f:
-            json.dump(data, f, indent=4)
+        # v2 conservando el EPP exigido de la zona (SPEC/9 §8.3); valida el nombre (TASK-5.3).
+        guardar_poligono(Path(self.output_path), zone_name, self.points)
 
         print(f"✅ Zona '{zone_name}' guardada en {self.output_path}")
 

@@ -40,12 +40,16 @@ calidad sin enlazar.
 - [Iteration Compact](ml/iteration_compact.md) — objetivo, métricas y decisiones abiertas del modelo.
 - [Contrato de datos](ml/contrato_datos.md) — taxonomía, formato, split sin fuga, licencias y custodia.
 - [Guía de etiquetado](ml/guia_etiquetado.md) — definiciones operativas por clase y doble etiquetado.
+- [Bitácora del modelo](ml/bitacora.md) — Observation Ledger de cada iteración (vacía hasta la
+  primera corrida real).
 
 ## Runbooks (`docs/runbooks/`, tareas humanas)
 
 - [Captura del dataset](runbooks/captura_dataset.md) — capturar imágenes del piloto (D5, D6).
 - [Etiquetado y versionado](runbooks/etiquetado.md) — etiquetar, medir el acuerdo, convertir y
   versionar el dataset (D6).
+- [Entrenamiento](runbooks/entrenamiento.md) — entorno aparte, baseline, análisis de errores y
+  promoción (D2, D4, D6).
 
 ## Licencias y modelos
 

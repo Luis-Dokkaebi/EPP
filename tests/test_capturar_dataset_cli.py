@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from tests.test_capturar_dataset_salida import CapturaFalsa
-from tests.utilidades_scripts import RAIZ, SEGUNDOS_MAXIMOS
+from tests.utilidades_scripts import RAIZ, SEGUNDOS_MAXIMOS, textos_ausentes
 from tools import capturar_dataset
 from tools.capturar_dataset import (
     CapturaInvalidaError,
@@ -165,8 +165,7 @@ def test_main_explica_cada_parametro_en_la_ayuda(capsys: pytest.CaptureFixture[s
     with pytest.raises(SystemExit):
         main(["--help"])
 
-    ayuda = " ".join(capsys.readouterr().out.split())
-    assert [texto for texto in AYUDAS if texto not in ayuda] == []
+    assert textos_ausentes(capsys.readouterr().out, AYUDAS) == []
 
 
 def test_abrir_fuente_usa_el_indice_de_camara_cuando_la_fuente_es_un_numero(

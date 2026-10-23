@@ -4,11 +4,9 @@ Valida que DashboardFrame no mezcle geometry managers pack/grid (TclError fix).
 Prueba directa del widget sin dependencias de YOLO, DRM ni cámaras reales.
 """
 import unittest
-import time
 import sys
 import os
 import queue
-import threading
 import numpy as np
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -16,6 +14,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Necesitamos Tk disponible
 import customtkinter as ctk
 ctk.set_appearance_mode("Dark")
+
+CICLOS_DE_ACTUALIZACION = 3
+
 
 class TestGridMultiplexor(unittest.TestCase):
     """Prueba unitaria del DashboardFrame aislado (sin AppMain completo)."""
@@ -132,45 +133,31 @@ class TestGridMultiplexor(unittest.TestCase):
             self.assertTrue(len(info) > 0, f"Label de {cam_id} debe estar visible en grid tras restaurar")
 
     def test_frame_consumption_with_mock_producers(self):
-        """Verifica consumo de frames Zero-Blocking con productores simulados."""
+        """Cada ciclo de actualización consume la cola y muestra el frame más reciente.
+
+        Determinista (issue #37): antes medía actualizaciones por segundo de reloj real con
+        sleep, y en la CI de Windows fallaba según la carga del runner (CLAUDE.md §4).
+        """
         from src.gui.dashboard import DashboardFrame
-        
-        camera_queues = {
-            "Test Cam": queue.Queue(maxsize=10),
-        }
-        dashboard = DashboardFrame(self.root, camera_queues)
+
+        cola = queue.Queue(maxsize=10)
+        dashboard = DashboardFrame(self.root, {"Test Cam": cola})
         dashboard.grid(row=0, column=0, sticky="nsew")
         self.root.update_idletasks()
-        
-        # Inyectar frames simulados
-        stop_event = threading.Event()
-        
-        def producer():
-            while not stop_event.is_set():
-                frame = np.random.randint(0, 256, (480, 640, 3), dtype=np.uint8)
-                try:
-                    camera_queues["Test Cam"].put_nowait(("Test Cam", frame))
-                except queue.Full:
-                    pass
-                time.sleep(1/30)
-        
-        t = threading.Thread(target=producer, daemon=True)
-        t.start()
-        
-        # Correr mainloop por 1 segundo
-        start = time.time()
-        updates = 0
-        while time.time() - start < 1.0:
-            self.root.update_idletasks()
-            self.root.update()
-            updates += 1
-            time.sleep(0.01)
-        
-        stop_event.set()
-        t.join(timeout=2)
-        
-        self.assertGreater(updates, 50, f"Debe haber >50 updates en 1s, hubo {updates}")
-        print(f"✅ Frame consumption test: {updates} UI updates en 1 segundo")
+        etiqueta = dashboard.video_labels["Test Cam"]
+
+        for ciclo in range(CICLOS_DE_ACTUALIZACION):
+            atrasado = np.full((48, 64, 3), ciclo, dtype=np.uint8)
+            reciente = np.full((48, 64, 3), (ciclo, 100, 200), dtype=np.uint8)
+            cola.put_nowait(("Test Cam", atrasado))
+            cola.put_nowait(("Test Cam", reciente))
+
+            dashboard.update_frames()
+
+            self.assertTrue(cola.empty(), f"El ciclo {ciclo} debe vaciar la cola")
+            mostrado = np.asarray(etiqueta.image.cget("light_image"))
+            # El dashboard convierte BGR a RGB: se muestra el frame más reciente, no el atrasado.
+            np.testing.assert_array_equal(mostrado, reciente[:, :, ::-1])
 
 
 if __name__ == "__main__":

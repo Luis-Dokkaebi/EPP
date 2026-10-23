@@ -73,7 +73,7 @@ exigir_promocion(json.load(open(sys.argv[1])))" metricas_evento.json
   sola vez** sobre `test` por candidato.
 - Mientras D4 o D2 estén pendientes, la promoción falla siempre y nombra la decisión que falta.
 - Si pasa: exportar a ONNX, probar la paridad, completar la ficha del modelo y registrar el
-  artefacto en el manifiesto de modelos (runbook de exportación, B-06).
+  artefacto en el manifiesto de modelos ([runbook de exportación](exportacion_modelo.md)).
 
 ## 6. Qué no hacer
 

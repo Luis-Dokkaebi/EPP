@@ -12,6 +12,7 @@ source_modules =
     src.storage
     src.inference.types
     src.inference.ports
+    src.ppe
 forbidden_modules =
     cv2
     ultralytics

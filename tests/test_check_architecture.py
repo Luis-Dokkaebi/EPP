@@ -1,5 +1,6 @@
 """Arquitectura verificada por máquina con mensajes que enseñan la corrección (SPEC/9 §0.4, H3)."""
 
+import configparser
 import textwrap
 from pathlib import Path
 
@@ -128,3 +129,12 @@ def test_main_sin_argumentos_valida_la_arquitectura_real(monkeypatch: pytest.Mon
     monkeypatch.chdir(RAIZ)
 
     assert main([]) == 0
+
+
+def test_contrato_dominio_sin_detalles_cubre_el_modulo_de_epp() -> None:
+    configuracion = configparser.ConfigParser()
+    configuracion.read(RAIZ / ".importlinter", encoding="utf-8")
+
+    contrato = configuracion["importlinter:contract:dominio-sin-detalles"]
+
+    assert "src.ppe" in contrato["source_modules"].split()

@@ -6,8 +6,10 @@ hacia atrás y otro hacia adelante es lo único que depende del reloj real, porq
 TLS lo exige.
 """
 
+import base64
 import ipaddress
 import socket
+import socketserver
 import ssl
 import threading
 from datetime import UTC, datetime, timedelta
@@ -157,3 +159,134 @@ class ServidorWebhookFalso:
                 """Sin salida por consola en las pruebas."""
 
         return Manejador
+
+
+class CorreoRecibido(NamedTuple):
+    remitente: str
+    destinatarios: list[str]
+    datos: bytes
+    credenciales: tuple[str, str] | None
+    con_tls: bool
+
+
+class _SesionSMTP:
+    """Conversación SMTP mínima: EHLO, STARTTLS, AUTH PLAIN, MAIL, RCPT, DATA y QUIT."""
+
+    def __init__(self, falso: "ServidorSMTPFalso", conexion: socket.socket) -> None:
+        self._falso = falso
+        self._conexion = conexion
+        self._archivo = conexion.makefile("rwb")
+        self._con_tls = False
+        self._credenciales: tuple[str, str] | None = None
+        self._remitente = ""
+        self._destinatarios: list[str] = []
+
+    def atender(self) -> None:
+        self._responder("220 local ESMTP falso")
+        comandos = {
+            "EHLO": self._ehlo,
+            "STARTTLS": self._starttls,
+            "AUTH": self._auth,
+            "MAIL": self._mail,
+            "RCPT": self._rcpt,
+            "DATA": self._data,
+        }
+        # Se relee self._archivo en cada vuelta: STARTTLS lo reemplaza por el del canal cifrado.
+        while linea := self._archivo.readline():
+            verbo, _, argumento = linea.decode().strip().partition(" ")
+            if verbo.upper() == "QUIT":
+                self._responder("221 chau")
+                return
+            comandos.get(verbo.upper(), self._ok)(argumento)
+
+    def _responder(self, *lineas: str) -> None:
+        self._archivo.write("".join(f"{linea}\r\n" for linea in lineas).encode())
+        self._archivo.flush()
+
+    def _ok(self, _argumento: str) -> None:
+        self._responder("250 OK")
+
+    def _ehlo(self, _argumento: str) -> None:
+        extensiones = ["250-local"]
+        if self._falso.ofrece_starttls and not self._con_tls:
+            extensiones.append("250-STARTTLS")
+        self._responder(*extensiones, "250 AUTH PLAIN")
+
+    def _starttls(self, _argumento: str) -> None:
+        self._responder("220 listo para TLS")
+        self._archivo.close()
+        self._conexion = self._falso.tls.wrap_socket(self._conexion, server_side=True)
+        self._archivo = self._conexion.makefile("rwb")
+        self._con_tls = True
+
+    def _auth(self, argumento: str) -> None:
+        _, usuario, contrasena = base64.b64decode(argumento.split()[1]).decode().split("\0")
+        self._credenciales = (usuario, contrasena)
+        self._responder("235 autenticado")
+
+    def _mail(self, argumento: str) -> None:
+        self._remitente = argumento.split(":", 1)[1].strip(" <>")
+        self._ok(argumento)
+
+    def _rcpt(self, argumento: str) -> None:
+        self._destinatarios.append(argumento.split(":", 1)[1].strip(" <>"))
+        self._ok(argumento)
+
+    def _data(self, _argumento: str) -> None:
+        self._responder("354 adelante")
+        datos = b"".join(iter(self._archivo.readline, b".\r\n"))
+        if self._falso.rechazo is not None:
+            self._responder(self._falso.rechazo)
+            return
+        self._falso.recibidos.append(
+            CorreoRecibido(
+                self._remitente, self._destinatarios, datos, self._credenciales, self._con_tls
+            )
+        )
+        self._ok("")
+
+
+class ServidorSMTPFalso:
+    """SMTP en 127.0.0.1 que guarda cada correo; ofrece STARTTLS con el certificado local.
+
+    `ofrece_starttls = False` simula un servidor sin TLS; `rechazo` (por ejemplo
+    "451 intente luego") hace que rechace el correo al terminar DATA.
+    """
+
+    def __init__(self, tls: ssl.SSLContext) -> None:
+        self.tls = tls
+        self.ofrece_starttls = True
+        self.rechazo: str | None = None
+        self.recibidos: list[CorreoRecibido] = []
+        falso = self
+
+        class Manejador(socketserver.BaseRequestHandler):
+            def handle(self) -> None:
+                try:
+                    _SesionSMTP(falso, self.request).atender()
+                except (ssl.SSLError, ConnectionError):
+                    # El cliente cortó la conexión, por ejemplo porque no confía en el
+                    # certificado: es lo que esas pruebas esperan, no una falla del servidor.
+                    return
+
+        self._servidor = socketserver.ThreadingTCPServer((LOCAL, 0), Manejador)
+        self._servidor.daemon_threads = True
+        self._hilo = threading.Thread(target=self._servidor.serve_forever, daemon=True)
+
+    @property
+    def puerto(self) -> int:
+        return int(self._servidor.server_address[1])
+
+    def __enter__(self) -> "ServidorSMTPFalso":
+        self._hilo.start()
+        return self
+
+    def __exit__(
+        self,
+        tipo: type[BaseException] | None,
+        error: BaseException | None,
+        traza: TracebackType | None,
+    ) -> None:
+        self._servidor.shutdown()
+        self._servidor.server_close()
+        self._hilo.join()

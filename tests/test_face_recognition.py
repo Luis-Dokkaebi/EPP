@@ -11,10 +11,8 @@ sys.path.append(os.path.join(os.getcwd(), 'src'))
 # Mock face_recognition before importing FaceRecognizer
 # This is necessary because the environment might not have face_recognition installed
 sys.modules['face_recognition'] = MagicMock()
-# Mock cv2 if not present
-sys.modules['cv2'] = MagicMock()
-# Set cv2 constants
-sys.modules['cv2'].COLOR_BGR2RGB = 4
+# cv2 (opencv-python-headless) está fijado en los requisitos: no se reemplaza en sys.modules,
+# porque el doble quedaba para toda la sesión y rompía a cualquier módulo que importara cv2 después.
 
 from src.recognition.face_recognizer import FaceRecognizer
 

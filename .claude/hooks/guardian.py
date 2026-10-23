@@ -31,6 +31,8 @@ ARCHIVOS_PROTEGIDOS = frozenset(
 )
 EXTENSIONES_PROTEGIDAS = frozenset({".pt", ".onnx", ".xlsx", ".whl"})
 SEPARADOR_DE_COMANDOS = re.compile(r"&&|\|\||[;|&\n]")
+# Redirección de shell (`>`, `2>`, `>>`, `<`, `>salida.log`): ni ella ni su destino son paquetes.
+REDIRECCION = re.compile(r"^\d*(?:>>?|<)(?P<destino>\S*)$")
 # Opciones largas de `git commit` cuyo valor es el siguiente token (el mensaje no se analiza).
 OPCIONES_LARGAS_COMMIT_CON_VALOR = frozenset(
     {"--message", "--file", "--template", "--author", "--date"}
@@ -102,6 +104,10 @@ def _paquetes_sin_version(argumentos: list[str]) -> list[str]:
     for argumento in restantes:
         if argumento.startswith("#"):  # comentario de shell: lo que sigue no son paquetes
             break
+        if redireccion := REDIRECCION.match(argumento):
+            if not redireccion["destino"]:
+                next(restantes, None)
+            continue
         if argumento in OPCIONES_PIP_CON_VALOR:
             next(restantes, None)
         elif not argumento.startswith("-") and not _es_ruta_local(argumento):

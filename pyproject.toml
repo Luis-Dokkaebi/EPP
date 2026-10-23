@@ -171,6 +171,7 @@ files = [
 module = [
     "customtkinter.*",
     "face_recognition.*",
+    "onnxruntime.*",
     "pandas.*",
     "radon.*",
     "reportlab.*",

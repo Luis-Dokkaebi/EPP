@@ -2,13 +2,14 @@ import unittest
 import cProfile
 import pstats
 import io
-import time
 import os
 import shutil
 import sys
 import tempfile
 import threading
 import sqlite3
+
+from openpyxl import load_workbook
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.main_ui import AppMain
@@ -20,60 +21,101 @@ import pytest
 pytestmark = pytest.mark.slow
 
 
-class MockDBManager:
-    def __init__(self, db_path=":memory:"):
-        self.db_path = db_path
-        
-    def _get_connection(self):
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("CREATE TABLE IF NOT EXISTS tracking (id INTEGER, name TEXT, zone TEXT, timestamp DATETIME)")
-        return conn
+FILAS_MASIVAS = 50_000
+FILA_DE_PRUEBA = ("Zona Segura", "2026-03-27 10:00:00")
+NOMBRE_DEL_HILO = "DB_Excel_Export"
+SEGUNDOS_DE_SEGURIDAD = 30  # solo evita colgar la suite si el hilo nunca llega a la base
 
-    def populate_massive_data(self):
-        conn = self._get_connection()
-        print("\n[DB Spoofer] Memoria RAM separada. Inyectando 50,000 registros estaticos para Experimento VMS...")
-        data = [(i, f"Colaborador_{i}", "Zona Segura", "2026-03-27 10:00:00") for i in range(50000)]
-        conn.executemany("INSERT INTO tracking VALUES (?, ?, ?, ?)", data)
+
+class BaseEnArchivo:
+    """Doble de DatabaseManager sobre un SQLite en disco temporal: las filas persisten entre
+    conexiones (antes era ":memory:" y cada conexión del hilo veía una tabla vacía, issue #37)."""
+
+    def __init__(self, ruta):
+        self.db_path = ruta
+
+    def _get_connection(self):
+        return sqlite3.connect(self.db_path)
+
+    def poblar(self, filas):
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("CREATE TABLE tracking (id INTEGER, name TEXT, zone TEXT, timestamp DATETIME)")
+        conn.executemany(
+            "INSERT INTO tracking VALUES (?, ?, ?, ?)",
+            ((i, f"Colaborador_{i}", *FILA_DE_PRUEBA) for i in range(filas)),
+        )
         conn.commit()
+        conn.close()
+
+
+class BaseQueEspera(BaseEnArchivo):
+    """Retiene al hilo de exportación en la conexión hasta que la prueba lo libera."""
+
+    def __init__(self, ruta):
+        super().__init__(ruta)
+        self.conectando = threading.Event()
+        self.liberar = threading.Event()
+
+    def _get_connection(self):
+        self.conectando.set()
+        self.liberar.wait()
+        return super()._get_connection()
+
+
+def _esperar_exportaciones():
+    """Espera a que terminen los hilos de exportación, sin presupuesto de reloj propio
+    (pytest-timeout corta la suite si alguno se cuelga)."""
+    for hilo in threading.enumerate():
+        if hilo.name == NOMBRE_DEL_HILO:
+            hilo.join()
+
 
 class TestSprint5Audits(unittest.TestCase):
-    
-    def test_massive_db_export_stress(self):
-        """TASK-5.4.3: Exportación Masiva de BD sin afectar la latencia del VMS B2B."""
-        db_mock = MockDBManager()
-        db_mock.populate_massive_data()
-        
-        worker = DatabaseWorker(db_mock)
-        # Regla §4: nada de disco fuera de un directorio temporal (antes escribía en la raíz del repo).
+
+    def setUp(self):
         carpeta = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, carpeta, True)
-        output_file = os.path.join(carpeta, "stress_test_export_50k.xlsx")
-            
-        success_event = threading.Event()
-        
-        def on_success(path, rows):
-            success_event.set()
-            
-        def on_error(e):
-            print("Error Threading:", e)
-            success_event.set()
-            
-        # Benchmark de Traba de UI (Delegacion al Worker)
-        start_trigger = time.time()
-        worker.generate_excel_async("SELECT * FROM tracking", output_file, on_success, on_error)
-        trigger_time = (time.time() - start_trigger) * 1000 
-        
-        print(f"[Stress Test / Asincronía] Tiempo que se detuvo la UI: {trigger_time:.4f} milisegundos")
-        self.assertLess(trigger_time, 20.0, "ERROR FATAL: La llamada a la BD bloqueo la UI mas de lo tolerado B2B.")
-        
-        print("[Stress Test] Hilo Daemon Background VMS en ejecucion pesada (I/O) de MS Excel...")
-        success_event.wait(timeout=25)
-        
-        self.assertTrue(success_event.is_set(), "El motor del reporte masivo fallo o excedio el timeout absurdo de 25s.")
-        self.assertTrue(os.path.exists(output_file), "Fallback excel failed.")
-        
-        size_mb = os.path.getsize(output_file) / (1024*1024)
-        print(f"[Stress Test Finalizado] XLSX Aprobado Intacto - Tamaño en Disco Local: {size_mb:.2f} MB")
+        self.ruta_db = os.path.join(carpeta, "tracking.db")
+        self.salida = os.path.join(carpeta, "stress_test_export_50k.xlsx")
+        self.resultado = {}
+
+    def _exportar(self, db):
+        DatabaseWorker(db).generate_excel_async(
+            "SELECT * FROM tracking",
+            self.salida,
+            on_success=lambda ruta, filas: self.resultado.update(filas=filas),
+            on_error=lambda error: self.resultado.update(error=error),
+        )
+
+    def test_export_returns_before_the_worker_reads_the_db(self):
+        """TASK-5.4.3: la UI no espera al volcado: la llamada vuelve con el hilo aún en la base."""
+        BaseEnArchivo(self.ruta_db).poblar(1)
+        db = BaseQueEspera(self.ruta_db)
+
+        self._exportar(db)
+
+        # Si la llamada esperara al hilo, nunca llegaríamos aquí: el hilo sigue retenido.
+        self.assertTrue(db.conectando.wait(SEGUNDOS_DE_SEGURIDAD), "El hilo de exportación no arrancó.")
+        self.assertEqual(self.resultado, {})
+        db.liberar.set()
+        _esperar_exportaciones()
+        self.assertEqual(self.resultado, {"filas": 1})
+
+    def test_massive_db_export_stress(self):
+        """TASK-5.4.3: exportación masiva completa, verificada por contenido (CLAUDE.md §16)."""
+        BaseEnArchivo(self.ruta_db).poblar(FILAS_MASIVAS)
+
+        self._exportar(BaseEnArchivo(self.ruta_db))
+        _esperar_exportaciones()
+
+        self.assertEqual(self.resultado, {"filas": FILAS_MASIVAS})
+        libro = load_workbook(self.salida, read_only=True)
+        self.addCleanup(libro.close)
+        filas = list(libro.active.iter_rows(values_only=True))
+        self.assertEqual(filas[0], ("id", "name", "zone", "timestamp"))
+        self.assertEqual(len(filas), FILAS_MASIVAS + 1)
+        self.assertEqual(filas[1], (0, "Colaborador_0", *FILA_DE_PRUEBA))
+        self.assertEqual(filas[-1], (FILAS_MASIVAS - 1, f"Colaborador_{FILAS_MASIVAS - 1}", *FILA_DE_PRUEBA))
 
     def test_cprofile_main_thread_yield(self):
         """Valida matematicamente que el CustomTkinter MainLoop no consume I/O pesado ni ahoga la APP."""

@@ -25,3 +25,7 @@ matarlo. Cada uno se justifica aquí. Los demás sobrevivientes se matan con pru
 | `src/tracking/evidencias_epp.py` | `ROJO = (0, 0, 255)` | `(0, 0, 256)` | OpenCV satura el color a 255 en imágenes uint8: la imagen es idéntica (verificado con `np.array_equal`) |
 | `src/tracking/evidencias_epp.py` | `GROSOR_CAJA = 3` | `GROSOR_CAJA = 4` | En OpenCV 4.9 un rectángulo de grosor 3 y uno de 4 pintan los mismos píxeles (verificado con `np.array_equal`; la huella de `test_evidencias_epp.py` no cambia) |
 | `src/tracking/evidencias_epp.py` | `fuente = cv2.FONT_HERSHEY_SIMPLEX` | `fuente = None` | `FONT_HERSHEY_SIMPLEX` vale 0 y OpenCV convierte `None` en 0: misma fuente, misma imagen (igual que en `annotator.py`) |
+| `src/tracking/overlay_epp.py` | `SituacionVisual.CUMPLE: (0, 255, 0)` | `(0, 256, 0)` | OpenCV satura el color a 255 en imágenes uint8: la imagen es idéntica (la huella de `test_overlay_epp.py` no cambia) |
+| `src/tracking/overlay_epp.py` | `SituacionVisual.INFRACCION: (0, 0, 255)` | `(0, 0, 256)` | Ídem: saturación a 255 en uint8 |
+| `src/tracking/overlay_epp.py` | `fuente = cv2.FONT_HERSHEY_SIMPLEX` | `fuente = None` | `FONT_HERSHEY_SIMPLEX` vale 0 y OpenCV convierte `None` en 0: misma fuente, misma imagen (igual que en `annotator.py`) |
+| `src/tracking/overlay_epp.py` | `GROSOR_TEXTO = 1` | `GROSOR_TEXTO = None` | `cv2.putText` toma `None` como su grosor por omisión, que es 1: la imagen es idéntica (igual que en `annotator.py`) |

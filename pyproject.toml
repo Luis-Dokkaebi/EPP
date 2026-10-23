@@ -169,6 +169,7 @@ module = [
     "customtkinter.*",
     "face_recognition.*",
     "onnxruntime.*",
+    "openpyxl.*",
     "pandas.*",
     "radon.*",
     "reportlab.*",

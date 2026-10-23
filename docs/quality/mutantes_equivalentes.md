@@ -26,3 +26,4 @@ matarlo. Cada uno se justifica aquí. Los demás sobrevivientes se matan con pru
 | `tools/acuerdo_etiquetado.py` | `a_redefinir: list[str] \| None = clases_bajo_el_umbral(...)` (en `main`) | `list[str] & None` | Anotación de una variable local: Python no la evalúa en tiempo de ejecución (PEP 526) |
 | `ml/manifiesto_dataset.py` | `BLOQUE_DE_LECTURA = 1 << 20` | `2 << 20`, `1 << 21`, `None` | El tamaño del bloque de lectura no cambia el sha256; con `None`, `read()` lee el archivo entero y el resumen es el mismo |
 | `ml/manifiesto_dataset.py` | `zip(imagenes, descripciones, strict=True)` | `strict=False` | `descripciones` se construye con una entrada por cada imagen: las dos listas siempre tienen el mismo largo |
+| `ml/train.py` | `if self.resolucion <= 0 or self.resolucion % MULTIPLO_DE_RESOLUCION:` | `self.resolucion <= 1` | Solo difiere en la resolución 1, que tampoco es múltiplo de 32 y la rechaza la otra condición con el mismo mensaje |

@@ -16,12 +16,12 @@ except ImportError:
     sys.path.append(os.getcwd())
     from config import config
 
-from detection.person_detector import PersonDetector
-from tracking.person_tracker import PersonTracker
-from zones.zone_checker import ZoneChecker
-from storage.database_manager import DatabaseManager
-from recognition.face_recognizer import FaceRecognizer
-from analysis.state_manager import StateManager
+from src.detection.person_detector import PersonDetector
+from src.tracking.person_tracker import PersonTracker
+from src.zones.zone_checker import ZoneChecker
+from src.storage.database_manager import DatabaseManager
+from src.recognition.face_recognizer import FaceRecognizer
+from src.analysis.state_manager import StateManager
 import time
 
 def get_bbox_center(xyxy):
@@ -106,7 +106,7 @@ def start_video_stream():
     # CR-04: lógica de negocio compartida (tracking + zonas + reconocimiento +
     # persistencia). El MISMO TrackingPipeline lo usa la GUI (CameraWorker) para
     # que ambos pipelines no diverjan. Headless reconoce/escribe cada frame.
-    from tracking.tracking_pipeline import TrackingPipeline
+    from src.tracking.tracking_pipeline import TrackingPipeline
     pipeline = TrackingPipeline(
         db=db_manager, zone_checker=zone_checker, tracker=tracker,
         state_manager=state_manager, face_recognizer=face_recognizer,

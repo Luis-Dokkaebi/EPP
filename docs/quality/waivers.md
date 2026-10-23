@@ -14,6 +14,7 @@ el archivo afectado.
 | W-005 | `bandit -ll` (§8, §10.6) | `src/security/{crash_logger,db_crypto,drm}.py` (B413), `src/recognition/face_recognizer.py` (B301), `src/storage/database_manager.py` (B608) | B413 es falso positivo (`pycryptodome`); B301 migración `.pkl` única; B608 nombre de tabla constante | Bajo / medio (B301) | 2027-01-19 | #6 |
 | W-006 | `--cov-fail-under=85` (§6, §10.4) | `src/` (global) | La línea base es 41 %; el piso del gate es `cobertura_global_minima` de `metricas.json` y solo sube | Medio | 2027-01-19 | #7 |
 | W-007 | Suite 100 % verde (§4) | `tests/test_obfuscate_pipeline.py::test_obfuscate_command_is_restrictive_pyarmor` (`xfail(strict=True)`) | `obfuscate.py` no ofusca; arreglarlo exige D8 y licencia de PyArmor | **Alto** | 2027-01-19 | #8 |
+| W-008 | Contrato `dominio-sin-detalles` de import-linter (§16) | `src/zones/zone_editor.py -> cv2` (`ignore_imports` en `.importlinter`) | Editor interactivo heredado con ventana de OpenCV dentro de `src/zones` | Bajo | 2027-01-20 | #10 |
 
 Las reglas para código **nuevo** (paquetes `src/inference`, `src/ppe`, `src/alerts`, `ml/`, `tools/`
 y archivos de prueba nuevos) no tienen ningún waiver.

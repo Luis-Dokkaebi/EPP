@@ -152,6 +152,8 @@ markers = [
 [tool.coverage.run]
 branch = true
 source = ["src"]
+# Mide también los scripts que las pruebas ejecutan como subproceso (bloques __main__).
+patch = ["subprocess"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -174,19 +176,6 @@ module = [
     "torch.*",
     "ultralytics.*",
     "wmi",
-]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-# WAIVER-#4 (caduca 2027-01-19): imports heredados sin el prefijo `src.`; A-04 los unifica.
-module = [
-    "analysis.*",
-    "detection.*",
-    "main",
-    "recognition.*",
-    "storage.*",
-    "tracking.*",
-    "zones.*",
 ]
 ignore_missing_imports = true
 

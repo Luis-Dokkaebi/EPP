@@ -13,7 +13,7 @@ def _mock_supervision():
 
 def _make_tracker(sv_mock):
     import importlib
-    import tracking.person_tracker as _pt_mod
+    import src.tracking.person_tracker as _pt_mod
     importlib.reload(_pt_mod)
     return _pt_mod.PersonTracker(), sv_mock
 

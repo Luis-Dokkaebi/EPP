@@ -1,0 +1,32 @@
+[importlinter]
+root_packages =
+    src
+include_external_packages = True
+
+[importlinter:contract:dominio-sin-detalles]
+name = El dominio no importa GUI, visión ni motores de IA
+type = forbidden
+source_modules =
+    src.zones
+    src.analysis
+    src.storage
+forbidden_modules =
+    cv2
+    ultralytics
+    torch
+    onnxruntime
+    rfdetr
+    customtkinter
+    src.gui
+# WAIVER-#10 (caduca 2027-01-20): editor interactivo heredado; se mueve a la GUI en C-12.
+ignore_imports =
+    src.zones.zone_editor -> cv2
+
+[importlinter:contract:capas]
+name = Las dependencias apuntan hacia adentro
+type = layers
+layers =
+    src.gui
+    src.tracking
+    (src.ppe.application) | (src.alerts.application)
+    (src.ppe.domain) | (src.alerts.domain)

@@ -2,6 +2,7 @@ import unittest
 import sys
 import os
 import shutil
+import tempfile
 from unittest.mock import MagicMock, patch
 
 # Add src to path
@@ -15,20 +16,21 @@ sys.modules['cv2'] = MagicMock()
 # Set cv2 constants
 sys.modules['cv2'].COLOR_BGR2RGB = 4
 
-from recognition.face_recognizer import FaceRecognizer
+from src.recognition.face_recognizer import FaceRecognizer
 
 class TestFaceRecognizer(unittest.TestCase):
     def setUp(self):
-        self.faces_dir = "tests/data/faces"
-        self.encodings_file = "tests/data/faces/encodings.pkl"
+        # Regla §4: nada de disco fuera de un directorio temporal (antes usaba tests/data).
+        carpeta = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, carpeta, True)
+        self.faces_dir = os.path.join(carpeta, "faces")
+        self.encodings_file = os.path.join(self.faces_dir, "encodings.pkl")
         os.makedirs(self.faces_dir, exist_ok=True)
-        # Clean up
-        if os.path.exists(self.encodings_file):
-            os.remove(self.encodings_file)
-
-    def tearDown(self):
-        if os.path.exists("tests/data"):
-            shutil.rmtree("tests/data")
+        # Aísla del orden de importación: el módulo bajo prueba usa el mismo doble que el test.
+        import face_recognition
+        parche = patch("src.recognition.face_recognizer.face_recognition", face_recognition)
+        parche.start()
+        self.addCleanup(parche.stop)
 
     def test_load_known_faces(self):
         # We need to mock the face_recognition module used INSIDE FaceRecognizer

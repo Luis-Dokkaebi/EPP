@@ -7,7 +7,7 @@ root_dir = os.path.dirname(current_dir)
 src_dir = os.path.join(root_dir, 'src')
 sys.path.append(src_dir)
 
-from recognition.face_recognizer import FaceRecognizer
+from src.recognition.face_recognizer import FaceRecognizer
 
 def main():
     if len(sys.argv) < 3:

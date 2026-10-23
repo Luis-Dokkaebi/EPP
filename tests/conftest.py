@@ -1,12 +1,6 @@
 """Configuración compartida de pytest."""
 
-import os
-import sys
-
 import pytest
-
-# Los módulos heredados importan sin el prefijo `src.` (p. ej. `from zones...`); A-04 lo unifica.
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 MARCADORES_DE_TIPO = frozenset({"bdd", "integration", "slow", "windows"})
 

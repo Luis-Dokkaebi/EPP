@@ -6,7 +6,7 @@ import sqlite3
 
 # Add src to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
-from storage.database_manager import DatabaseManager
+from src.storage.database_manager import DatabaseManager
 
 class TestReports(unittest.TestCase):
     def setUp(self):

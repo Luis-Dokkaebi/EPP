@@ -20,6 +20,7 @@ UMBRAL_MUTACION_NUEVA=85
 UMBRAL_COBERTURA_DIFF=95
 
 CAMBIADOS=0
+PARCHE=()
 INSTALAR=1
 MUTACION=1
 for opcion in "$@"; do
@@ -73,7 +74,7 @@ piso_de_cobertura() {
 
 objetivos_de_mutacion() {
     if [ "$CAMBIADOS" = 1 ]; then
-        git diff --name-only "$BASE"...HEAD -- 'src/*.py'
+        git diff --name-only --diff-filter=AM "$BASE"...HEAD -- 'src/*.py' 'scripts/*.py' 'tools/*.py' 'ml/*.py'
     else
         echo "$MODULOS_CRITICOS"
     fi
@@ -94,20 +95,26 @@ pruebas_de() {
 mutar() {
     local umbral="$1"
     shift
-    local objetivo
+    local objetivo codigo
     if [ "$#" -eq 0 ]; then
-        echo "Sin código de src/ cambiado respecto de $BASE: no hay mutantes que generar."
+        echo "Sin código Python cambiado respecto de $BASE: no hay mutantes que generar."
         return 0
     fi
     rm -f .mutmut-cache
     for objetivo in "$@"; do
         [ -e "$objetivo" ] || continue
-        con_pantalla mutmut run --paths-to-mutate "$objetivo" \
-            --runner "python scripts/ejecutar_pruebas_mutacion.py -x -q -p no:randomly -m 'not slow' $(pruebas_de "$objetivo")" \
-            || true
+        con_pantalla mutmut run "${PARCHE[@]}" --paths-to-mutate "$objetivo" \
+            --runner "python scripts/ejecutar_pruebas_mutacion.py -x -q -p no:randomly -m 'not slow' $(pruebas_de "$objetivo")"
+        codigo=$?
+        # mutmut 2 combina bits: 2 sobrevivientes, 4 timeouts, 8 sospechosos (los evalúa
+        # check_mutacion.py); el bit 1 significa que mutmut mismo falló.
+        if (( codigo & 1 )); then
+            echo "mutmut falló al mutar $objetivo (código $codigo): revisa la salida de arriba."
+            return 1
+        fi
     done
-    if find src -name '*.py.bak' | grep -q .; then
-        echo "mutmut dejó código mutado (*.py.bak): restaura con git checkout -- src y borra los .bak."
+    if find src scripts tools ml -name '*.py.bak' 2>/dev/null | grep -q .; then
+        echo "mutmut dejó código mutado (*.py.bak): restaura con git checkout y borra los .bak."
         return 1
     fi
     mutmut results
@@ -121,6 +128,7 @@ else
 fi
 paso 1-formato ruff format --check .
 paso 2-lint ruff check .
+paso 2b-arquitectura python scripts/check_architecture.py .importlinter
 paso 3-tipos mypy
 # shellcheck disable=SC2046  # paquetes_medidos devuelve varias opciones a propósito
 paso 4a-pruebas con_pantalla python -m pytest $(paquetes_medidos) --cov-branch \
@@ -135,6 +143,9 @@ paso 6b-pip-audit pip-audit
 if [ "$MUTACION" = 0 ]; then
     omitido 7-mutacion "--sin-mutacion"
 elif [ "$CAMBIADOS" = 1 ]; then
+    # Solo se mutan las líneas que cambió el PR (mutmut --use-patch-file).
+    git diff -U0 "$BASE"...HEAD >"$REPORTES/cambios.patch"
+    PARCHE=(--use-patch-file "$REPORTES/cambios.patch")
     # shellcheck disable=SC2046
     paso 7-mutacion mutar "$UMBRAL_MUTACION_NUEVA" $(objetivos_de_mutacion)
 else

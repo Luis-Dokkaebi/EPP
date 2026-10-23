@@ -4,7 +4,6 @@ import queue
 import threading
 import os
 import tempfile
-import psutil
 import sys
 import numpy as np
 
@@ -52,9 +51,6 @@ class TestCameraWorkerLeaks(unittest.TestCase):
         # Instantiate Camera Worker acting un-throttled to flood queue faster (30 ops)
         worker = CameraWorker(camera_id=0, frame_queue=q, detector=detector, fps_limit=30)
         
-        process = psutil.Process(os.getpid())
-        mem_start = process.memory_info().rss
-        
         # Start background worker
         worker.start()
         
@@ -69,15 +65,14 @@ class TestCameraWorkerLeaks(unittest.TestCase):
         # consumiendo CPU en las pruebas siguientes (en la CI de Windows ahogaba al dashboard).
         self.assertFalse(worker.is_alive(), "El worker debe terminar tras stop().")
 
-        mem_end = process.memory_info().rss
-        mem_diff_mb = (mem_end - mem_start) / (1024 * 1024)
-        
         # Output Validation
         self.assertTrue(q.full(), "La cola deberia llenarse muy rapido y marcar Full.")
-        self.assertEqual(q.qsize(), 5, "El limite estricto de la memoria de encolamiento debe respetarse (5 fps max en standby).")
-        
-        print(f"Memoria (Mbytes) -> Cambio: {mem_diff_mb:.2f} MB")
-        self.assertLess(mem_diff_mb, 50, "El Drop Frame Protocol ha fallado. La memoria local se expandio de forma riesgosa.")
+        self.assertEqual(q.qsize(), CAPACIDAD, "El limite estricto de la memoria de encolamiento debe respetarse (5 fps max en standby).")
+        # La memoria retenida queda acotada por la capacidad de la cola: todo frame leído que no
+        # cabía se descartó. Reemplaza la medición del RSS de todo el proceso, que dependía de
+        # las demás pruebas y del runner (issue #37, CLAUDE.md §4).
+        descartados = len(lecturas) - q.qsize()
+        self.assertGreaterEqual(descartados, FRAMES_DE_MAS, "El Drop Frame Protocol debe descartar los frames que no caben.")
 
 if __name__ == '__main__':
     unittest.main()

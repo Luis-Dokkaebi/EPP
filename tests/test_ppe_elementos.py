@@ -2,7 +2,13 @@
 
 import pytest
 
-from src.ppe.domain.elementos import ElementoEPP, EstadoElemento, TipoAncla
+from src.ppe.domain.elementos import (
+    ElementoEPP,
+    EstadoElemento,
+    TipoAncla,
+    elementos_desde_textos,
+)
+from src.ppe.domain.errores import ElementoDesconocidoError
 
 
 @pytest.mark.parametrize(
@@ -65,3 +71,18 @@ def test_estado_elemento_tiene_exactamente_los_tres_estados_del_plan() -> None:
     nombres = {estado.name for estado in EstadoElemento}
 
     assert nombres == {"PRESENTE", "AUSENTE", "NO_VERIFICABLE"}
+
+
+def test_elementos_desde_textos_traduce_la_configuracion() -> None:
+    elementos = elementos_desde_textos(["casco", "chaleco", "casco"])
+
+    assert elementos == frozenset({ElementoEPP.CASCO, ElementoEPP.CHALECO})
+
+
+def test_elementos_desde_textos_rechaza_un_elemento_desconocido() -> None:
+    with pytest.raises(
+        ElementoDesconocidoError,
+        match=r'^Elemento de EPP desconocido: "botas"\. Válidos: casco, chaleco, guantes, gafas, '
+        r"barbijo$",
+    ):
+        elementos_desde_textos(["casco", "botas"])

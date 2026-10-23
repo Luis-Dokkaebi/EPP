@@ -19,3 +19,11 @@ class ObservacionInvalidaError(DominioEPPError):
 
 class RelojRetrocedioError(DominioEPPError):
     """El reloj inyectado devolvió un instante anterior al último observado."""
+
+
+class ElementoDesconocidoError(ConfiguracionInvalidaError):
+    """La configuración nombra un elemento de EPP que no existe."""
+
+
+class ZonaSinPoligonoError(ConfiguracionInvalidaError):
+    """Una zona de la configuración no tiene un polígono válido."""

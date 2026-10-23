@@ -1,0 +1,31 @@
+{
+  "version_esquema": 1,
+  "modelos": [
+    {
+      "nombre": "yolov8n-coco",
+      "version": "ultralytics-8.1.15",
+      "archivo": "yolov8n.pt",
+      "sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+      "motor": "ultralytics",
+      "licencia_pesos": "AGPL-3.0",
+      "licencia_codigo_entrenamiento": "AGPL-3.0",
+      "datasets": [{"nombre": "COCO 2017", "licencia": "CC-BY-4.0"}],
+      "clases": {"0": "persona", "67": "celular"},
+      "tamano_entrada": [640, 640],
+      "origen": "Pesos preentrenados de Ultralytics. Es el modelo que usa la app (config.MODEL_PATH). Se retira en A-16 (requiere D8)."
+    },
+    {
+      "nombre": "yolov8n-coco-copia",
+      "version": "desconocida",
+      "archivo": "models/yolov8/yolov8n.pt",
+      "sha256": "31e20dde3def09e2cf938c7be6fe23d9150bbbe503982af13345706515f2ef95",
+      "motor": "ultralytics",
+      "licencia_pesos": "AGPL-3.0",
+      "licencia_codigo_entrenamiento": "AGPL-3.0",
+      "datasets": [{"nombre": "COCO 2017", "licencia": "CC-BY-4.0"}],
+      "clases": {"0": "persona", "67": "celular"},
+      "tamano_entrada": [640, 640],
+      "origen": "Copia de origen desconocido: su sha256 difiere del yolov8n.pt de la raíz y el código no la usa. Se borra en A-16 (requiere D8)."
+    }
+  ]
+}

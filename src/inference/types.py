@@ -38,6 +38,15 @@ class Caja:
 class ClaseObjeto(StrEnum):
     PERSONA = "persona"
     CELULAR = "celular"
+    # EPP y anclas corporales de la taxonomía del modelo EPP (SPEC/9 §2.2); mismos nombres que
+    # ElementoEPP y TipoAncla del dominio.
+    CASCO = "casco"
+    CHALECO = "chaleco"
+    GUANTES = "guantes"
+    GAFAS = "gafas"
+    BARBIJO = "barbijo"
+    CABEZA = "cabeza"
+    MANOS = "manos"
 
 
 def validar_confianza(confianza: float) -> None:

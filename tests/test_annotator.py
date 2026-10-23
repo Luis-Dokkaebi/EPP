@@ -70,5 +70,20 @@ def test_anotador_escribe_la_clase_y_la_confianza_sobre_la_caja() -> None:
     assert not anotado[0:20, :].any()
 
 
-def test_anotador_usa_verde_para_personas_y_rojo_para_celulares() -> None:
-    assert COLORES == {ClaseObjeto.PERSONA: (0, 255, 0), ClaseObjeto.CELULAR: (0, 0, 255)}
+def test_anotador_usa_verde_para_personas_rojo_para_celulares_y_amarillo_para_el_epp() -> None:
+    amarillo = (0, 255, 255)
+    epp_y_anclas = set(ClaseObjeto) - {ClaseObjeto.PERSONA, ClaseObjeto.CELULAR}
+
+    assert COLORES == {
+        ClaseObjeto.PERSONA: (0, 255, 0),
+        ClaseObjeto.CELULAR: (0, 0, 255),
+        **dict.fromkeys(epp_y_anclas, amarillo),
+    }
+
+
+def test_anotador_dibuja_el_epp_en_amarillo() -> None:
+    casco = Deteccion(ClaseObjeto.CASCO, 0.9, Caja(20.0, 30.0, 120.0, 90.0))
+
+    anotado = AnotadorDeFrames().anotar(_frame(), [casco])
+
+    assert anotado[60, 20].tolist() == [0, 255, 255]

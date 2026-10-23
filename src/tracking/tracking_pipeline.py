@@ -107,6 +107,9 @@ class TrackingPipeline:
                     'name': display_name, 'x': cx, 'y': cy,
                     'bbox': (x1, y1, x2, y2),
                     'zone': current_zone, 'inside': inside_flag,
+                    # SPEC/9 §5.1: el EPP necesita el track y todas las zonas donde está.
+                    'track_id': track_id,
+                    'zones': frozenset(nombre for nombre, dentro in zones.items() if dentro),
                 })
 
                 if track_id not in self.zone_state:

@@ -16,7 +16,7 @@ import pytest
 
 from src.alerts.canal_email import CanalEmail, ConfiguracionEmail, Credenciales
 from src.alerts.domain.aviso import Aviso
-from src.alerts.domain.errores import NotificacionFallidaError
+from src.alerts.domain.errores import ConfiguracionAlertasError, NotificacionFallidaError
 from src.alerts.domain.mensaje import DatosDeLaPersona
 from src.alerts.evidencias import LectorEvidencias
 from tests.dobles_alertas import aviso
@@ -203,3 +203,29 @@ def test_email_con_el_servidor_caido_es_una_falla_de_entrega(
 
     with pytest.raises(NotificacionFallidaError, match=FALLA):
         canal.enviar(aviso(7))
+
+
+@pytest.mark.parametrize(
+    ("cambios", "mensaje"),
+    [
+        ({"destinatarios": ()}, r"^El email necesita al menos un destinatario$"),
+        ({"puerto": 0}, r"^puerto debe estar entre 1 y 65535: 0$"),
+        ({"puerto": 65536}, r"^puerto debe estar entre 1 y 65535: 65536$"),
+        ({"timeout": timedelta(0)}, r"^timeout debe ser positivo: 0:00:00$"),
+    ],
+    ids=["sin-destinatarios", "puerto-cero", "puerto-alto", "timeout-cero"],
+)
+def test_email_rechaza_configuracion_invalida(
+    carpeta: Path, cambios: dict[str, object], mensaje: str
+) -> None:
+    configuracion = _configuracion(25, ssl.create_default_context())._replace(**cambios)
+
+    with pytest.raises(ConfiguracionAlertasError, match=mensaje):
+        _canal(carpeta, configuracion)
+
+
+@pytest.mark.parametrize("puerto", [1, 65535], ids=["minimo", "maximo"])
+def test_email_acepta_los_puertos_limite(carpeta: Path, puerto: int) -> None:
+    configuracion = _configuracion(puerto, ssl.create_default_context())
+
+    assert isinstance(_canal(carpeta, configuracion), CanalEmail)

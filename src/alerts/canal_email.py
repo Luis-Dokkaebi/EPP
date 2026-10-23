@@ -14,9 +14,11 @@ from email.message import EmailMessage
 from typing import NamedTuple
 
 from src.alerts.domain.aviso import Aviso
-from src.alerts.domain.errores import NotificacionFallidaError
+from src.alerts.domain.errores import ConfiguracionAlertasError, NotificacionFallidaError
 from src.alerts.domain.mensaje import DatosDeLaPersona, redactar
 from src.alerts.evidencias import LectorEvidencias
+
+PUERTO_MAXIMO = 65535
 
 
 class Credenciales(NamedTuple):
@@ -45,6 +47,7 @@ class CanalEmail:
         datos: DatosDeLaPersona,
         evidencias: LectorEvidencias,
     ) -> None:
+        _validar(configuracion)
         self._configuracion = configuracion
         self._datos = datos
         self._evidencias = evidencias
@@ -80,3 +83,14 @@ class CanalEmail:
                 imagen, maintype="image", subtype="jpeg", filename=f"aviso-{aviso.id_aviso}.jpg"
             )
         return correo
+
+
+def _validar(configuracion: ConfiguracionEmail) -> None:
+    if not configuracion.destinatarios:
+        raise ConfiguracionAlertasError("El email necesita al menos un destinatario")
+    if not 1 <= configuracion.puerto <= PUERTO_MAXIMO:
+        raise ConfiguracionAlertasError(
+            f"puerto debe estar entre 1 y {PUERTO_MAXIMO}: {configuracion.puerto}"
+        )
+    if configuracion.timeout <= timedelta(0):
+        raise ConfiguracionAlertasError(f"timeout debe ser positivo: {configuracion.timeout}")

@@ -24,7 +24,8 @@ from ml.train import (
 )
 from tests.test_manifiesto_dataset import FUENTES, LADO_MINIMO, REGLA, _dataset
 
-SHA_CODIGO = "0123456789abcdef0123456789abcdef01234567"
+# SHA de commit ficticio para las pruebas (40 hexadecimales), no es un secreto.
+SHA_CODIGO = "0123456789abcdef0123456789abcdef01234567"  # pragma: allowlist secret
 TAXONOMIA = ("persona", "cabeza", "casco", "chaleco")
 
 
@@ -152,7 +153,7 @@ def test_nombre_de_artefacto_es_determinista_y_corto() -> None:
     assert nombre_de_artefacto(SHA_CODIGO, "f" * 64) == "epp-0123456789ab-ffffffffffff"
 
 
-@pytest.mark.parametrize("sha", ["", "abc", "Z" * 40, "0123456789abcdef0123"])
+@pytest.mark.parametrize("sha", ["", "abc", "Z" * 40, SHA_CODIGO[:20]])
 def test_nombre_de_artefacto_exige_el_sha_completo_del_codigo(sha: str) -> None:
     with pytest.raises(EntrenamientoInvalidoError) as error:
         nombre_de_artefacto(sha, "f" * 64)

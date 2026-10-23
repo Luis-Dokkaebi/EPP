@@ -26,6 +26,10 @@ calidad sin enlazar.
 - [Plantilla de ADR](adr/plantilla.md)
 - [ADR-001: Motor de IA con licencia Apache/MIT](adr/001-motor-ia.md) — provisional hasta A-13.
 
+## Benchmarks (`docs/benchmarks/`)
+
+- [Motores de IA](benchmarks/motor_ia.md) — bitácora de A-13 que cierra ADR-001 (bloqueada por D2).
+
 ## Calidad (`docs/quality/`)
 
 - [Progreso del plan](quality/progreso.md) — entregas terminadas, en curso y bloqueadas.

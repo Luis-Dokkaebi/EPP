@@ -41,6 +41,10 @@ class Caja:
         return self.ancho * self.alto
 
     @property
+    def es_degenerada(self) -> bool:
+        return self.area == 0
+
+    @property
     def centro(self) -> tuple[float, float]:
         return ((self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2)
 
@@ -51,7 +55,7 @@ class Caja:
 
     def ioa(self, region: "Caja") -> float:
         """Intersección con `region` sobre el área propia; 0 si esta caja es degenerada."""
-        if self.area == 0:
+        if self.es_degenerada:
             return 0.0
         return self.area_interseccion(region) / self.area
 

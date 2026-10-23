@@ -42,6 +42,19 @@ def test_caja_degenerada_es_valida_y_no_tiene_area(caja: Caja) -> None:
 
 
 @pytest.mark.parametrize(
+    ("caja", "degenerada"),
+    [
+        (Caja(x1=0.0, y1=0.0, x2=1.0, y2=1.0), False),
+        (Caja(x1=5.0, y1=5.0, x2=5.0, y2=9.0), True),
+        (Caja(x1=5.0, y1=5.0, x2=9.0, y2=5.0), True),
+    ],
+    ids=["area_uno", "ancho_cero", "alto_cero"],
+)
+def test_caja_es_degenerada_solo_si_no_tiene_area(caja: Caja, degenerada: bool) -> None:
+    assert caja.es_degenerada is degenerada
+
+
+@pytest.mark.parametrize(
     "esquinas",
     [(10.0, 0.0, 9.0, 5.0), (0.0, 10.0, 5.0, 9.0)],
     ids=["x_invertida", "y_invertida"],

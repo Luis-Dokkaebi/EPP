@@ -39,6 +39,25 @@ calidad sin enlazar.
 - [Lecciones de los agentes](quality/lecciones_agentes.md) — cada error convertido en mecanismo.
 - [Métricas del trinquete](quality/metricas.json) — pisos que solo pueden subir.
 
+## Datos y modelo EPP (`docs/ml/`, pista B)
+
+- [Iteration Compact](ml/iteration_compact.md) — objetivo, métricas y decisiones abiertas del modelo.
+- [Contrato de datos](ml/contrato_datos.md) — taxonomía, formato, split sin fuga, licencias y custodia.
+- [Guía de etiquetado](ml/guia_etiquetado.md) — definiciones operativas por clase y doble etiquetado.
+- [Bitácora del modelo](ml/bitacora.md) — Observation Ledger de cada iteración (vacía hasta la
+  primera corrida real).
+- [Plantilla de ficha del modelo](ml/ficha_modelo_plantilla.md) — base de `models/cards/epp-vX.Y.md`.
+
+## Runbooks (`docs/runbooks/`, tareas humanas)
+
+- [Captura del dataset](runbooks/captura_dataset.md) — capturar imágenes del piloto (D5, D6).
+- [Etiquetado y versionado](runbooks/etiquetado.md) — etiquetar, medir el acuerdo, convertir y
+  versionar el dataset (D6).
+- [Entrenamiento](runbooks/entrenamiento.md) — entorno aparte, baseline, análisis de errores y
+  promoción (D2, D4, D6).
+- [Exportación del modelo](runbooks/exportacion_modelo.md) — ONNX, paridad, ficha y entrada en el
+  manifiesto de modelos (D8).
+
 ## Licencias y modelos
 
 - [Licencias revisadas](legal/licencias_revisadas.json) — aprobaciones humanas del gate de

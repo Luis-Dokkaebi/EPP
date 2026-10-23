@@ -41,6 +41,11 @@ calidad sin enlazar.
   licencias (las propuestas sin `aprobado_por` no cuentan).
 - [Manifiesto de modelos](../models/manifest.json) — hash y licencias de cada modelo distribuido.
 
+## Operación (`docs/runbooks/`)
+
+- [Build 2.0.0 y piloto en modo sombra](runbooks/piloto_sombra.md) — pasos humanos de C-14;
+  **no ejecutado**, bloqueado por D8 y D9.
+
 ## Seguridad
 
 - [Auditoría de seguridad](security_audit_report.md) — informe heredado.

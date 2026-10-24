@@ -5,8 +5,19 @@ import time
 import numpy as np
 from src.inference.ports import DetectorPort
 from src.recognition.face_recognizer import FaceRecognizer
+from src.ppe.application.vista_cumplimiento import vista_de
+from src.ppe.domain.geometria import Caja
 from src.tracking.annotator import AnotadorDeFrames
+from src.tracking.overlay_epp import dibujar_cumplimiento
 from src.tracking.person_tracker import separar_personas_y_celulares
+
+
+def dibujar_epp(frame, track_data):
+    """Overlay de cumplimiento (SPEC/9 §8.1) de las personas que tienen estado de EPP."""
+    personas = [(Caja(*dato['bbox']), vista_de(dato['epp']))
+                for dato in track_data if dato.get('epp') is not None]
+    return dibujar_cumplimiento(frame, personas) if personas else frame
+
 
 class CameraWorker(threading.Thread):
     def __init__(self, camera_id: int | str, frame_queue: queue.Queue, detector: DetectorPort,
@@ -139,7 +150,9 @@ class CameraWorker(threading.Thread):
                 try:
                     person_detections, phones_data = separar_personas_y_celulares(detecciones)
                     track_data = self.pipeline.process(
-                        frame, person_detections, phones_data, time.time())
+                        frame, person_detections, phones_data, time.time(),
+                        detecciones=detecciones)
+                    annotated_frame = dibujar_epp(annotated_frame, track_data)
 
                     # Banner biométrico en pantalla con el nombre reconocido
                     known = [td['name'] for td in track_data if td['name'] != "Unknown"]
@@ -171,6 +184,14 @@ class CameraWorker(threading.Thread):
                 time.sleep(time_to_wait)
                 
         cap.release()
+
+    def conectar_epp(self, modulo_epp):
+        """SPEC/9 §5.1: el módulo de EPP evalúa sobre el pipeline de esta cámara.
+
+        Sin pipeline (sin sucursal montada) no hay personas ni zonas que evaluar.
+        """
+        if self.pipeline is not None:
+            self.pipeline.epp = modulo_epp
 
     def stop(self):
         self.running = False

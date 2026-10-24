@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 
 from config.path_utils import ConfigManager
+from src.composicion_epp import PublicadorEnMemoria
 from src.main_ui import AppMain
 from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
 
@@ -83,6 +84,10 @@ class TrabajadorDeCamaraFalso:
         self.camara = camara
         self.fps_limit = fps_limit
         self.iniciado = False
+        self.modulos_epp: list[object] = []
+
+    def conectar_epp(self, modulo_epp: object) -> None:
+        self.modulos_epp.append(modulo_epp)
 
     def start(self) -> None:
         self.iniciado = True
@@ -132,19 +137,36 @@ def motor() -> Callable[[str], ModeloFalso]:
     return modelo_yolo_falso
 
 
+class LicenciaConEPP:
+    def incluye_modulo(self, modulo: str) -> bool:
+        return modulo == "epp"
+
+
 @pytest.fixture
-def app(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    escaneo: EscaneoEnHiloFalso,
-    trabajadores: FabricaDeTrabajadoresFalsa,
-    motor: Callable[[str], ModeloFalso],
-) -> Iterator[AppMain]:
+def licencia() -> object | None:
+    """Sin licencia por omisión; una prueba la reemplaza parametrizando `licencia`."""
+    return None
+
+
+@pytest.fixture
+def entorno(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, motor: Callable[[str], ModeloFalso]
+) -> None:
+    """Tenant en tmp_path, motor falso y diálogos de error mudos."""
     monkeypatch.setenv("APPDATA", str(tmp_path))
     monkeypatch.setattr(ConfigManager, "_active_tenant_id", "Prueba_Escaneo")
     monkeypatch.setattr("ultralytics.YOLO", motor)
     monkeypatch.setattr("tkinter.messagebox.showerror", lambda *_argumentos: None)
-    aplicacion = AppMain()
+
+
+@pytest.fixture
+def app(
+    entorno: None,
+    escaneo: EscaneoEnHiloFalso,
+    trabajadores: FabricaDeTrabajadoresFalsa,
+    licencia: object | None,
+) -> Iterator[AppMain]:
+    aplicacion = AppMain(licencia=licencia)
     yield aplicacion
     escaneo.terminar()
     aplicacion.destroy()
@@ -224,3 +246,36 @@ def test_escaneo_inicial_revisa_los_primeros_diez_indices_de_camara(
     app: AppMain, escaneo: EscaneoEnHiloFalso
 ) -> None:
     assert escaneo.max_index == INDICES_DE_CAMARA_A_REVISAR
+
+
+@pytest.mark.integration
+def test_sin_licencia_la_camara_no_recibe_modulo_de_epp(
+    app: AppMain, trabajadores: FabricaDeTrabajadoresFalsa
+) -> None:
+    app._start_local_camera(3)
+
+    assert [trabajador.modulos_epp for trabajador in trabajadores.creados] == [[]]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("licencia", [LicenciaConEPP()], ids=["con_epp"])
+def test_con_licencia_cada_camara_recibe_su_modulo_de_epp(
+    app: AppMain, trabajadores: FabricaDeTrabajadoresFalsa, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pedidos: list[tuple[object, object]] = []
+
+    def fabrica(publicador: object, licencia: object) -> object:
+        pedidos.append((publicador, licencia))
+        return f"modulo-{len(pedidos)}"
+
+    monkeypatch.setattr("src.composicion_epp.crear_integracion_epp_de_la_app", fabrica)
+
+    app._start_local_camera(3)
+    app._start_local_camera(4)
+
+    assert [trabajador.modulos_epp for trabajador in trabajadores.creados] == [
+        ["modulo-1"],
+        ["modulo-2"],
+    ]
+    assert isinstance(app.publicador_epp, PublicadorEnMemoria)
+    assert pedidos == [(app.publicador_epp, app.licencia)] * 2

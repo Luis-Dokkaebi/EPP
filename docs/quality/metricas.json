@@ -12,7 +12,6 @@
     "src/recognition/face_recognizer.py:FaceRecognizer.load_known_faces",
     "src/security/drm.py:DRMValidator._generate_machine_id",
     "src/storage/database_manager.py:DatabaseManager.get_efficiency_report",
-    "src/tracking/camera_worker.py:CameraWorker",
     "src/tracking/camera_worker.py:CameraWorker.run",
     "src/tracking/tracking_pipeline.py:TrackingPipeline.process"
   ],

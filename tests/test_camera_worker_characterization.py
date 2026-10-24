@@ -14,7 +14,9 @@ import numpy as np
 import pytest
 
 from src.inference.adapters.ultralytics_detector import DetectorUltralytics
-from src.inference.types import CATALOGO_COCO
+from src.inference.types import CATALOGO_COCO, ClaseObjeto
+from src.ppe.application.evaluar_cumplimiento import EstadoCumplimiento
+from src.ppe.domain.elementos import ElementoEPP, EstadoElemento
 from src.tracking import camera_worker as modulo_worker
 from src.tracking.camera_worker import CameraWorker
 from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
@@ -76,11 +78,16 @@ class PipelineFalso:
     nombres: tuple[str, ...] = ()
     error: Exception | None = None
     llamadas: list[tuple[Any, ...]] = field(default_factory=list)
+    opciones: list[dict[str, Any]] = field(default_factory=list)
+    filas: list[dict[str, Any]] | None = None
 
-    def process(self, *argumentos: Any) -> list[dict[str, str]]:
+    def process(self, *argumentos: Any, **opciones: Any) -> list[dict[str, Any]]:
         self.llamadas.append(argumentos)
+        self.opciones.append(opciones)
         if self.error is not None:
             raise self.error
+        if self.filas is not None:
+            return self.filas
         return [{"name": nombre} for nombre in self.nombres]
 
 
@@ -344,3 +351,85 @@ def test_camera_worker_libera_la_captura_al_detenerse(
     escenario.worker.run()
 
     assert [captura.liberada for _, captura in escenario.capturas] == [True]
+
+
+# --- SPEC/9 §5.1 y §8.1: el módulo de EPP en el worker ---
+
+ROJO = [0, 0, 255]
+
+
+def test_camera_worker_pasa_al_pipeline_todas_las_detecciones_del_frame(
+    crear_worker: Callable[..., Escenario],
+) -> None:
+    escenario = crear_worker(
+        frames=[frame_blanco()],
+        detecciones=[
+            DeteccionCruda(CLASE_PERSONA, (10.0, 20.0, 110.0, 100.0)),
+            DeteccionCruda(CLASE_CELULAR, (5.0, 6.0, 30.0, 40.0)),
+        ],
+    )
+    pipeline = PipelineFalso()
+    escenario.worker.pipeline = pipeline
+
+    escenario.worker.run()
+
+    [opciones] = pipeline.opciones
+    assert [d.clase for d in opciones["detecciones"]] == [ClaseObjeto.PERSONA, ClaseObjeto.CELULAR]
+
+
+def test_camera_worker_dibuja_en_rojo_a_quien_tiene_una_infraccion_de_epp(
+    crear_worker: Callable[..., Escenario],
+) -> None:
+    escenario = crear_worker(frames=[frame_blanco()])
+    estado = EstadoCumplimiento(1, {ElementoEPP.CASCO: EstadoElemento.AUSENTE},
+                                frozenset({ElementoEPP.CASCO}))  # fmt: skip
+    escenario.worker.pipeline = PipelineFalso(
+        filas=[{"name": "Unknown", "bbox": (10, 20, 110, 100), "epp": estado}]
+    )
+
+    escenario.worker.run()
+
+    [(_, anotado)] = escenario.encolados()
+    assert anotado[20, 60].tolist() == ROJO
+
+
+def test_camera_worker_sin_estado_de_epp_no_dibuja_el_overlay(
+    crear_worker: Callable[..., Escenario],
+) -> None:
+    escenario = crear_worker(frames=[frame_blanco()])
+    escenario.worker.pipeline = PipelineFalso(
+        filas=[{"name": "Unknown", "bbox": (10, 20, 110, 100), "epp": None}]
+    )
+
+    escenario.worker.run()
+
+    [(_, anotado)] = escenario.encolados()
+    assert anotado[20, 60].tolist() == [BLANCO] * 3
+
+
+def test_camera_worker_entrega_el_modulo_de_epp_al_pipeline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    monkeypatch.setattr("config.config.get_faces_dir", lambda: str(tmp_path))
+    monkeypatch.setattr("config.config.get_db_path", lambda: str(tmp_path / "db" / "t.db"))
+    monkeypatch.setattr("config.config.get_zonas_file", lambda: str(tmp_path / "zonas.json"))
+    monkeypatch.setattr("config.config.get_snapshots_dir", lambda: str(tmp_path / "snapshots"))
+    monkeypatch.setattr(modulo_worker, "FaceRecognizer", ReconocedorFalso)
+    modulo_epp = object()
+    detector = DetectorUltralytics(ModeloFalso([]), CATALOGO_COCO, 0)
+
+    worker = CameraWorker(0, queue.Queue(), detector)
+
+    worker.conectar_epp(modulo_epp)
+
+    assert worker.pipeline.epp is modulo_epp
+
+
+def test_camera_worker_sin_sucursal_no_conecta_el_modulo_de_epp(
+    crear_worker: Callable[..., Escenario],
+) -> None:
+    escenario = crear_worker(frames=[frame_blanco()])
+
+    escenario.worker.conectar_epp(object())
+
+    assert escenario.worker.pipeline is None

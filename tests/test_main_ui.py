@@ -6,9 +6,12 @@ y no serializa la llamada, y la suite abortaba con Segmentation fault / Illegal 
 Refs: SPEC/9_PLAN_EPP_Y_LICENCIA.md §0.3.
 """
 
+import contextlib
 import queue
 import threading
+import tkinter
 from collections.abc import Callable, Iterator
+from datetime import timedelta
 from pathlib import Path
 
 import numpy as np
@@ -142,6 +145,17 @@ class LicenciaConEPP:
         return modulo == "epp"
 
 
+class DespachadorFalso:
+    def __init__(self) -> None:
+        self.eventos: list[str] = []
+
+    def iniciar(self) -> None:
+        self.eventos.append("iniciar")
+
+    def detener(self, espera_maxima: timedelta) -> None:
+        self.eventos.append(f"detener {espera_maxima.total_seconds():.0f} s")
+
+
 @pytest.fixture
 def licencia() -> object | None:
     """Sin licencia por omisión; una prueba la reemplaza parametrizando `licencia`."""
@@ -169,7 +183,9 @@ def app(
     aplicacion = AppMain(licencia=licencia)
     yield aplicacion
     escaneo.terminar()
-    aplicacion.destroy()
+    # Una prueba puede haber cerrado la ventana con on_closing: entonces ya no hay qué destruir.
+    with contextlib.suppress(tkinter.TclError):
+        aplicacion.destroy()
 
 
 def correr_bucle_de_tk_hasta(app: AppMain, condicion: Callable[[], bool]) -> None:
@@ -279,3 +295,42 @@ def test_con_licencia_cada_camara_recibe_su_modulo_de_epp(
     ]
     assert isinstance(app.publicador_epp, PublicadorEnMemoria)
     assert pedidos == [(app.publicador_epp, app.licencia)] * 2
+
+
+@pytest.fixture
+def despachador(monkeypatch: pytest.MonkeyPatch) -> tuple[DespachadorFalso, list[object]]:
+    """Reemplaza a preparar_avisos: anota con qué entorno y conexión se lo pidió."""
+    falso, pedidos = DespachadorFalso(), []
+
+    def preparar(entorno: object, conectar: object, carpeta: Path, reloj: object) -> object:
+        pedidos.append((entorno, carpeta))
+        return falso
+
+    monkeypatch.setattr("src.composicion_avisos.preparar_avisos", preparar)
+    return falso, pedidos
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("licencia", [LicenciaConEPP()], ids=["con_epp"])
+def test_con_licencia_de_epp_los_avisos_arrancan_al_abrir_y_paran_al_cerrar(
+    despachador: tuple[DespachadorFalso, list[object]], app: AppMain, tmp_path: Path
+) -> None:
+    falso, pedidos = despachador
+
+    app.on_closing()
+
+    assert falso.eventos == ["iniciar", "detener 10 s"]
+    assert [carpeta for _entorno, carpeta in pedidos] == [
+        tmp_path / "OficinaEficiencia" / "Tenants" / "Prueba_Escaneo" / "snapshots"
+    ]
+
+
+@pytest.mark.integration
+def test_sin_licencia_no_se_preparan_avisos(
+    despachador: tuple[DespachadorFalso, list[object]], app: AppMain
+) -> None:
+    falso, pedidos = despachador
+
+    app.on_closing()
+
+    assert (falso.eventos, pedidos) == ([], [])

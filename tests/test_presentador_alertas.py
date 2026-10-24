@@ -50,6 +50,7 @@ def test_presentador_muestra_cada_alerta_con_sus_datos_en_hora_local() -> None:
         (EstadoNotificacion.PENDIENTE, "Aviso pendiente"),
         (EstadoNotificacion.ENVIADA, "Aviso enviado"),
         (EstadoNotificacion.FALLIDA, "Aviso fallido"),
+        (EstadoNotificacion.DESCARTADA, "Descartado al salir del modo sombra"),
     ],
 )
 def test_presentador_traduce_el_estado_del_aviso(estado: EstadoNotificacion, texto: str) -> None:

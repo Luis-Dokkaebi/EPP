@@ -69,7 +69,12 @@ def _columnas(conectar: Conectar) -> list[object]:
 
 
 def test_estado_notificacion_usa_los_valores_guardados_en_la_base() -> None:
-    assert [estado.value for estado in EstadoNotificacion] == ["PENDIENTE", "ENVIADA", "FALLIDA"]
+    assert [estado.value for estado in EstadoNotificacion] == [
+        "PENDIENTE",
+        "ENVIADA",
+        "FALLIDA",
+        "DESCARTADA",
+    ]
 
 
 def test_migracion_agrega_la_columna_al_final_y_es_idempotente(conectar: Conectar) -> None:
@@ -233,3 +238,70 @@ def test_pendientes_trata_los_valores_con_inyeccion_sql_como_texto(
 
     assert [aviso.persona for aviso in avisos] == [INYECCION]
     assert _consultar(conectar, "SELECT COUNT(*) FROM ppe_infracciones") == [(1,)]
+
+
+# --- Salida del modo sombra (decisión del 24/10/2026: se descartan las del período) ---
+
+
+def _registrar_a_las(conectar: Conectar, inicio: datetime, track_id: int) -> None:
+    incumplimiento = Incumplimiento(track_id, "Ana", ElementoEPP.CASCO, "Boca de pozo")
+    evento = InfraccionIniciada(incumplimiento, inicio, "epp-0.1.0", evidencia=None)
+    RepositorioInfraccionesSQLite(conectar).guardar(evento)
+
+
+def test_descartar_las_pendientes_anteriores_al_fin_del_modo_sombra(
+    conectar: Conectar, bandeja: BandejaAvisosSQLite
+) -> None:
+    _registrar_a_las(conectar, INICIO - DIEZ_SEGUNDOS, track_id=1)
+    _registrar_a_las(conectar, INICIO, track_id=2)
+    _registrar_a_las(conectar, INICIO + DIEZ_SEGUNDOS, track_id=3)
+
+    descartadas = bandeja.descartar_pendientes_anteriores(INICIO)
+
+    assert descartadas == 1
+    assert [fila[:2] for fila in _estado(conectar)] == [
+        (1, "DESCARTADA"),
+        (2, "PENDIENTE"),
+        (3, "PENDIENTE"),
+    ]
+    assert [aviso.id_aviso for aviso in bandeja.pendientes(INICIO + DIEZ_SEGUNDOS)] == [2, 3]
+
+
+def test_descartar_no_toca_avisos_enviados_ni_fallidos(
+    conectar: Conectar, bandeja: BandejaAvisosSQLite
+) -> None:
+    _registrar_varias(conectar, 2)
+    bandeja.marcar_enviada(1)
+    bandeja.marcar_fallida(2, 5)
+
+    descartadas = bandeja.descartar_pendientes_anteriores(INICIO + DIEZ_SEGUNDOS)
+
+    assert descartadas == 0
+    assert [fila[1] for fila in _estado(conectar)] == ["ENVIADA", "FALLIDA"]
+
+
+def test_descartar_dos_veces_no_descarta_de_nuevo(
+    conectar: Conectar, bandeja: BandejaAvisosSQLite
+) -> None:
+    _registrar(conectar)
+    bandeja.descartar_pendientes_anteriores(INICIO + DIEZ_SEGUNDOS)
+
+    assert bandeja.descartar_pendientes_anteriores(INICIO + DIEZ_SEGUNDOS) == 0
+
+
+def test_descartar_exige_una_hora_con_huso_horario(bandeja: BandejaAvisosSQLite) -> None:
+    with pytest.raises(ValueError, match=r"^La hora debe tener huso horario: 2026-10-22T08:00:00$"):
+        bandeja.descartar_pendientes_anteriores(datetime(2026, 10, 22, 8, 0))
+
+
+def test_descartar_compara_en_utc_aunque_el_limite_venga_en_otro_huso(
+    conectar: Conectar, bandeja: BandejaAvisosSQLite
+) -> None:
+    _registrar(conectar)
+    mexico = timezone(timedelta(hours=-6))
+
+    descartadas = bandeja.descartar_pendientes_anteriores(
+        (INICIO + DIEZ_SEGUNDOS).astimezone(mexico)
+    )
+
+    assert descartadas == 1

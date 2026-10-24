@@ -39,6 +39,10 @@ _REPROGRAMAR = (
     "UPDATE ppe_infracciones SET intentos_notificacion = ?, proximo_intento = ? "
     "WHERE id = ? AND estado_notificacion = ?"
 )
+_DESCARTAR_ANTERIORES = (
+    "UPDATE ppe_infracciones SET estado_notificacion = ?, proximo_intento = NULL "
+    "WHERE estado_notificacion = ? AND inicio < ?"
+)
 _FORMATO_UTC = "%Y-%m-%dT%H:%M:%S.%f+00:00"
 _PENDIENTE = EstadoNotificacion.PENDIENTE.value
 
@@ -81,6 +85,21 @@ class BandejaAvisosSQLite:
     def marcar_fallida(self, id_aviso: int, intentos: int) -> None:
         fallida = EstadoNotificacion.FALLIDA.value
         self._cambiar(id_aviso, _MARCAR_FALLIDA, (fallida, intentos, id_aviso, _PENDIENTE))
+
+    def descartar_pendientes_anteriores(self, limite: datetime) -> int:
+        """Al salir del modo sombra: las pendientes que empezaron antes de `limite` no se avisan.
+
+        Devuelve cuántas descartó. Los inicios se comparan como ISO 8601 en UTC, igual que en la
+        retención de evidencias.
+        """
+        if limite.tzinfo is None:
+            raise ValueError(f"La hora debe tener huso horario: {limite.isoformat()}")
+        parametros = (
+            EstadoNotificacion.DESCARTADA.value,
+            _PENDIENTE,
+            limite.astimezone(UTC).isoformat(),
+        )
+        return _ejecutar(self._conectar, _DESCARTAR_ANTERIORES, parametros)
 
     def _cambiar(self, id_aviso: int, sql: str, parametros: tuple[object, ...]) -> None:
         if _ejecutar(self._conectar, sql, parametros) != 1:

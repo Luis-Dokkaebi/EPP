@@ -10,6 +10,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from src.security import crash_logger
 
 
+def _sin_pantalla():
+    raise RuntimeError("las pruebas no abren ventanas")
+
+
 def test_crash_log_is_encrypted_and_roundtrips(tmp_path, monkeypatch):
     log_path = str(tmp_path / "crash_logs.dat")
     monkeypatch.setattr(crash_logger, "_crash_log_path", lambda: log_path)
@@ -48,6 +52,10 @@ def test_wrong_machine_cannot_decrypt(tmp_path, monkeypatch):
 
 def test_excepthook_installed_and_shows_generic_message(monkeypatch, tmp_path):
     monkeypatch.setattr(crash_logger, "_crash_log_path", lambda: str(tmp_path / "c.dat"))
+    # Hermética: restaura el gancho al terminar y nunca abre un diálogo real de Tk (que
+    # bloquearía la prueba si el aviso no llegara a `notify`).
+    monkeypatch.setattr(sys, "excepthook", sys.excepthook)
+    monkeypatch.setattr("tkinter.Tk", _sin_pantalla)
     seen = {}
     crash_logger.install_global_excepthook(notify=lambda msg: seen.setdefault("msg", msg))
     assert sys.excepthook is not sys.__excepthook__

@@ -112,6 +112,8 @@ class AppMain(ctk.CTk):
         self.view_zonas = create_zones_view(self.main_workspace)
         self.view_manager.register_view("Zonas", self.view_zonas)
         
+        self._registrar_vistas_epp()
+
         self.view_reportes = create_reports_view(self.main_workspace)
         self.view_manager.register_view("Reportes", self.view_reportes)
         
@@ -160,11 +162,21 @@ class AppMain(ctk.CTk):
             w.stop()
         self.camera_workers.clear()
 
+    def _modulo_epp_habilitado(self):
+        from src.gui import epp_en_la_app
+        return epp_en_la_app.modulo_habilitado(self.licencia)
+
+    def _registrar_vistas_epp(self):
+        """SPEC/9 §8.2 y §8.4: alertas y reporte de cumplimiento, solo con el módulo de EPP."""
+        if self._modulo_epp_habilitado():
+            from src.gui import epp_en_la_app
+            epp_en_la_app.registrar_vistas(self.view_manager, self.main_workspace)
+
     def _iniciar_avisos_epp(self):
         """SPEC/9 §5.4: los avisos de EPP arrancan solo si la licencia incluye el módulo."""
-        from src.gui import epp_en_la_app
-        if not epp_en_la_app.modulo_habilitado(self.licencia):
+        if not self._modulo_epp_habilitado():
             return None
+        from src.gui import epp_en_la_app
         return epp_en_la_app.iniciar_avisos()
 
     def on_closing(self):
@@ -184,6 +196,8 @@ class AppMain(ctk.CTk):
             ("Reportes Históricos", "Reportes"),
             ("Cambiar Sucursal", "Tenant")
         ]
+        if self._modulo_epp_habilitado():
+            buttons[3:3] = [("Alertas EPP", "AlertasEPP"), ("Cumplimiento EPP", "CumplimientoEPP")]
         
         for text, view_name in buttons:
             btn = ctk.CTkButton(

@@ -47,14 +47,8 @@ class EfficiencyCalculator:
             # We shift inside_zone to detect changes
             group['prev_inside'] = group['inside_zone'].shift(1, fill_value=0)
 
-            # Start of visit: prev=0, curr=1
-            starts = group[(group['prev_inside'] == 0) & (group['inside_zone'] == 1)]
-
-            # End of visit: prev=1, curr=0 (or last frame if still inside)
-            # To handle "still inside", we treat the last frame as end if it's inside
-
-            # A cleaner way: assign a visit_id
-            # Every time we see 0->1, increment visit counter
+            # Every time we see 0->1, increment visit counter: a visit ends at its last
+            # frame inside, so a track still inside at the end closes there.
             group['visit_start'] = (group['prev_inside'] == 0) & (group['inside_zone'] == 1)
             group['visit_id'] = group['visit_start'].cumsum()
 

@@ -45,7 +45,7 @@ PERFECTAS = {**QUE_CUMPLEN, "falsas_alarmas_por_hora": 0.0}
 
 @given("que el presupuesto de errores todavía no está decidido", target_fixture="puertas")
 def puertas_del_plan() -> tuple[Puerta, ...]:
-    return PUERTAS_DE_PROMOCION
+    return tuple(dataclasses.replace(puerta, umbral=None) for puerta in PUERTAS_DE_PROMOCION)
 
 
 @given("umbrales acordados para todas las mediciones", target_fixture="puertas")

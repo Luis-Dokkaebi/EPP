@@ -1,8 +1,8 @@
 """Puertas de promoción del modelo EPP: fallan cerradas (SPEC/9 §3.4; mle-workflow).
 
-Los umbrales se fijan ANTES de entrenar, en un PR que cambia los `None` de esta tabla por los
-valores que decida el negocio (D4: presupuesto de errores; D2: hardware objetivo). Mientras una
-puerta tenga umbral `None`, ningún modelo se promueve: así nadie promueve sin umbrales acordados.
+Los umbrales se fijan ANTES de entrenar, con los valores que decide el negocio (D4: presupuesto
+de errores; D2: hardware objetivo); los de esta tabla son los del 24/10/2026. Una puerta con
+umbral `None` sigue sin promover ningún modelo: así nadie promueve sin umbrales acordados.
 """
 
 import math
@@ -29,35 +29,35 @@ PUERTAS_DE_PROMOCION = (
     Puerta(
         "recall_evento_casco",
         Direccion.MINIMO,
-        None,
+        0.90,
         "D4",
         "recall de infracciones de casco a nivel evento",
     ),
     Puerta(
         "recall_evento_chaleco",
         Direccion.MINIMO,
-        None,
+        0.90,
         "D4",
         "recall de infracciones de chaleco a nivel evento",
     ),
     Puerta(
         "falsas_alarmas_por_hora",
         Direccion.MAXIMO,
-        None,
+        1.0,
         "D4",
         "falsas alarmas por cámara y por hora en los videos dorados",
     ),
     Puerta(
         "fps_por_camara_hardware_objetivo",
         Direccion.MINIMO,
-        None,
+        5.0,
         "D2",
         "FPS por cámara con N cámaras en el hardware del piloto",
     ),
     Puerta(
         "recall_persona_vs_baseline",
         Direccion.MINIMO,
-        None,
+        0.0,
         "D4",
         "recall de persona menos el del modelo de producción",
     ),

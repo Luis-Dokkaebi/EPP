@@ -22,3 +22,20 @@ Característica: Reporte de cumplimiento de EPP
     Dado que no hubo infracciones en el día
     Cuando genero el reporte de cumplimiento del día
     Entonces el reporte indica que no hubo infracciones en el período
+
+  Esquema del escenario: El cumplimiento es la parte del tiempo en la zona con el equipo puesto
+    Dado que "Ana" estuvo <en_zona> minutos en su zona desde las 08:00
+    Y que "Ana" estuvo sin casco <sin_casco> minutos a las 08:00
+    Cuando genero el reporte de cumplimiento del día
+    Entonces el cumplimiento de casco de "Ana" es del <cumplimiento> %
+
+    Ejemplos:
+      | en_zona | sin_casco | cumplimiento |
+      | 20      | 5         | 75           |
+      | 40      | 10        | 75           |
+      | 10      | 10        | 0            |
+
+  Escenario: Sin presencia registrada en la zona el cumplimiento no se inventa
+    Dado que "Ana" estuvo sin casco 5 minutos a las 08:00
+    Cuando genero el reporte de cumplimiento del día
+    Entonces el cumplimiento de casco de "Ana" figura sin datos

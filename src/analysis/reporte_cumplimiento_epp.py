@@ -5,8 +5,8 @@ en minutos y el porcentaje del tiempo en cumplimiento. El período son días com
 horario de la sucursal; lo que cruza la medianoche final cuenta hasta ahí, y lo que sigue
 abierto cuenta hasta ahora. Se genera en segundo plano, como los reportes actuales.
 
-El porcentaje figura como "sin datos": todavía no se registra el tiempo que cada persona pasa en
-cada zona (llega con la composición de las cámaras, §5.4), y no se inventa.
+El porcentaje usa el tiempo que cada persona pasó en cada zona según el seguimiento; sin
+presencia registrada (por ejemplo, una persona no identificada) figura como "sin datos".
 """
 
 import sqlite3
@@ -18,9 +18,9 @@ from typing import NamedTuple
 
 from openpyxl import Workbook
 
-from src.analysis.cumplimiento_epp import FilaCumplimiento, resumir
+from src.analysis.cumplimiento_epp import FilaCumplimiento, exposicion_por_zona, resumir
 from src.ppe.domain.reloj import RelojPort
-from src.storage.reporte_cumplimiento import leer_infracciones, leer_turnos
+from src.storage.reporte_cumplimiento import leer_infracciones, leer_presencias, leer_turnos
 
 ENCABEZADOS = (
     "Turno",
@@ -65,7 +65,10 @@ class GeneradorReporteCumplimiento:
         inicio, fin = periodo(pedido, self._zona)
         infracciones = leer_infracciones(self._conectar, inicio, fin)
         corte = min(fin, self._reloj.ahora())
-        filas = resumir(infracciones, leer_turnos(self._conectar), {}, corte)
+        presencias = leer_presencias(self._conectar, inicio, fin, self._zona)
+        filas = resumir(
+            infracciones, leer_turnos(self._conectar), exposicion_por_zona(presencias), corte
+        )
         _escribir(pedido, filas)
         return len(filas)
 

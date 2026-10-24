@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from src.analysis.cumplimiento_epp import InfraccionRegistrada
+from src.analysis.cumplimiento_epp import InfraccionRegistrada, Presencia
 from src.ppe.domain.elementos import ElementoEPP
 from src.ppe.domain.infracciones import Incumplimiento, InfraccionFinalizada, InfraccionIniciada
 from src.storage.infracciones_epp import RepositorioInfraccionesSQLite, crear_tabla_infracciones
-from src.storage.reporte_cumplimiento import leer_infracciones, leer_turnos
+from src.storage.reporte_cumplimiento import leer_infracciones, leer_presencias, leer_turnos
 
 Conectar = functools.partial[sqlite3.Connection]
 INICIO = datetime(2026, 10, 22, 8, 0, tzinfo=UTC)
@@ -98,3 +98,69 @@ def test_la_lectura_trata_la_inyeccion_sql_como_texto(conectar: Conectar) -> Non
 
     assert infraccion.persona == INYECCION
     assert leer_turnos(conectar) == {INYECCION: INYECCION}
+
+
+# --- Presencias por zona desde la tabla tracking (§5.4) ---
+
+ARGENTINA = timezone(timedelta(hours=-3))
+DESDE = datetime(2026, 10, 22, 0, 0, tzinfo=ARGENTINA)
+HASTA = DESDE + DIA
+
+
+def _tracking(conectar: Conectar, *filas: tuple[str | None, str, str, int]) -> None:
+    with closing(conectar()) as conexion, conexion:
+        conexion.execute(
+            "CREATE TABLE IF NOT EXISTS tracking (employee_name TEXT, timestamp TEXT, zone TEXT, "
+            "inside_zone INTEGER)"
+        )
+        conexion.executemany("INSERT INTO tracking VALUES (?, ?, ?, ?)", filas)
+
+
+def test_las_presencias_salen_de_tracking_con_la_hora_en_el_huso_de_la_sucursal(
+    conectar: Conectar,
+) -> None:
+    _tracking(conectar, ("Ana", "2026-10-22T08:00:00.500000", "Anden", 1))
+
+    presencias = leer_presencias(conectar, DESDE, HASTA, ARGENTINA)
+
+    instante = datetime(2026, 10, 22, 8, 0, 0, 500000, tzinfo=ARGENTINA)
+    assert presencias == [Presencia("Ana", "Anden", instante, True)]
+
+
+def test_las_presencias_ignoran_a_quien_no_fue_reconocido(conectar: Conectar) -> None:
+    hora = "2026-10-22T08:00:00"
+    _tracking(conectar, (None, hora, "Anden", 1), ("", hora, "Anden", 1),
+              ("Unknown", hora, "Anden", 1), ("Luis", hora, "Anden", 0))  # fmt: skip
+
+    presencias = leer_presencias(conectar, DESDE, HASTA, ARGENTINA)
+
+    assert [(p.persona, p.dentro) for p in presencias] == [("Luis", False)]
+
+
+@pytest.mark.parametrize(
+    "hora", ["2026-10-21T23:59:59", "2026-10-23T00:00:00"], ids=["antes", "despues"]
+)
+def test_las_presencias_fuera_del_periodo_no_se_leen(conectar: Conectar, hora: str) -> None:
+    _tracking(conectar, ("Ana", hora, "Anden", 1))
+
+    assert leer_presencias(conectar, DESDE, HASTA, ARGENTINA) == []
+
+
+def test_una_presencia_justo_al_inicio_del_periodo_se_lee(conectar: Conectar) -> None:
+    _tracking(conectar, ("Ana", "2026-10-22T00:00:00", "Anden", 1))
+
+    (presencia,) = leer_presencias(conectar, DESDE, HASTA, ARGENTINA)
+
+    assert presencia.instante == DESDE
+
+
+def test_una_hora_guardada_con_huso_se_respeta(conectar: Conectar) -> None:
+    _tracking(conectar, ("Ana", "2026-10-22T11:00:00+00:00", "Anden", 1))
+
+    (presencia,) = leer_presencias(conectar, DESDE, HASTA, ARGENTINA)
+
+    assert presencia.instante == datetime(2026, 10, 22, 8, 0, tzinfo=ARGENTINA)
+
+
+def test_sin_tabla_tracking_no_hay_presencias(conectar: Conectar) -> None:
+    assert leer_presencias(conectar, DESDE, HASTA, ARGENTINA) == []

@@ -15,6 +15,7 @@ from src.composition import (
     MOTOR_ULTRALYTICS,
     ModeloNoDeclaradoError,
     MotorDesconocidoError,
+    clases_declaradas,
     crear_detector,
     crear_detector_configurado,
 )
@@ -237,3 +238,9 @@ def test_detector_configurado_onnx_usa_el_manifiesto_de_la_configuracion(
 
     assert isinstance(detector, DetectorOnnx)
     assert rutas == ["/app/models/app.onnx"]
+
+
+def test_las_clases_declaradas_salen_de_la_entrada_del_manifiesto() -> None:
+    entrada = {"archivo": "m.onnx", "clases": {"0": "persona", "5": "casco"}}
+
+    assert clases_declaradas(entrada) == frozenset({ClaseObjeto.PERSONA, ClaseObjeto.CASCO})

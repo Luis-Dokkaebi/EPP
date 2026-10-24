@@ -11,8 +11,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, Protocol
 
+from config import config
+from src.composition import clases_declaradas, entrada_del_modelo, leer_manifiesto
+from src.inference.types import ClaseObjeto
 from src.ppe.application.evaluar_cumplimiento import EvaluarCumplimiento, PuertosCumplimiento
 from src.ppe.application.ports import PublicadorEventosPort, RelojPort
 from src.ppe.domain.asociacion import ConfiguracionAsociacion
@@ -21,6 +24,18 @@ from src.ppe.domain.reglas import ReglasEPP
 from src.ppe.domain.ventana_temporal import ConfiguracionVentana, VentanaTemporal
 from src.storage.infracciones_epp import RepositorioInfraccionesSQLite, crear_tabla_infracciones
 from src.tracking.evidencias_epp import AlmacenEvidenciasCv2
+from src.tracking.integracion_epp import IntegracionEPP
+from src.zones.formato_zonas import leer_zonas
+
+MODULO_EPP = "epp"
+
+# D3: casco y chaleco en la primera iteración; el casco se asocia a la cabeza de cada persona.
+CLASES_NECESARIAS = frozenset({ClaseObjeto.CASCO, ClaseObjeto.CHALECO, ClaseObjeto.CABEZA})
+
+
+def modelo_detecta_epp(clases_del_modelo: frozenset[ClaseObjeto]) -> bool:
+    """Un modelo sin estas clases marcaría a todos como infractores: el módulo no se activa."""
+    return CLASES_NECESARIAS <= clases_del_modelo
 
 
 @dataclass(frozen=True)
@@ -106,3 +121,30 @@ def crear_evaluador_epp(
             destino.publicador,
         ),
     )
+
+
+class LicenciaPort(Protocol):
+    """Lo que el módulo necesita de la licencia DRM (D10)."""
+
+    def incluye_modulo(self, modulo: str) -> bool: ...
+
+
+def crear_integracion_epp_de_la_app(
+    publicador: PublicadorEventosPort, licencia: LicenciaPort
+) -> IntegracionEPP | None:
+    """El módulo de EPP de la sucursal abierta, o None si la licencia o el modelo no lo permiten.
+
+    Las zonas se leen al crearlo: un cambio en el editor de zonas rige al reconectar la cámara.
+    """
+    entrada = entrada_del_modelo(config.MODEL_PATH, leer_manifiesto(config.MANIFEST_PATH))
+    if not licencia.incluye_modulo(MODULO_EPP) or not modelo_detecta_epp(
+        clases_declaradas(entrada)
+    ):
+        return None
+    ruta_base = config.get_db_path()
+    destino = DestinoEPP(
+        lambda: sqlite3.connect(ruta_base), Path(config.get_snapshots_dir()), publicador
+    )
+    reglas = ReglasEPP(frozenset(), leer_zonas(Path(config.get_zonas_file())))
+    evaluador = crear_evaluador_epp(destino, reglas, entrada["version"], RelojSistema())
+    return IntegracionEPP(evaluador, PARAMETROS_DECIDIDOS.cada_n_frames)

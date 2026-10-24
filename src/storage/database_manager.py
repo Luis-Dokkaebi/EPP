@@ -27,26 +27,21 @@ class DatabaseManager:
         WAL + synchronous=NORMAL + busy_timeout para tolerar lecturas pesadas
         (export a Excel) simultaneas con inserciones del hilo productor.
         """
+        # timeout=30.0 ya fija el busy_timeout de SQLite en 30 000 ms.
         conn = sqlite3.connect(self.db_path, timeout=30.0)
         try:
             conn.execute("PRAGMA journal_mode=WAL;")
             conn.execute("PRAGMA synchronous=NORMAL;")
-            conn.execute("PRAGMA busy_timeout=30000;")
         except sqlite3.DatabaseError:
             pass
         return conn
 
     def _create_table(self):
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        # Riesgo 4 (2_PLANNING): _get_connection deja la BD en WAL, que persiste como propiedad
+        # del archivo y permite lectura/escritura concurrente sin "database is locked".
         conn = self._get_connection()
         c = conn.cursor()
-        # Riesgo 4 (2_PLANNING): WAL persiste como propiedad de la BD, habilitando
-        # lectura/escritura concurrente sin "database is locked".
-        try:
-            c.execute("PRAGMA journal_mode=WAL;")
-            c.execute("PRAGMA synchronous=NORMAL;")
-        except sqlite3.DatabaseError:
-            pass
         c.execute('''CREATE TABLE IF NOT EXISTS tracking (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         track_id INTEGER,
@@ -297,9 +292,6 @@ class DatabaseManager:
         
         # Procesar tiempos por día y empleado
         for (emp_name, d_date), records in daily_records.items():
-            if not records:
-                continue
-                
             active_time_sec = 0.0
             inactive_time_sec = 0.0
             
@@ -321,10 +313,11 @@ class DatabaseManager:
                     inactive_time_sec += delta
                     
             total_sec = active_time_sec + inactive_time_sec
-            efficiency_pct = 0.0
-            if total_sec > 0:
-                efficiency_pct = (active_time_sec / total_sec) * 100
-                
+            # Solo mostrar si hay tiempo registrado
+            if total_sec <= 0:
+                continue
+            efficiency_pct = (active_time_sec / total_sec) * 100
+
             # Formatear salidas
             def format_time(seconds):
                 hours = int(seconds // 3600)
@@ -334,10 +327,7 @@ class DatabaseManager:
             total_str = format_time(total_sec)
             active_str = format_time(active_time_sec)
             eff_str = f"{efficiency_pct:.1f}%"
-            
-            # Solo mostrar si hay tiempo registrado
-            if total_sec > 0:
-                report_data.append((emp_name, d_date, total_str, active_str, eff_str))
+            report_data.append((emp_name, d_date, total_str, active_str, eff_str))
                 
         # Ordenar por fecha desc, nombre asc
         report_data.sort(key=lambda x: (x[1], x[0]), reverse=True)

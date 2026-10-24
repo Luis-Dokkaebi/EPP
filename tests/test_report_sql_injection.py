@@ -17,9 +17,7 @@ from src.storage.database_manager import DatabaseManager
 from src.analysis.report_generator import DatabaseWorker
 
 _DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
-# La exportación corre en un hilo: se espera un evento (sin sondear con sleep, CLAUDE.md §4).
-# En la CI de Windows el primer import de openpyxl tardaba más que el sondeo de 2.5 s.
-SEGUNDOS_MAXIMOS = 30
+NOMBRE_DEL_HILO = "DB_Excel_Export"
 
 
 def _avisar(done, **resultado):
@@ -28,7 +26,18 @@ def _avisar(done, **resultado):
 
 
 def _esperar(done):
-    assert done["listo"].wait(SEGUNDOS_MAXIMOS), "la exportación no terminó"
+    """Espera al hilo de exportación sin presupuesto de reloj propio (CLAUDE.md §4).
+
+    Antes esperaba 30 s, justo lo mismo que el busy_timeout de SQLite de DatabaseManager: si la
+    base estaba ocupada, la prueba se rendía un instante antes de que llegara el error y la CI
+    solo decía "la exportación no terminó" (issue #37). Ahora pytest-timeout corta un cuelgue y
+    vuelca la pila de cada hilo, y un error de la exportación se muestra tal cual.
+    """
+    for hilo in threading.enumerate():
+        if hilo.name == NOMBRE_DEL_HILO:
+            hilo.join()
+    assert done["listo"].is_set(), "la exportación terminó sin avisar éxito ni error"
+    assert "err" not in done, f"la exportación falló: {done['err']}"
 
 
 @pytest.fixture

@@ -44,7 +44,8 @@ def test_default_path_is_the_legacy_zones_file(
 
     ZoneChecker()
 
-    assert "'data/zonas/zonas.json'" in caplog.text
+    # La ruta se informa con el separador del sistema (barra invertida en Windows).
+    assert f"'{Path('data/zonas/zonas.json')}'" in caplog.text
 
 
 def test_empty_zones_file_returns_empty_results(tmp_path):

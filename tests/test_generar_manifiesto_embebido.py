@@ -53,8 +53,9 @@ def test_main_escribe_el_modulo_y_lo_informa(
 
     assert codigo == 0
     assert (tmp_path / "src/models/manifiesto_aprobado.py").read_text(encoding="utf-8") == ESPERADO
+    # La ruta se informa con el separador del sistema (barra invertida en Windows).
     assert capsys.readouterr().out == (
-        "src/models/manifiesto_aprobado.py regenerado con 2 modelo(s).\n"
+        f"{Path('src/models/manifiesto_aprobado.py')} regenerado con 2 modelo(s).\n"
     )
 
 

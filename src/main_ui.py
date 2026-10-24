@@ -161,22 +161,11 @@ class AppMain(ctk.CTk):
         self.camera_workers.clear()
 
     def _iniciar_avisos_epp(self):
-        """SPEC/9 §5.4: con el módulo de EPP en la licencia, purga evidencias vencidas (D5) y
-        arranca el despachador de avisos, salvo en modo sombra o sin canales configurados."""
-        if self.licencia is None or not self.licencia.incluye_modulo("epp"):
+        """SPEC/9 §5.4: los avisos de EPP arrancan solo si la licencia incluye el módulo."""
+        from src.gui import epp_en_la_app
+        if not epp_en_la_app.modulo_habilitado(self.licencia):
             return None
-        import sqlite3
-        from pathlib import Path
-        from config.config import get_db_path, get_snapshots_dir
-        from src import composicion_avisos
-        from src.composicion_epp import RelojSistema
-        ruta_base = get_db_path()
-        despachador = composicion_avisos.preparar_avisos(
-            os.environ, lambda: sqlite3.connect(ruta_base), Path(get_snapshots_dir()),
-            RelojSistema())
-        if despachador is not None:
-            despachador.iniciar()
-        return despachador
+        return epp_en_la_app.iniciar_avisos()
 
     def on_closing(self):
         for w in self.camera_workers:

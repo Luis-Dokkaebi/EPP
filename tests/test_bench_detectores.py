@@ -126,12 +126,29 @@ def test_medir_variante_sin_predicciones_tiene_precision_cero() -> None:
     assert (medicion.recall, medicion.precision) == (0.0, 0.0)
 
 
-def test_puerta_falla_cerrada_mientras_d2_no_fija_los_umbrales() -> None:
-    razones = evaluar_puerta(_medicion(), baseline=_medicion("baseline"))
+def test_puerta_falla_cerrada_con_umbrales_sin_definir() -> None:
+    sin_definir = {"fps": ("min", None), "latencia_p95_ms": ("max", None)}
+
+    razones = evaluar_puerta(_medicion(), _medicion("baseline"), sin_definir)
 
     assert razones == [
         "fps: umbral sin definir (decisión D2)",
         "latencia_p95_ms: umbral sin definir (decisión D2)",
+    ]
+
+
+def test_con_los_umbrales_de_d2_cinco_fps_y_200_ms_justos_pasan() -> None:
+    en_el_borde = _medicion(fps=5.0, p95=200.0)
+
+    assert evaluar_puerta(en_el_borde, _medicion("baseline")) == []
+
+
+def test_con_los_umbrales_de_d2_menos_de_cinco_fps_no_pasa() -> None:
+    lenta = _medicion(fps=4.9, p95=201.0)
+
+    assert evaluar_puerta(lenta, _medicion("baseline")) == [
+        "fps: 4.9 < 5.0",
+        "latencia_p95_ms: 201.0 > 200.0",
     ]
 
 
@@ -159,8 +176,9 @@ def test_puerta_sin_baseline_no_puede_aprobar() -> None:
     assert evaluar_puerta(_medicion(), None, umbrales) == ["sin baseline para comparar el recall"]
 
 
-def test_los_umbrales_de_promocion_no_tienen_valores_inventados() -> None:
-    assert UMBRALES_DE_PROMOCION == {"fps": ("min", None), "latencia_p95_ms": ("max", None)}
+def test_los_umbrales_de_promocion_son_los_de_d2() -> None:
+    # D2: 5 FPS por cámara en CPU Intel; un frame no puede tardar más de 1/5 s.
+    assert UMBRALES_DE_PROMOCION == {"fps": ("min", 5.0), "latencia_p95_ms": ("max", 200.0)}
 
 
 def test_fila_bitacora_sigue_el_formato_de_la_bitacora() -> None:

@@ -34,8 +34,8 @@ IOU_MINIMO = 0.5
 MILISEGUNDOS = 1000.0
 BYTES_POR_MB = 1024 * 1024
 UMBRALES_DE_PROMOCION: dict[str, tuple[str, float | None]] = {
-    "fps": ("min", None),  # D2: FPS por cámara con N cámaras en el hardware objetivo
-    "latencia_p95_ms": ("max", None),  # D2: presupuesto de tiempo por frame
+    "fps": ("min", 5.0),  # D2: FPS por cámara con N cámaras en CPU Intel (OpenVINO)
+    "latencia_p95_ms": ("max", 200.0),  # D2: a 5 FPS, un frame no puede tardar más de 1/5 s
 }
 
 

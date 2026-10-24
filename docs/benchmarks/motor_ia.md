@@ -7,8 +7,8 @@ se inventan. Hoy la tabla está vacía porque faltan los insumos del piloto.
 
 - Herramienta lista: `tools/bench_detectores.py` (pruebas en `tests/test_bench_detectores*.py`).
 - **Bloqueado** por:
-  - **D2** (hardware real del sitio): los umbrales de FPS y p95 de `UMBRALES_DE_PROMOCION` son
-    `None` y la puerta falla cerrada hasta que se fijen;
+  - el equipo del piloto: D2 (24/10/2026) eligió CPU Intel con OpenVINO y fijó
+    `UMBRALES_DE_PROMOCION` en ≥ 5 FPS por cámara y p95 ≤ 200 ms; falta medir en ese equipo;
   - el clip de validación del cliente y de 200 a 500 frames etiquetados con personas;
   - los modelos ONNX candidatos (RF-DETR Nano/Small, YOLOX, D-FINE) exportados y declarados en
     `models/manifest.json` con `clases`, `media` y `desviacion`.

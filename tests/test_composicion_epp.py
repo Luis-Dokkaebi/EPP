@@ -20,6 +20,7 @@ from src.composicion_epp import (
     crear_evaluador_epp,
     crear_integracion_epp_de_la_app,
     modelo_detecta_epp,
+    modulo_habilitado,
 )
 from src.inference.types import ClaseObjeto
 from src.ppe.application.evaluar_cumplimiento import FotogramaEPP, PersonaEnEscena
@@ -200,6 +201,17 @@ class LicenciaFalsa:
 
     def incluye_modulo(self, modulo: str) -> bool:
         return modulo in self._modulos
+
+
+@pytest.mark.parametrize(
+    ("licencia", "habilitado"),
+    [(None, False), (LicenciaFalsa("reportes"), False), (LicenciaFalsa("reportes", "epp"), True)],
+    ids=["sin_licencia", "licencia_sin_epp", "licencia_con_epp"],
+)
+def test_el_modulo_se_habilita_solo_con_una_licencia_que_incluye_epp(
+    licencia: LicenciaFalsa | None, habilitado: bool
+) -> None:
+    assert modulo_habilitado(licencia) is habilitado
 
 
 CLASES_EPP = {"0": "persona", "1": "casco", "2": "chaleco", "3": "cabeza"}

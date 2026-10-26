@@ -8,12 +8,14 @@ huso horario) indica desde cuándo avisar: las pendientes anteriores se descarta
 """
 
 import logging
+import os
 import sqlite3
 import ssl
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from config import config
 from src.alerts.application.despachar_notificaciones import (
     DespacharNotificaciones,
     PuertosDespacho,
@@ -24,7 +26,7 @@ from src.alerts.domain.errores import ConfiguracionAlertasError
 from src.alerts.domain.reintentos import PoliticaReintentos
 from src.alerts.evidencias import LectorEvidencias
 from src.alerts.hilo_despachador import HiloDespachador
-from src.composicion_epp import PARAMETROS_DECIDIDOS
+from src.composicion_epp import PARAMETROS_DECIDIDOS, RelojSistema
 from src.ppe.domain.reloj import RelojPort
 from src.storage.bandeja_avisos import BandejaAvisosSQLite, agregar_columna_proximo_intento
 from src.storage.infracciones_epp import crear_tabla_infracciones
@@ -93,3 +95,22 @@ def _fin_del_modo_sombra(entorno: Mapping[str, str]) -> datetime | None:
     if fin.tzinfo is None:
         raise ConfiguracionAlertasError(f"{FIN_MODO_SOMBRA} debe llevar huso horario: {valor}")
     return fin
+
+
+def conexion_de_la_sucursal() -> Callable[[], sqlite3.Connection]:
+    ruta_base = config.get_db_path()
+
+    def conectar() -> sqlite3.Connection:
+        return sqlite3.connect(ruta_base)
+
+    return conectar
+
+
+def iniciar_avisos_de_la_sucursal() -> HiloDespachador | None:
+    """Purga evidencias vencidas (D5) y arranca el despachador salvo en modo sombra o sin canal."""
+    despachador = preparar_avisos(
+        os.environ, conexion_de_la_sucursal(), Path(config.get_snapshots_dir()), RelojSistema()
+    )
+    if despachador is not None:
+        despachador.iniciar()
+    return despachador

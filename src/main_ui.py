@@ -163,8 +163,8 @@ class AppMain(ctk.CTk):
         self.camera_workers.clear()
 
     def _modulo_epp_habilitado(self):
-        from src.gui import epp_en_la_app
-        return epp_en_la_app.modulo_habilitado(self.licencia)
+        from src.composicion_epp import modulo_habilitado
+        return modulo_habilitado(self.licencia)
 
     def _registrar_vistas_epp(self):
         """SPEC/9 §8.2 y §8.4: alertas y reporte de cumplimiento, solo con el módulo de EPP."""
@@ -176,8 +176,8 @@ class AppMain(ctk.CTk):
         """SPEC/9 §5.4: los avisos de EPP arrancan solo si la licencia incluye el módulo."""
         if not self._modulo_epp_habilitado():
             return None
-        from src.gui import epp_en_la_app
-        return epp_en_la_app.iniciar_avisos()
+        from src.composicion_avisos import iniciar_avisos_de_la_sucursal
+        return iniciar_avisos_de_la_sucursal()
 
     def on_closing(self):
         for w in self.camera_workers:

@@ -1,6 +1,7 @@
 """Avisos de EPP al abrir la sucursal: retención, modo sombra y despachador (SPEC/9 §5.4, §7)."""
 
 import logging
+import os
 import sqlite3
 from collections.abc import Callable, Mapping
 from datetime import timedelta
@@ -8,12 +9,14 @@ from pathlib import Path
 
 import pytest
 
+from config import config
 from src import composicion_avisos
 from src.alerts.domain.aviso import Aviso
 from src.alerts.domain.errores import ConfiguracionAlertasError
 from src.alerts.domain.reintentos import PoliticaReintentos
 from src.alerts.hilo_despachador import HiloDespachador
-from src.composicion_avisos import preparar_avisos
+from src.composicion_avisos import iniciar_avisos_de_la_sucursal, preparar_avisos
+from src.composicion_epp import RelojSistema
 from src.ppe.domain.elementos import ElementoEPP
 from src.ppe.domain.infracciones import Incumplimiento, InfraccionIniciada
 from src.storage.infracciones_epp import RepositorioInfraccionesSQLite, crear_tabla_infracciones
@@ -204,3 +207,73 @@ def test_cada_paso_al_abrir_la_sucursal_queda_registrado(
         "Avisos del modo sombra descartados: 1",
         "Sin canal de aviso configurado (D1: email y webhook): no se avisa",
     ]
+
+
+# --- Arranque desde la aplicación (GUI y modo sin interfaz) ------------------------------------
+
+
+class DespachadorFalso:
+    def __init__(self) -> None:
+        self.iniciado = False
+
+    def iniciar(self) -> None:
+        self.iniciado = True
+
+
+Pedido = tuple[object, Callable[[], sqlite3.Connection], Path, object]
+
+
+@pytest.fixture
+def sucursal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setattr(config, "get_db_path", lambda: str(tmp_path / "tenant.db"))
+    monkeypatch.setattr(config, "get_snapshots_dir", lambda: str(tmp_path / "snapshots"))
+    return tmp_path
+
+
+def _preparar_con(
+    monkeypatch: pytest.MonkeyPatch, despachador: DespachadorFalso | None
+) -> list[Pedido]:
+    pedidos: list[Pedido] = []
+
+    def preparar(
+        entorno: object, conectar: Callable[[], sqlite3.Connection], carpeta: Path, reloj: object
+    ) -> DespachadorFalso | None:
+        pedidos.append((entorno, conectar, carpeta, reloj))
+        return despachador
+
+    monkeypatch.setattr(composicion_avisos, "preparar_avisos", preparar)
+    return pedidos
+
+
+def test_la_sucursal_prepara_los_avisos_con_su_base_y_sus_evidencias(
+    sucursal: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pedidos = _preparar_con(monkeypatch, DespachadorFalso())
+
+    iniciar_avisos_de_la_sucursal()
+
+    ((entorno, conectar, carpeta, reloj),) = pedidos
+    conectar().close()
+    assert (entorno, carpeta) == (os.environ, sucursal / "snapshots")
+    assert isinstance(reloj, RelojSistema)
+    assert (sucursal / "tenant.db").is_file()
+
+
+def test_los_avisos_preparados_de_la_sucursal_arrancan(
+    sucursal: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    despachador = DespachadorFalso()
+    _preparar_con(monkeypatch, despachador)
+
+    iniciado = iniciar_avisos_de_la_sucursal()
+
+    assert iniciado is despachador
+    assert despachador.iniciado is True
+
+
+def test_sin_avisos_que_despachar_la_sucursal_no_tiene_despachador(
+    sucursal: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _preparar_con(monkeypatch, None)
+
+    assert iniciar_avisos_de_la_sucursal() is None

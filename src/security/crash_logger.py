@@ -105,21 +105,30 @@ def decrypt_crash_logs(machine_id: Optional[str] = None, path: Optional[str] = N
     with open(path, "rb") as fh:
         data = fh.read()
 
+    # Se lee mientras haya cabecera; lo que sigue a la primera entrada sin ella se ignora.
     offset = 0
-    while offset < len(data):
-        if data[offset:offset + 4] != _MAGIC:
-            break
-        offset += 4
-        nonce = data[offset:offset + 12]; offset += 12
-        tag = data[offset:offset + 16]; offset += 16
-        length = int.from_bytes(data[offset:offset + 4], "big"); offset += 4
-        ciphertext = data[offset:offset + length]; offset += length
+    while data.startswith(_MAGIC, offset):
+        nonce, tag, ciphertext, offset = _leer_entrada(data, offset)
         cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
         try:
             out.append(cipher.decrypt_and_verify(ciphertext, tag).decode("utf-8", errors="replace"))
         except (ValueError, KeyError):
             out.append("[entrada ilegible: clave incorrecta o log manipulado]")
     return "".join(out)
+
+
+def _leer_entrada(data: bytes, inicio: int) -> tuple[bytes, bytes, bytes, int]:
+    """Separa nonce, tag y texto cifrado de la entrada que empieza en `inicio`.
+
+    Devuelve también dónde empieza la entrada siguiente. Cada posición se calcula desde la
+    anterior, así que la lectura siempre avanza.
+    """
+    inicio_nonce = inicio + len(_MAGIC)
+    inicio_tag = inicio_nonce + 12
+    inicio_largo = inicio_tag + 16
+    inicio_texto = inicio_largo + 4
+    fin = inicio_texto + int.from_bytes(data[inicio_largo:inicio_texto], "big")
+    return data[inicio_nonce:inicio_tag], data[inicio_tag:inicio_largo], data[inicio_texto:fin], fin
 
 
 def install_global_excepthook(notify=None) -> None:

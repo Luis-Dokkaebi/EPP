@@ -33,8 +33,14 @@ class ViewManager:
         self.current_view = view_instance
 
 class AppMain(ctk.CTk):
-    def __init__(self):
+    def __init__(self, licencia=None):
         super().__init__()
+
+        # SPEC/9 §5.4 y D10: la licencia validada decide si las cámaras suman el módulo de EPP;
+        # el publicador lleva sus infracciones a la interfaz.
+        from src.composicion_epp import PublicadorEnMemoria
+        self.licencia = licencia
+        self.publicador_epp = PublicadorEnMemoria()
         
         self.title("Oficina Eficiencia B2B")
         self.geometry("1400x800")
@@ -126,6 +132,7 @@ class AppMain(ctk.CTk):
             self.view_dashboard.setup_grid()
         q = self.camera_queues[cam_name]
         worker = CameraWorker(idx, q, self.detector, fps_limit=15)
+        self._conectar_epp(worker)
         worker.start()
         self.camera_workers.append(worker)
         
@@ -134,6 +141,14 @@ class AppMain(ctk.CTk):
                 text=f"✅ Activa: índice {idx}",
                 text_color="#2ECC71"
             )
+
+    def _conectar_epp(self, worker):
+        """Cada cámara lleva su propio módulo de EPP (estado por track), si la licencia lo habilita."""
+        if self.licencia is None:
+            return
+        from src import composicion_epp
+        worker.conectar_epp(
+            composicion_epp.crear_integracion_epp_de_la_app(self.publicador_epp, self.licencia))
 
     def _stop_local_camera(self):
         # CR-09: NO dormir en el hilo de UI. Los workers son daemon y sueltan el
@@ -443,7 +458,7 @@ if __name__ == "__main__":
                   f"Se iniciara una BD nueva.")
 
         root.destroy()
-        app = AppMain()
+        app = AppMain(licencia=drm)
         app.mainloop()
 
         # --- TASK-4.3: re-cifrar la BD en reposo al cerrar el VMS ---

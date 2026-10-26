@@ -18,6 +18,8 @@ import os
 import time
 from datetime import datetime
 
+from src.tracking.integracion_epp import personas_en_escena
+
 
 def get_bbox_center(xyxy):
     x1, y1, x2, y2 = xyxy
@@ -27,7 +29,7 @@ def get_bbox_center(xyxy):
 class TrackingPipeline:
     def __init__(self, db, zone_checker, tracker, state_manager,
                  face_recognizer=None, snapshots_dir=None,
-                 db_write_interval=15, face_check_interval=10):
+                 db_write_interval=15, face_check_interval=10, epp=None):
         self.db = db
         self.zone_checker = zone_checker
         self.tracker = tracker
@@ -46,11 +48,16 @@ class TrackingPipeline:
         self.db_write_interval = max(1, int(db_write_interval))
         self.face_check_interval = max(1, int(face_check_interval))
 
+        # SPEC/9 §5.1: módulo de EPP opcional (licencia y modelo, D10). Recibe las personas, sus
+        # zonas y las detecciones que ya calculó el pipeline; no repite el cálculo de zonas.
+        self.epp = epp
+
         self.zone_state = {}          # {track_id: {zone_name: bool}}
         self.track_id_to_name = {}    # {track_id: nombre}
         self.frame_counter = 0
 
-    def process(self, frame, person_detections, phones_data, current_time=None):
+    def process(self, frame, person_detections, phones_data, current_time=None,
+                detecciones=()):
         """
         Ejecuta la lógica de negocio sobre un frame y persiste los resultados.
 
@@ -60,6 +67,7 @@ class TrackingPipeline:
                 que se pasan a `tracker.update()`.
             phones_data: lista de bboxes de celulares [(x1,y1,x2,y2), ...].
             current_time: epoch float (default: time.time()).
+            detecciones: todas las Deteccion del frame (EPP y anclas) para el módulo de EPP.
 
         Returns:
             track_data: lista de dicts {name, x, y, bbox, zone, inside} para que el
@@ -133,10 +141,20 @@ class TrackingPipeline:
                             employee_name=display_name,
                         )
 
+        self._evaluar_epp(frame, track_data, detecciones)
+
         # StateManager corre cada frame procesado (maneja su propia temporización
         # de asistencia / estados internamente).
         self.state_manager.process_frame(current_time, track_data, phones_data)
         return track_data
+
+    def _evaluar_epp(self, frame, track_data, detecciones):
+        """Agrega a cada persona su estado de EPP ('epp'), o None si no hay módulo o estado."""
+        estados = {}
+        if self.epp is not None:
+            estados = self.epp.evaluar(frame, personas_en_escena(track_data), list(detecciones))
+        for dato in track_data:
+            dato['epp'] = estados.get(dato['track_id'])
 
     def _save_snapshot_event(self, frame, track_id, display_name, zone_name):
         if not self.snapshots_dir:

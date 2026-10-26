@@ -145,6 +145,17 @@ producto; `gate (ubuntu-latest)` y `mutacion` estaban en verde.
   no se reprodujo. Vigilar en CI.
 - `pip-audit` del gate audita `/home/user/venv311` y no `.venv` si falta `PIPAPI_PYTHON_LOCATION`.
 
+### Cobertura de ramas de los módulos críticos (propuesta de waiver, sin aprobar)
+
+CLAUDE.md §6 pide 100 % de ramas en `src/security/`, `src/storage/`, `src/analysis/` y `src/ppe/`;
+el gate no lo controla por módulo y no hay waiver para lo heredado. Medido en `main` el 26/10/2026:
+todo `src/ppe/` y los módulos nuevos de `src/storage/` están al 100 %; los heredados no:
+`src/analysis/generar_reporte.py` 0 %, `report_main.py` 42 %, `report_generator.py` 59 %,
+`state_manager.py` 94 %, `efficiency_calculator.py` 99 %; `src/security/crash_logger.py` 93 %,
+`drm.py` 97 %, `db_crypto.py` 99 %; `src/storage/database_manager.py` 98 %. Propuesta (requiere
+aprobación humana, §15): waiver W-012 hasta el 2027-01-26 para esos archivos y un paso nuevo del
+gate que exija 100 % de ramas en los módulos críticos que no figuren en el waiver.
+
 ## Próxima entrega
 
 Ninguna del lado de los agentes: el módulo de EPP está compuesto y probado de punta a punta con

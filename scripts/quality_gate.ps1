@@ -20,7 +20,7 @@ param(
 Set-Location (Join-Path $PSScriptRoot '..')
 $Reportes = if ($env:GATE_REPORTES) { $env:GATE_REPORTES } else { 'reports/gate' }
 $Base = if ($env:GATE_BASE) { $env:GATE_BASE } else { 'origin/main' }
-$ModulosCriticos = @('src/security', 'src/storage', 'src/analysis/efficiency_calculator.py', 'src/zones/zone_checker.py')
+$ModulosCriticos = @('src/security', 'src/storage', 'src/analysis/efficiency_calculator.py', 'src/zones/zone_checker.py', 'src/ppe')
 $ArchivosPorLote = 50
 New-Item -ItemType Directory -Force -Path $Reportes | Out-Null
 

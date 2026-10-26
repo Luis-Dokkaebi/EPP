@@ -20,6 +20,7 @@ ARCHIVOS_CRITICOS = (
     "src/storage/database_manager.py",
     "src/analysis/efficiency_calculator.py",
     "src/zones/zone_checker.py",
+    "src/ppe/domain/asociacion.py",
 )
 MODULOS_CRITICOS = len(ARCHIVOS_CRITICOS)
 

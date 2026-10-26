@@ -23,7 +23,12 @@ from src.zones.zone_checker import ZoneChecker
 from src.storage.database_manager import DatabaseManager
 from src.recognition.face_recognizer import FaceRecognizer
 from src.analysis.state_manager import StateManager
+from src.tracking.camera_worker import dibujar_epp
 import time
+from datetime import timedelta
+
+# Antes de que main() cifre o cierre, el despachador termina el aviso en curso (igual que la GUI).
+ESPERA_AL_DETENER_AVISOS = timedelta(seconds=10)
 
 
 def get_bbox_center(xyxy):
@@ -31,6 +36,42 @@ def get_bbox_center(xyxy):
     center_x = (x1 + x2) / 2
     center_y = (y1 + y2) / 2
     return center_x, center_y
+
+
+def licencia_del_equipo():
+    """La licencia DRM del equipo, ya validada; si no es válida no habilita ningún módulo."""
+    from src.security.drm import DRMValidator
+
+    licencia = DRMValidator()
+    licencia.validate_license()
+    return licencia
+
+
+def modulo_epp_de_la_sucursal(licencia):
+    """SPEC/9 §11 (5.4): el mismo módulo de EPP que arma la GUI.
+
+    None si la licencia o el modelo no lo habilitan.
+    """
+    from src import composicion_epp
+
+    return composicion_epp.crear_integracion_epp_de_la_app(
+        composicion_epp.PublicadorEnMemoria(), licencia
+    )
+
+
+def iniciar_avisos_epp(licencia):
+    """Con el módulo de EPP en la licencia (D10), los avisos arrancan como en la GUI."""
+    from src import composicion_avisos
+    from src.composicion_epp import modulo_habilitado
+
+    if not modulo_habilitado(licencia):
+        return None
+    return composicion_avisos.iniciar_avisos_de_la_sucursal()
+
+
+def detener_avisos_epp(despachador):
+    if despachador is not None:
+        despachador.detener(ESPERA_AL_DETENER_AVISOS)
 
 
 def start_video_stream():
@@ -113,6 +154,7 @@ def start_video_stream():
     # que ambos pipelines no diverjan. Headless reconoce/escribe cada frame.
     from src.tracking.tracking_pipeline import TrackingPipeline
 
+    licencia = licencia_del_equipo()
     pipeline = TrackingPipeline(
         db=db_manager,
         zone_checker=zone_checker,
@@ -122,7 +164,9 @@ def start_video_stream():
         snapshots_dir=snapshots_dir,
         db_write_interval=1,
         face_check_interval=1,
+        epp=modulo_epp_de_la_sucursal(licencia),
     )
+    despachador = iniciar_avisos_epp(licencia)
 
     print("✅ Sistema iniciado. Presiona 'q' para salir.")
 
@@ -134,11 +178,14 @@ def start_video_stream():
         current_time = time.time()
 
         # Detección (DetectorPort, SPEC/9 §1.3.5) y separación de personas y celulares
-        person_detections, phones_data = separar_personas_y_celulares(detector.detectar(frame))
+        detecciones = detector.detectar(frame)
+        person_detections, phones_data = separar_personas_y_celulares(detecciones)
 
         # CR-04: toda la lógica (tracking IDs, zonas, reconocimiento, snapshots y
-        # persistencia a BD) ocurre en el pipeline compartido.
-        track_data = pipeline.process(frame, person_detections, phones_data, current_time)
+        # persistencia a BD) ocurre en el pipeline compartido; el EPP recibe todas las detecciones.
+        track_data = pipeline.process(
+            frame, person_detections, phones_data, current_time, detecciones=detecciones
+        )
 
         # Dibujar colores/etiquetas basados en el estado calculado
         for td in track_data:
@@ -150,11 +197,12 @@ def start_video_stream():
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-        cv2.imshow("Sistema de Monitoreo Completo", frame)
+        cv2.imshow("Sistema de Monitoreo Completo", dibujar_epp(frame, track_data))
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
+    detener_avisos_epp(despachador)
     cap.release()
     cv2.destroyAllWindows()
 

@@ -67,6 +67,20 @@ Fuente de verdad del alcance: `SPEC/9_PLAN_EPP_Y_LICENCIA.md` (§17 para el orde
 | C-13 | Terminada (3 PRs) | #102, #105, #106 | Resumen y Excel de cumplimiento con `reporte_cumplimiento_epp.feature` |
 | C-14 | **Bloqueada** (D8, D9) | #107 (solo runbook) | [Runbook](../runbooks/piloto_sombra.md) del build 2.0.0 y del piloto en sombra, **no ejecutado** |
 
+## Después de las decisiones del 24/10/2026
+
+| Entrega | PR | Nota |
+|---------|----|------|
+| Cierre al exportar el Excel de eficiencia | #110 | El aviso de fin vuelve al hilo de Tk por un buzón; antes la app se cerraba |
+| Mutación de módulos críticos heredados | #111–#116 | Harness de mutación por importadores; `db_crypto`, `crash_logger`, `drm`, `efficiency_calculator` y `database_manager` ≥ 90 % |
+| Decisiones registradas | #117 | Umbrales de D2/D4 en las puertas, licencias aprobadas, esta bitácora |
+| Composición del módulo (§5.4) | #118, #119 | Parámetros decididos (4 s, 10 min, 30 días); el módulo se activa solo con licencia `epp` y un modelo que vea casco, chaleco y cabeza |
+| EPP en el pipeline de cada cámara | #120 | Evaluación por cámara con overlay; `CameraWorker` sale del waiver W-004 |
+| Avisos de la sucursal | #121, #122, #123 | Descarte del período sombra, despachador con reintentos y circuito, retención de 30 días, arranque y cierre con la app |
+| Navegación | #124, #125, #126 | "Alertas EPP" y "Cumplimiento EPP" en el menú cuando la licencia incluye el módulo |
+| % de cumplimiento | #127 | Tiempo de cada persona en cada zona a partir del seguimiento |
+| Escenarios del modo sombra y esta bitácora | (este PR) | `features/modo_sombra_epp.feature`; SPEC/9 §19 al día |
+
 ## Integración en `main`
 
 Todos los PRs del plan (#1 … #108) se mergearon en `main` el 2026-10-23, en este orden y con
@@ -97,12 +111,11 @@ producto; `gate (ubuntu-latest)` y `mutacion` estaban en verde.
 
 | Entrega / criterio | Motivo | Decisión que falta |
 |--------------------|--------|--------------------|
-| Gate de licencias en verde (AC-001) | `ultralytics` y `yolov8n.pt` (AGPL) siguen en el runtime hasta A-16; `tkcalendar` ya salió (A-17); `certifi`, `tqdm`, `pycryptodome` esperan revisión humana | D8 (A-16) y aprobación humana en `docs/legal/licencias_revisadas.json` |
-| A-13: benchmark real y cierre de ADR-001 | Faltan los umbrales y el hardware de referencia, y el video etiquetado del piloto | D2, D6 |
-| A-15: ONNX como motor por omisión | Falta un modelo ONNX aprobado por la puerta de A-13 | D2 (y B-05/B-06 para el modelo de EPP) |
-| Release y piloto (C-14) | Build del ejecutable y revisión legal | D8 y D9 ([expediente](../legal/revision_d9.md), [runbook](../runbooks/piloto_sombra.md)) |
-| B-05/B-06 con datos reales | Captura, etiquetado y entrenamiento con imágenes del sitio | D6 (y D4 para las puertas) |
-| Umbrales de EPP y retención | Ventana temporal, enfriamiento, asociación; días de retención y si el aviso nombra al empleado | D4, D5 |
+| Gate de licencias en verde (AC-001) | `ultralytics` y `yolov8n.pt` (AGPL) siguen en el runtime hasta A-16; `tkcalendar` ya salió (A-17); `certifi`, `tqdm` y `pycryptodome` aprobadas el 24/10/2026 (#117) | A-16 (D8 autorizada; falta el modelo ONNX, D6) |
+| A-13: benchmark real y cierre de ADR-001 | Umbrales fijados (≥ 5 FPS, p95 ≤ 200 ms); faltan el equipo de referencia del cliente y el video etiquetado del piloto | D6 |
+| A-15: ONNX como motor por omisión | Falta un modelo ONNX aprobado por la puerta de A-13 | D6 (B-05/B-06 para el modelo de EPP) |
+| Release y piloto (C-14) | Build del ejecutable y revisión legal | D9 y el modelo de EPP ([expediente](../legal/revision_d9.md), [runbook](../runbooks/piloto_sombra.md)) |
+| B-05/B-06 con datos reales | Captura, etiquetado y entrenamiento con imágenes del sitio | D6 (quién revisa las etiquetas) |
 | `pragma: allowlist secret` de C-10 (6/7) | Exclusión nueva de detect-secrets en nombres y valores ficticios | Aprobación humana (§14.4) |
 | Merge de `-a08b` (constitución) | Modifica `CLAUDE.md`/`Agents.md` | Aprobación humana |
 | Rama `main` protegida (SPEC/9 §0.8) | Es configuración del repositorio en GitHub | Acción humana |
@@ -112,13 +125,20 @@ producto; `gate (ubuntu-latest)` y `mutacion` estaban en verde.
 
 - `data/faces/` versiona fotos y codificaciones biométricas (`encodings.pkl`) de personas reales (CLAUDE.md §9: datos personales reales): decidir su retiro y la purga del historial.
 - En la CI de Windows fallan de forma intermitente dos pruebas heredadas de rendimiento con esperas reales (`test_drop_frame_protocol`, `test_frame_consumption_with_mock_producers`) y una creación de Tk (`init.tcl`); en Linux pasan con cualquier semilla. Pendiente reescribirlas sin esperas reales (CLAUDE.md §4).
-- `src/gui/views.py` llama a Tk desde el hilo de `DatabaseWorker` (mismo riesgo de crash que A-04 2/2).
 - `reportlab` se importa pero no está en `requirements.txt`; `obfuscate.py` no ofusca (W-007, #8).
-- Composición de §5.4 sin hacer: evaluación de EPP en `CameraWorker`/`main`, arranque del
-  `HiloDespachador`, panel de alertas y reporte de cumplimiento en la navegación, cámara de cada
-  infracción y tiempo de cada persona en cada zona (sin él, el % de cumplimiento dice "sin datos").
-- Al salir del modo sombra, las infracciones del período siguen PENDIENTE y se enviarían todas:
-  falta un procedimiento aprobado (ver el runbook del piloto).
+- El modo sin interfaz (`main.py`) no valida licencia, así que no activa el módulo de EPP: hoy
+  el EPP solo corre en la aplicación de escritorio.
+- Las infracciones no guardan la cámara que las vio (el panel y el reporte agrupan por zona).
+- `src/main_ui.py` quedó en 498 líneas (máximo 500): el próximo cambio ahí tiene que sacar
+  otra responsabilidad (por ejemplo, el selector de cámaras) a su propio módulo.
+- `mypy` no revisa `tests/` y `tests/test_main_ui.py` tiene 3 errores de tipos en la fixture
+  `despachador` (#123).
+- La CI de Windows falla seguido al crear ventanas Tk (`init.tcl`, `tk.tcl`, aborto
+  `0x80000003`) en el paso 8b, también en PRs que no tocan Tk (#119, #120): se observa hasta el
+  31/10/2026 por decisión del dueño del producto.
+- El reporte de eficiencia heredado falla con `pd.to_datetime` cuando la tabla `tracking` mezcla
+  horas con y sin microsegundos (lo dejan así `datetime.now().isoformat()`); el de cumplimiento
+  no tiene ese problema.
 - `src/detection/people_detector.py` no se usa en la aplicación y lee zonas v1 a mano: proponer
   su retiro en un PR aparte.
 - Una corrida del gate se colgó una vez en el paso de pruebas (c08) y pytest-timeout no la cortó;
@@ -127,5 +147,7 @@ producto; `gate (ubuntu-latest)` y `mutacion` estaban en verde.
 
 ## Próxima entrega
 
-Ninguna del lado de los agentes: lo que queda depende de las decisiones D2, D4, D5, D6, D8 y D9 y
-de las tareas humanas listadas arriba.
+Ninguna del lado de los agentes: el módulo de EPP está compuesto y probado de punta a punta con
+dobles. Lo que queda es humano: los datos y el etiquetado del sitio (D6) para entrenar el modelo
+de EPP, que a su vez destraba A-13, A-15, A-16 y AC-018; la revisión legal (D9) para el release; el
+piloto en sombra (AC-017) y la observación de la CI de Windows hasta el 31/10/2026.

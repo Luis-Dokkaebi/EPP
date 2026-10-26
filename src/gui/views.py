@@ -6,6 +6,10 @@ import customtkinter as ctk
 import os
 from pathlib import Path
 
+from src.gui.buzon_hilo_ui import BuzonHiloUI
+
+# Cada cuánto revisa la vista de reportes los avisos que deja el hilo de la exportación.
+INTERVALO_BUZON_MS = 100
 
 def create_employees_view(app_instance, workspace):
     """Panel funcional de registro y eliminación de empleados con FaceRecognizer."""
@@ -293,15 +297,20 @@ def create_reports_view(workspace):
 
         report_status.configure(text="⏳ Generando reporte en background...", text_color="#F39C12")
 
+        # Corren en el hilo de la exportación: el aviso se dibuja desde el buzón.
         def on_ok(path, rows):
-            report_status.configure(text=f"✅ Reporte exportado: {path} ({rows} filas)", text_color="#2ECC71")
+            frame.buzon.publicar(lambda: report_status.configure(
+                text=f"✅ Reporte exportado: {path} ({rows} filas)", text_color="#2ECC71"))
         def on_err(e):
-            report_status.configure(text=f"❌ Error: {e}", text_color="#E74C3C")
+            frame.buzon.publicar(lambda: report_status.configure(
+                text=f"❌ Error: {e}", text_color="#E74C3C"))
 
         worker.generate_excel_async(query, output, on_ok, on_err, params=(start, end))
     
     ctk.CTkButton(controls, text="📊 Exportar Excel", fg_color="#2ECC71", hover_color="#27AE60", command=generate_report, height=35).pack(side="left", padx=15, pady=15)
-    
+
+    frame.buzon = BuzonHiloUI(frame.after, INTERVALO_BUZON_MS)
+    frame.buzon.vigilar()
     return frame
 
 

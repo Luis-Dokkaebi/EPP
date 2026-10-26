@@ -2,12 +2,13 @@
 
 import cv2
 import os
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 from datetime import datetime
 
 # Add the project root directory to the python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 try:
     from config import config
@@ -24,32 +25,35 @@ from src.recognition.face_recognizer import FaceRecognizer
 from src.analysis.state_manager import StateManager
 import time
 
+
 def get_bbox_center(xyxy):
     x1, y1, x2, y2 = xyxy
     center_x = (x1 + x2) / 2
     center_y = (y1 + y2) / 2
     return center_x, center_y
 
+
 def start_video_stream():
     # CR-01: el modo headless no pasa por el Bootloader, así que debe seleccionar
     # un Tenant antes de resolver rutas tenant-aware (get_db_path / get_zonas_file /
     # get_snapshots_dir). Usar OE_TENANT_ID o "Default".
     from config.path_utils import ConfigManager
-    ConfigManager.set_active_tenant(os.environ.get('OE_TENANT_ID', 'Default'))
+
+    ConfigManager.set_active_tenant(os.environ.get("OE_TENANT_ID", "Default"))
 
     # Selección de fuente de video
-    if config.MODE == 'local':
+    if config.MODE == "local":
         video_source = config.LOCAL_CAMERA_INDEX
     else:
         video_source = config.REMOTE_CAMERA_URL
 
     # Use the camera index selected by the user in the GUI (passed via env var), otherwise fallback
-    selected_cam = os.environ.get('SELECTED_CAMERA_INDEX')
+    selected_cam = os.environ.get("SELECTED_CAMERA_INDEX")
     if selected_cam is not None:
         sources_to_try = [int(selected_cam)]
     else:
         sources_to_try = [video_source, 0, 1, 2, 3]
-    
+
     # Remove duplicates while preserving order
     seen = set()
     unique_sources = []
@@ -58,9 +62,9 @@ def start_video_stream():
             seen.add(s)
             unique_sources.append(s)
     sources_to_try = unique_sources
-    
+
     cap = None
-    
+
     for src in sources_to_try:
         temp_cap = cv2.VideoCapture(src)
         if temp_cap.isOpened():
@@ -74,7 +78,9 @@ def start_video_stream():
         temp_cap.release()
 
     if not cap or not cap.isOpened():
-        print("❌ Error: No se pudo detectar ninguna cámara (ni local ni externa). Revisar conexiones.")
+        print(
+            "❌ Error: No se pudo detectar ninguna cámara (ni local ni externa). Revisar conexiones."
+        )
         return
 
     # Ensure all data directories exist before loading
@@ -82,18 +88,18 @@ def start_video_stream():
     zonas_file = config.get_zonas_file()
     os.makedirs(os.path.dirname(zonas_file), exist_ok=True)
     if not os.path.exists(zonas_file):
-        with open(zonas_file, 'w') as f:
-            f.write('{}')
+        with open(zonas_file, "w") as f:
+            f.write("{}")
 
     # Inicializamos los módulos
     detector = crear_detector_configurado(config.CONFIDENCE_THRESHOLD)
     tracker = PersonTracker()
     zone_checker = ZoneChecker(zones_path=zonas_file)
     db_manager = DatabaseManager(db_path=config.get_db_path())
-    
+
     # Initialize face recognizer
     face_recognizer = FaceRecognizer()
-    
+
     # Initialize state manager
     state_manager = StateManager(db_manager)
 
@@ -106,10 +112,16 @@ def start_video_stream():
     # persistencia). El MISMO TrackingPipeline lo usa la GUI (CameraWorker) para
     # que ambos pipelines no diverjan. Headless reconoce/escribe cada frame.
     from src.tracking.tracking_pipeline import TrackingPipeline
+
     pipeline = TrackingPipeline(
-        db=db_manager, zone_checker=zone_checker, tracker=tracker,
-        state_manager=state_manager, face_recognizer=face_recognizer,
-        snapshots_dir=snapshots_dir, db_write_interval=1, face_check_interval=1,
+        db=db_manager,
+        zone_checker=zone_checker,
+        tracker=tracker,
+        state_manager=state_manager,
+        face_recognizer=face_recognizer,
+        snapshots_dir=snapshots_dir,
+        db_write_interval=1,
+        face_check_interval=1,
     )
 
     print("✅ Sistema iniciado. Presiona 'q' para salir.")
@@ -130,8 +142,8 @@ def start_video_stream():
 
         # Dibujar colores/etiquetas basados en el estado calculado
         for td in track_data:
-            x1, y1, x2, y2 = td['bbox']
-            display_name = td['name']
+            x1, y1, x2, y2 = td["bbox"]
+            display_name = td["name"]
             current_state = state_manager.get_state(display_name)
             color = state_manager.get_color_for_state(current_state)
             label = f"{display_name} - {current_state}"
@@ -140,11 +152,12 @@ def start_video_stream():
 
         cv2.imshow("Sistema de Monitoreo Completo", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     cap.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     start_video_stream()

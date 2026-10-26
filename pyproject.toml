@@ -31,7 +31,6 @@ exclude = [
     "src/gui/dashboard.py",
     "src/gui/views.py",
     "src/gui_app.py",
-    "src/main.py",
     "src/main_ui.py",
     "src/recognition/face_recognizer.py",
     "src/security/crash_logger.py",

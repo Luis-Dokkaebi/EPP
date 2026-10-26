@@ -41,6 +41,7 @@ class AppMain(ctk.CTk):
         from src.composicion_epp import PublicadorEnMemoria
         self.licencia = licencia
         self.publicador_epp = PublicadorEnMemoria()
+        self._despachador_epp = self._iniciar_avisos_epp()
         
         self.title("Oficina Eficiencia B2B")
         self.geometry("1400x800")
@@ -159,9 +160,31 @@ class AppMain(ctk.CTk):
             w.stop()
         self.camera_workers.clear()
 
+    def _iniciar_avisos_epp(self):
+        """SPEC/9 §5.4: con el módulo de EPP en la licencia, purga evidencias vencidas (D5) y
+        arranca el despachador de avisos, salvo en modo sombra o sin canales configurados."""
+        if self.licencia is None or not self.licencia.incluye_modulo("epp"):
+            return None
+        import sqlite3
+        from pathlib import Path
+        from config.config import get_db_path, get_snapshots_dir
+        from src import composicion_avisos
+        from src.composicion_epp import RelojSistema
+        ruta_base = get_db_path()
+        despachador = composicion_avisos.preparar_avisos(
+            os.environ, lambda: sqlite3.connect(ruta_base), Path(get_snapshots_dir()),
+            RelojSistema())
+        if despachador is not None:
+            despachador.iniciar()
+        return despachador
+
     def on_closing(self):
         for w in self.camera_workers:
             w.stop()
+        if self._despachador_epp is not None:
+            # Antes de destruir la ventana: main() cifra la base al volver de mainloop.
+            from datetime import timedelta
+            self._despachador_epp.detener(timedelta(seconds=10))
         self.destroy()
 
     def setup_sidebar_buttons(self):

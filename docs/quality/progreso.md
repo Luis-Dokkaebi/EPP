@@ -147,6 +147,10 @@ producto; `gate (ubuntu-latest)` y `mutacion` estaban en verde.
 - Una corrida del gate se colgó una vez en el paso de pruebas (c08) y pytest-timeout no la cortó;
   no se reprodujo. Vigilar en CI.
 - `pip-audit` del gate audita `/home/user/venv311` y no `.venv` si falta `PIPAPI_PYTHON_LOCATION`.
+- `tests/test_drm_rsa_b2b.py::test_wmi_crash_fallback` (heredado) saca `src.security.drm` de
+  `sys.modules` y deja colgado del paquete el módulo viejo: un `monkeypatch` por ruta de texto que
+  corra después parchea el módulo equivocado. `test_main_headless.py` ya se protege; corregir la
+  prueba heredada exige formatearla primero (WAIVER-#2), en un PR aparte.
 
 ### Cobertura de ramas de los módulos críticos (W-012, aprobado el 26/10/2026)
 

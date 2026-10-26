@@ -79,7 +79,8 @@ Fuente de verdad del alcance: `SPEC/9_PLAN_EPP_Y_LICENCIA.md` (§17 para el orde
 | Avisos de la sucursal | #121, #122, #123 | Descarte del período sombra, despachador con reintentos y circuito, retención de 30 días, arranque y cierre con la app |
 | Navegación | #124, #125, #126 | "Alertas EPP" y "Cumplimiento EPP" en el menú cuando la licencia incluye el módulo |
 | % de cumplimiento | #127 | Tiempo de cada persona en cada zona a partir del seguimiento |
-| Escenarios del modo sombra y esta bitácora | (este PR) | `features/modo_sombra_epp.feature`; SPEC/9 §19 al día |
+| Escenarios del modo sombra y esta bitácora | #128 | `features/modo_sombra_epp.feature`; SPEC/9 §19 al día |
+| EPP en el modo sin interfaz | (este PR) | `main.py` valida la licencia y arma el mismo módulo, overlay y avisos que la GUI (§11, 5.4) |
 
 ## Integración en `main`
 
@@ -126,8 +127,10 @@ producto; `gate (ubuntu-latest)` y `mutacion` estaban en verde.
 - `data/faces/` versiona fotos y codificaciones biométricas (`encodings.pkl`) de personas reales (CLAUDE.md §9: datos personales reales): decidir su retiro y la purga del historial.
 - En la CI de Windows fallan de forma intermitente dos pruebas heredadas de rendimiento con esperas reales (`test_drop_frame_protocol`, `test_frame_consumption_with_mock_producers`) y una creación de Tk (`init.tcl`); en Linux pasan con cualquier semilla. Pendiente reescribirlas sin esperas reales (CLAUDE.md §4).
 - `reportlab` se importa pero no está en `requirements.txt`; `obfuscate.py` no ofusca (W-007, #8).
-- El modo sin interfaz (`main.py`) no valida licencia, así que no activa el módulo de EPP: hoy
-  el EPP solo corre en la aplicación de escritorio.
+- WAIVER-#2 pide formatear en un commit aparte cada archivo heredado que un PR toca:
+  `src/main_ui.py`, `src/tracking/camera_worker.py` y `src/tracking/tracking_pipeline.py` se
+  tocaron en #120–#126 sin formatear. Formatear `main_ui.py` lo llevaría por encima de 500 líneas:
+  primero hay que sacarle una responsabilidad (ver abajo).
 - Las infracciones no guardan la cámara que las vio (el panel y el reporte agrupan por zona).
 - `src/main_ui.py` quedó en 498 líneas (máximo 500): el próximo cambio ahí tiene que sacar
   otra responsabilidad (por ejemplo, el selector de cámaras) a su propio módulo.

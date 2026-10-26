@@ -8,6 +8,7 @@ import sys
 import types
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,7 @@ from config.path_utils import ConfigManager
 from src import main
 from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
 
+MODULO_EPP = "modulo-epp"
 VERDE = (0, 255, 0)
 INDICE_LOCAL = 5
 TECLA_Q_CON_MODIFICADOR = 0x100 | ord("q")
@@ -75,11 +77,31 @@ class EstadosFalsos:
         return VERDE
 
 
+class LicenciaFalsa:
+    def __init__(self, *modulos: str) -> None:
+        self._modulos = modulos
+
+    def incluye_modulo(self, modulo: str) -> bool:
+        return modulo in self._modulos
+
+
+class DespachadorFalso:
+    def __init__(self) -> None:
+        self.eventos: list[str] = []
+
+    def iniciar(self) -> None:
+        self.eventos.append("iniciar")
+
+    def detener(self, espera_maxima: timedelta) -> None:
+        self.eventos.append(f"detener {espera_maxima.total_seconds():.0f} s")
+
+
 @dataclass
 class Corrida:
     pipelines: list[PipelineFalso]
     capturas: list[CapturaFalsa]
     ventanas_cerradas: list[bool]
+    despachador: DespachadorFalso = field(default_factory=DespachadorFalso)
     mostrados: list[Any] = field(default_factory=list)
     ventanas: list[str] = field(default_factory=list)
     esperas_ms: list[int] = field(default_factory=list)
@@ -89,6 +111,12 @@ class Corrida:
     def llamadas(self) -> list[tuple[Any, ...]]:
         [pipeline] = self.pipelines
         return pipeline.llamadas
+
+
+@pytest.fixture
+def licencia() -> LicenciaFalsa:
+    """Sin el módulo de EPP por omisión; una prueba la reemplaza parametrizando `licencia`."""
+    return LicenciaFalsa()
 
 
 @pytest.fixture
@@ -118,6 +146,7 @@ def entorno_de_corrida(camara_elegida: str | None, tecla: int) -> EntornoDeCorri
 def correr_headless(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    licencia: LicenciaFalsa,
     entorno_de_corrida: EntornoDeCorrida,
 ) -> Callable[..., Corrida]:
     def _correr(
@@ -136,6 +165,7 @@ def correr_headless(
         monkeypatch.setattr(main.time, "time", lambda: MARCA_TIEMPO)
         monkeypatch.setattr(main.cv2, "VideoCapture", _fabrica(corrida, frames))
         monkeypatch.setattr(main.cv2, "imshow", _mostrar_en(corrida))
+        _conectar_epp(monkeypatch, licencia, corrida.despachador)
         monkeypatch.setattr(main.cv2, "waitKey", _esperar_en(corrida, entorno_de_corrida.tecla))
         monkeypatch.setattr(
             main.cv2, "destroyAllWindows", lambda: corrida.ventanas_cerradas.append(True)
@@ -150,6 +180,23 @@ def correr_headless(
         return corrida
 
     return _correr
+
+
+def _conectar_epp(
+    monkeypatch: pytest.MonkeyPatch, licencia: LicenciaFalsa, despachador: DespachadorFalso
+) -> None:
+    """Licencia del equipo, módulo de EPP y avisos falsos: se ve qué arma el modo sin interfaz."""
+    monkeypatch.setattr(main, "licencia_del_equipo", lambda: licencia)
+    monkeypatch.setattr(
+        "src.composicion_epp.crear_integracion_epp_de_la_app",
+        lambda _publicador, lic: MODULO_EPP if lic.incluye_modulo("epp") else None,
+    )
+
+    def iniciar_avisos() -> DespachadorFalso:
+        despachador.iniciar()
+        return despachador
+
+    monkeypatch.setattr("src.composicion_avisos.iniciar_avisos_de_la_sucursal", iniciar_avisos)
 
 
 def _mostrar_en(corrida: Corrida) -> Callable[[str, Any], None]:
@@ -236,6 +283,89 @@ def test_headless_libera_la_camara_y_cierra_las_ventanas_al_terminar(
 
     assert [captura.liberada for captura in corrida.capturas] == [True]
     assert corrida.ventanas_cerradas == [True]
+
+
+# --- Módulo de EPP en el modo sin interfaz (SPEC/9 §11, 5.4: un solo camino con la GUI) --------
+
+
+def test_headless_sin_licencia_de_epp_no_evalua_ni_avisa(
+    correr_headless: Callable[..., Corrida],
+) -> None:
+    corrida = correr_headless(frames=[np.zeros((4, 4, 3), dtype=np.uint8)], detecciones=[])
+
+    [pipeline] = corrida.pipelines
+    assert pipeline.colaboradores["epp"] is None
+    assert corrida.despachador.eventos == []
+
+
+@pytest.mark.parametrize("licencia", [LicenciaFalsa("epp")], ids=["con_epp"])
+def test_headless_con_licencia_de_epp_evalua_con_todas_las_detecciones(
+    correr_headless: Callable[..., Corrida],
+) -> None:
+    detecciones = [
+        DeteccionCruda(CLASE_PERSONA, (10.0, 20.0, 110.0, 220.0), 0.9),
+        DeteccionCruda(CLASE_CELULAR, (5.7, 6.2, 30.9, 40.1), 0.8),
+    ]
+
+    corrida = correr_headless(frames=[np.zeros((4, 4, 3), dtype=np.uint8)], detecciones=detecciones)
+
+    [pipeline] = corrida.pipelines
+    [opciones] = pipeline.opciones
+    assert pipeline.colaboradores["epp"] == MODULO_EPP
+    assert [d.clase for d in opciones["detecciones"]] == ["persona", "celular"]
+
+
+@pytest.mark.parametrize("licencia", [LicenciaFalsa("epp")], ids=["con_epp"])
+def test_headless_con_licencia_de_epp_arranca_los_avisos_y_los_detiene_al_terminar(
+    correr_headless: Callable[..., Corrida],
+) -> None:
+    corrida = correr_headless(frames=[], detecciones=[])
+
+    assert corrida.despachador.eventos == ["iniciar", "detener 10 s"]
+
+
+def test_headless_muestra_el_cuadro_con_el_estado_de_epp_dibujado(
+    correr_headless: Callable[..., Corrida], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(main, "dibujar_epp", lambda _cuadro, _datos: "cuadro con EPP")
+
+    corrida = correr_headless(frames=[np.zeros((4, 4, 3), dtype=np.uint8)], detecciones=[])
+
+    assert corrida.mostrados == ["cuadro con EPP"]
+
+
+class ValidadorFalso:
+    def __init__(self) -> None:
+        self.validada = False
+
+    def validate_license(self) -> bool:
+        self.validada = True
+        return False
+
+
+def test_la_licencia_del_equipo_se_valida_antes_de_usarla(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("src.security.drm.DRMValidator", ValidadorFalso)
+
+    licencia = main.licencia_del_equipo()
+
+    assert isinstance(licencia, ValidadorFalso)
+    assert licencia.validada is True
+
+
+def test_headless_dibuja_a_cada_persona_con_el_color_de_su_estado(
+    correr_headless: Callable[..., Corrida],
+) -> None:
+    pista = {"bbox": (1, 1, 6, 6), "name": "Ana"}
+    cuadro = np.zeros((8, 8, 3), dtype=np.uint8)
+
+    corrida = correr_headless(frames=[cuadro], detecciones=[], pistas=[pista])
+
+    [mostrado] = corrida.mostrados
+    assert tuple(mostrado[1, 1]) == VERDE
+
+
+def _no_debe_armarse(**_colaboradores: Any) -> None:
+    pytest.fail("sin cámara no se arma el pipeline")
 
 
 # --- Caracterización del modo sin interfaz heredado (lo que el formato dejó en el diff) ----------
@@ -358,7 +488,3 @@ def test_el_script_encuentra_el_proyecto_aunque_se_lance_desde_otra_carpeta(
     )
 
     assert resultado.returncode == 0, resultado.stderr.decode()
-
-
-def _no_debe_armarse(**_colaboradores: Any) -> None:
-    pytest.fail("sin cámara no se arma el pipeline")

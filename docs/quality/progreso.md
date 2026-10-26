@@ -8,15 +8,19 @@ Fuente de verdad del alcance: `SPEC/9_PLAN_EPP_Y_LICENCIA.md` (§17 para el orde
 | ID | Respuesta registrada | Efecto en el trabajo |
 |----|----------------------|----------------------|
 | D1 | Email + webhook | Se implementan ambos adaptadores (C-10) |
-| D2 | Desconocido | Benchmark en CPU; proveedor de ejecución configurable |
+| D2 | CPU Intel con OpenVINO; cámaras por equipo según la licencia DRM (24/10/2026) | Umbrales de A-13: ≥ 5 FPS por cámara y p95 ≤ 200 ms (propuesta aceptada al no indicar otro valor) |
 | D3 | Casco y chaleco; guantes, gafas y barbijo en la 2.ª iteración | Taxonomía v1 con anclas `cabeza`/`manos` |
-| D4 | PENDIENTE | Umbrales `None` en `ml/promotion_gates.py`: la puerta falla cerrada |
-| D5 | PENDIENTE | Retención configurable sin valor por defecto; falla ruidosa si falta |
-| D6 | PENDIENTE | Herramientas de captura y etiquetado sin datos reales |
+| D4 | Evitar falsas alarmas; confirmar 4 s; enfriamiento 10 min; recall por evento ≥ 90 %; ≤ 1 falsa alarma por cámara y hora (24/10/2026) | Puertas de promoción fijadas; ventana y enfriamiento en la composición del módulo |
+| D5 | Evidencias 30 días; el aviso nombra al empleado; sin difuminar rostros (24/10/2026) | Retención y `EPP_ALERTAS_NOMBRE_EMPLEADO=incluir` por omisión en la composición |
+| D6 | Cámaras del cliente y un dataset comprado; etiquetado asistido por el modelo (24/10/2026) | Falta quién revisa las etiquetas: el modelo propone y una persona corrige (runbook de etiquetado) |
 | D7 | Migrar | Fase 1 completa |
-| D8 | Sin respuesta (la plantilla quedó como `[SÍ / NO]`) | Se trata como **NO**: no se tocan `gui_app.spec`, `compilar_exe.bat`, `obfuscate.py`, `setup_oficina.iss` ni los `.pt` |
-| D9 | PENDIENTE | `docs/legal/` preparado; release bloqueado |
+| D8 | **Sí** (24/10/2026) | A-16 queda autorizado; sigue esperando un modelo ONNX aprobado por la puerta (necesita los datos de D6) |
+| D9 | PENDIENTE: la hará la persona que designó la dirección | `docs/legal/` preparado; release bloqueado |
 | D10 | Módulo activable por licencia DRM | Mismo `.exe` |
+| Licencias revisadas | `certifi`, `tqdm` y `pycryptodome` aprobadas (24/10/2026) | `docs/legal/licencias_revisadas.json` |
+| Salida del modo sombra | Las infracciones del período sombra se descartan (24/10/2026) | Se descartan antes de arrancar el despachador |
+| Llave #17 y `data/faces/` | Se quedan por ahora (24/10/2026) | Sigue como riesgo abierto (W-010) |
+| CI de Windows | Observar una semana más, hasta el 31/10/2026 (24/10/2026) | Falla intermitente de Tk (`tk.tcl`) en #37 |
 | Waivers | Aprobados de antemano solo para código heredado, 90 días, con issue y fila en `waivers.md` | Ver `docs/quality/waivers.md` |
 
 ## Entregas

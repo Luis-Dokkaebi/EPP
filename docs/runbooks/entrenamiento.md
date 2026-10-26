@@ -25,10 +25,11 @@ python3.11 -m venv ~/venv-epp-ml
 
 ## 2. Antes de entrenar (puertas fijadas de antemano)
 
-1. Los umbrales de `PUERTAS_DE_PROMOCION` en `ml/promotion_gates.py` se fijan **antes** de la
-   primera corrida, en un PR propio que cambia cada `None` por el valor decidido (D4: recall de
-   casco y de chaleco, falsas alarmas por hora, recall de persona; D2: FPS por cámara). Ese PR es
-   la evidencia de que los umbrales no se ajustaron mirando resultados.
+1. Los umbrales de `PUERTAS_DE_PROMOCION` en `ml/promotion_gates.py` quedaron fijados el
+   24/10/2026, antes de cualquier entrenamiento (D4: recall por evento de casco y de chaleco ≥ 0,90,
+   falsas alarmas ≤ 1 por cámara y por hora, recall de persona no peor que el modelo actual;
+   D2: ≥ 5 FPS por cámara). Ese PR es la evidencia de que no se ajustaron mirando resultados:
+   cambiarlos exige una decisión nueva del negocio, nunca un resultado de entrenamiento.
 2. Verificar el dataset: `python -m ml.manifiesto_dataset verificar ...` (código 0).
 3. Commitear todo: el entrenamiento se niega a correr con cambios sin commitear.
 

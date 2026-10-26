@@ -19,7 +19,7 @@ DEFINIDAS = (RECALL, ALARMAS)
 BUENAS = {"recall_evento_casco": 0.95, "falsas_alarmas_por_hora": 1.0}
 
 
-def test_las_puertas_del_plan_existen_y_ninguna_tiene_umbral_inventado() -> None:
+def test_las_puertas_del_plan_existen() -> None:
     assert [
         (puerta.metrica, puerta.direccion, puerta.decision) for puerta in PUERTAS_DE_PROMOCION
     ] == [
@@ -29,7 +29,19 @@ def test_las_puertas_del_plan_existen_y_ninguna_tiene_umbral_inventado() -> None
         ("fps_por_camara_hardware_objetivo", Direccion.MINIMO, "D2"),
         ("recall_persona_vs_baseline", Direccion.MINIMO, "D4"),
     ]
-    assert {puerta.umbral for puerta in PUERTAS_DE_PROMOCION} == {None}
+
+
+def test_los_umbrales_son_los_que_decidio_el_negocio() -> None:
+    # D4 (24/10/2026): evitar falsas alarmas; 90 % de recall por evento y como mucho una falsa
+    # alarma por cámara y por hora; personas no peor que el modelo actual (AC-004).
+    # D2: CPU Intel con OpenVINO, 5 FPS por cámara como mínimo.
+    assert {puerta.metrica: puerta.umbral for puerta in PUERTAS_DE_PROMOCION} == {
+        "recall_evento_casco": 0.90,
+        "recall_evento_chaleco": 0.90,
+        "falsas_alarmas_por_hora": 1.0,
+        "fps_por_camara_hardware_objetivo": 5.0,
+        "recall_persona_vs_baseline": 0.0,
+    }
 
 
 def test_cada_puerta_explica_que_mide() -> None:
@@ -48,8 +60,9 @@ def test_la_direccion_se_escribe_como_en_el_plan() -> None:
 
 def test_sin_umbrales_ningun_modelo_se_promueve_aunque_sus_metricas_sean_perfectas() -> None:
     perfectas = {puerta.metrica: 1.0 for puerta in PUERTAS_DE_PROMOCION}
+    sin_umbral = [dataclasses.replace(puerta, umbral=None) for puerta in PUERTAS_DE_PROMOCION]
 
-    motivos = evaluar_promocion(perfectas)
+    motivos = evaluar_promocion(perfectas, sin_umbral)
 
     assert motivos[0] == (
         'Puerta "recall_evento_casco" (recall de infracciones de casco a nivel evento) sin '
@@ -115,8 +128,22 @@ def test_exigir_promocion_no_falla_si_todo_se_cumple() -> None:
 
 
 def test_exigir_promocion_usa_las_puertas_del_plan_por_omision() -> None:
-    with pytest.raises(PromocionRechazadaError, match=r"PENDIENTE \(D4\)"):
-        exigir_promocion({puerta.metrica: 1.0 for puerta in PUERTAS_DE_PROMOCION})
+    lento = {puerta.metrica: 1.0 for puerta in PUERTAS_DE_PROMOCION}
+
+    with pytest.raises(PromocionRechazadaError, match="fps_por_camara_hardware_objetivo"):
+        exigir_promocion(lento)
+
+
+def test_un_modelo_justo_en_los_umbrales_decididos_se_promueve() -> None:
+    en_el_borde = {
+        "recall_evento_casco": 0.90,
+        "recall_evento_chaleco": 0.90,
+        "falsas_alarmas_por_hora": 1.0,
+        "fps_por_camara_hardware_objetivo": 5.0,
+        "recall_persona_vs_baseline": 0.0,
+    }
+
+    assert evaluar_promocion(en_el_borde) == []
 
 
 def test_una_puerta_es_inmutable() -> None:

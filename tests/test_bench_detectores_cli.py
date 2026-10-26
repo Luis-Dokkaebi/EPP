@@ -123,7 +123,7 @@ def test_main_mide_cada_variante_contra_el_baseline(
     assert salida[0].startswith("base | estado actual | CI | ")
     assert salida[0].endswith("| 1.000 | ref | precisión 1.000")
     assert salida[1].startswith("nuevo | más liviano | CI | ")
-    assert "| 0.000 | no (fps: umbral sin definir (decisión D2);" in salida[1]
+    assert "| 0.000 | no (recall de persona 0.000 < baseline 1.000) |" in salida[1]
     assert "recall de persona 0.000 < baseline 1.000)" in salida[1]
 
 

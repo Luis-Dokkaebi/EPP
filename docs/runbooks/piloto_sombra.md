@@ -44,8 +44,9 @@ Objetivo: el módulo detecta y registra, pero **no notifica**. Un humano audita 
 de activar los avisos (sombra → canary, skill `mle-workflow`).
 
 1. Instalar 2.0.0 en el sitio piloto con la configuración de D4 y D5.
-2. **No** configurar canales de aviso (`EPP_ALERTAS_*`) y **no** arrancar el despachador de avisos
-   (`HiloDespachador`). Las infracciones quedan en `ppe_infracciones` como `PENDIENTE`.
+2. Definir `EPP_MODO_SOMBRA=1` en el equipo: la aplicación registra las infracciones pero no
+   arranca el despachador de avisos, aunque haya canales configurados. Las infracciones quedan en
+   `ppe_infracciones` como `PENDIENTE`.
 3. Durante el período acordado, cada día:
    - exportar el reporte de cumplimiento del día;
    - auditar una muestra de eventos con su evidencia: verdadero o falso positivo;
@@ -56,16 +57,17 @@ de activar los avisos (sombra → canary, skill `mle-workflow`).
 
 ### Antes de activar los avisos
 
-> **Riesgo conocido:** todas las infracciones del período sombra siguen `PENDIENTE`. Si se arranca
-> el despachador tal cual, se enviará un aviso por cada una. Antes de activarlo hay que decidir
-> qué hacer con ellas (por ejemplo, marcarlas como ya revisadas en la auditoría). Hoy no existe
-> una herramienta para eso: queda como tarea pendiente, no se debe resolver con SQL a mano en
-> producción sin un procedimiento aprobado.
+Decisión del 24/10/2026: las infracciones del período sombra **se descartan** (no se avisan).
 
 1. Configurar los canales (D1: email y webhook) por variables de entorno; los secretos van al
    almacén de credenciales, nunca a archivos del repositorio.
-2. Probar el canal con una infracción de prueba y verificar el acuse en el panel.
-3. Arrancar el despachador y vigilar el panel de alertas y los avisos fallidos.
+2. Quitar `EPP_MODO_SOMBRA` y definir `EPP_FIN_MODO_SOMBRA` con el instante en que termina el
+   piloto, en ISO 8601 con huso horario (por ejemplo `2026-11-30T18:00:00-06:00`). Al abrir la
+   sucursal, las `PENDIENTE` que empezaron antes quedan `DESCARTADA` (el panel las muestra como
+   "Descartado al salir del modo sombra") y el despachador arranca solo con las posteriores.
+   Dejar la variable puesta no hace daño: volver a descartar no encuentra nada nuevo.
+3. Probar el canal con una infracción de prueba y verificar el acuse en el panel.
+4. Vigilar el panel de alertas y los avisos fallidos.
 
 ## 3. Reversión
 

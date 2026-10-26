@@ -83,20 +83,37 @@ objetivos_de_mutacion() {
     if [ "$CAMBIADOS" = 1 ]; then
         git diff --name-only --diff-filter=AM "$BASE"...HEAD -- 'src/*.py' 'scripts/*.py' 'tools/*.py' 'ml/*.py' '.claude/hooks/*.py'
     else
-        echo "$MODULOS_CRITICOS"
+        # shellcheck disable=SC2086  # MODULOS_CRITICOS es una lista separada por espacios
+        archivos_de $MODULOS_CRITICOS
     fi
 }
 
 pruebas_de() {
-    # Convención de nombres: src/ppe/domain/asociacion.py -> tests/test_*asociacion*.py.
-    # Sin coincidencias se usa toda la suite; $GATE_PRUEBAS_MUTACION la reemplaza.
+    # Las que llevan su nombre (src/ppe/domain/asociacion.py -> tests/test_*asociacion*.py) y
+    # las que lo importan. Sin ninguna se usa toda la suite; $GATE_PRUEBAS_MUTACION la reemplaza.
     local tema
     tema="$(basename "$1" .py)"
     if [ -n "${GATE_PRUEBAS_MUTACION:-}" ]; then
         echo "$GATE_PRUEBAS_MUTACION"
         return
     fi
-    compgen -G "tests/test_*${tema}*.py" | tr '\n' ' ' | grep . || echo "tests"
+    {
+        compgen -G "tests/test_*${tema}*.py"
+        grep -lE "^[[:space:]]*(from|import)[[:space:]].*\b${tema}\b" tests/test_*.py 2>/dev/null
+    } | sort -u | tr '\n' ' ' | grep . || echo "tests"
+}
+
+archivos_de() {
+    # Un directorio crítico se mide archivo por archivo, cada uno con sus propias pruebas. Los
+    # vacíos (__init__.py) no tienen mutantes y sin pruebas propias correrían toda la suite.
+    local ruta
+    for ruta in "$@"; do
+        if [ -d "$ruta" ]; then
+            find "$ruta" -name '*.py' -size +0 -not -path '*/__pycache__/*' | sort
+        else
+            echo "$ruta"
+        fi
+    done
 }
 
 mutar() {

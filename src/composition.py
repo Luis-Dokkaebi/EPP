@@ -47,11 +47,11 @@ def crear_detector(
 def crear_detector_configurado(confianza_minima: float) -> DetectorPort:
     """Detector de la app: motor, modelo y manifiesto salen de `config/config.py`."""
     motor = config.DETECTION_ENGINE
-    manifiesto = _leer_manifiesto(config.MANIFEST_PATH) if motor == MOTOR_ONNX else None
+    manifiesto = leer_manifiesto(config.MANIFEST_PATH) if motor == MOTOR_ONNX else None
     return crear_detector(config.MODEL_PATH, confianza_minima, motor, manifiesto)
 
 
-def _leer_manifiesto(ruta: str) -> dict[str, Any]:
+def leer_manifiesto(ruta: str) -> dict[str, Any]:
     contenido: dict[str, Any] = json.loads(Path(ruta).read_text(encoding="utf-8"))
     return contenido
 
@@ -86,14 +86,25 @@ def _declara(entrada: Mapping[str, Any], ruta: str) -> bool:
     return PurePath(ruta).parts[-len(declarada) :] == declarada
 
 
-def _configuracion_onnx(
-    ruta: str, confianza_minima: float, manifiesto: Mapping[str, Any]
-) -> ConfiguracionOnnx:
+def entrada_del_modelo(ruta: str, manifiesto: Mapping[str, Any]) -> Mapping[str, Any]:
+    """La entrada de models/manifest.json que declara el modelo de `ruta`."""
     entrada = next((m for m in manifiesto.get("modelos", []) if _declara(m, ruta)), None)
     if entrada is None:
         raise ModeloNoDeclaradoError(
             f"{ruta} no está declarado en models/manifest.json (clases y normalización)."
         )
+    return entrada
+
+
+def clases_declaradas(entrada: Mapping[str, Any]) -> frozenset[ClaseObjeto]:
+    """Las clases que el manifiesto dice que detecta el modelo."""
+    return frozenset(ClaseObjeto(nombre) for nombre in entrada["clases"].values())
+
+
+def _configuracion_onnx(
+    ruta: str, confianza_minima: float, manifiesto: Mapping[str, Any]
+) -> ConfiguracionOnnx:
+    entrada = entrada_del_modelo(ruta, manifiesto)
     clases = {int(id_): ClaseObjeto(nombre) for id_, nombre in entrada["clases"].items()}
     return ConfiguracionOnnx(
         media=tuple(entrada["media"]),

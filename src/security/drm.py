@@ -208,6 +208,12 @@ class DRMValidator:
             _logger.warning("[DRM] Cryptographic verification failed: %s", type(exc).__name__)
             return None, None
 
+    def incluye_modulo(self, modulo: str) -> bool:
+        """Si la licencia activa habilita el módulo opcional (D10); sin licencia, ninguno."""
+        if self.license_data:
+            return modulo in self.license_data.get("modulos", ())
+        return False
+
     def get_max_cameras(self) -> int:
         """Retorna el limite de camaras segun la licencia activa."""
         if self.license_data:

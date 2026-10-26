@@ -14,7 +14,7 @@ RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$RAIZ" || exit 1
 REPORTES="${GATE_REPORTES:-reports/gate}"
 BASE="${GATE_BASE:-origin/main}"
-MODULOS_CRITICOS="src/security src/storage src/analysis/efficiency_calculator.py src/zones/zone_checker.py"
+MODULOS_CRITICOS="src/security src/storage src/analysis/efficiency_calculator.py src/zones/zone_checker.py src/ppe"
 UMBRAL_MUTACION_CRITICA=90
 UMBRAL_MUTACION_NUEVA=85
 UMBRAL_COBERTURA_DIFF=95

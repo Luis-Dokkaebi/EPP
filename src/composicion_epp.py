@@ -129,6 +129,10 @@ class LicenciaPort(Protocol):
     def incluye_modulo(self, modulo: str) -> bool: ...
 
 
+def modulo_habilitado(licencia: LicenciaPort | None) -> bool:
+    return licencia is not None and licencia.incluye_modulo(MODULO_EPP)
+
+
 def crear_integracion_epp_de_la_app(
     publicador: PublicadorEventosPort, licencia: LicenciaPort
 ) -> IntegracionEPP | None:

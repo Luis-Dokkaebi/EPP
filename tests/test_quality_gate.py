@@ -72,7 +72,7 @@ def repo(tmp_path: Path) -> Path:
         shutil.copy2(RAIZ / gemelo, raiz / gemelo)
     for archivo in ARCHIVOS_CRITICOS:
         (raiz / archivo).parent.mkdir(parents=True, exist_ok=True)
-        (raiz / archivo).touch()
+        (raiz / archivo).write_text("VALOR = 1\n", encoding="utf-8")
     git = shutil.which("git")
     assert git, "Se necesita git: el gate lista los archivos versionados"
     # S603: git del sistema con argumentos fijos sobre un directorio temporal.
@@ -301,3 +301,53 @@ def test_quality_gate_falla_si_los_gemelos_difieren(
 
     assert resultado.returncode != 0
     assert "FALLA en el paso '9a-gemelos'" in resultado.stderr
+
+
+def _mutmut_de(tmp_path: Path, archivo: str) -> str:
+    registro = (tmp_path / "registro.txt").read_text(encoding="utf-8").splitlines()
+    (linea,) = (x for x in registro if f"--paths-to-mutate {archivo} " in x)
+    return linea
+
+
+def test_quality_gate_muta_cada_archivo_de_un_directorio_critico_por_separado(
+    lanzador: Lanzador, repo: Path, tmp_path: Path
+) -> None:
+    (repo / "src" / "security" / "crash_logger.py").write_text("VALOR = 2\n", encoding="utf-8")
+    _versionar(repo)
+
+    _correr_con_opciones(lanzador, _entorno(tmp_path), lanzador.sin_instalar)
+
+    assert _mutmut_de(tmp_path, "src/security/crash_logger.py")
+    assert _mutmut_de(tmp_path, "src/security/drm.py")
+    assert _invocaciones(tmp_path, "--paths-to-mutate src/security ") == 0
+
+
+def test_quality_gate_no_muta_los_archivos_vacios_de_un_directorio_critico(
+    lanzador: Lanzador, repo: Path, tmp_path: Path
+) -> None:
+    (repo / "src" / "security" / "__init__.py").touch()
+    _versionar(repo)
+
+    _correr_con_opciones(lanzador, _entorno(tmp_path), lanzador.sin_instalar)
+
+    assert _invocaciones(tmp_path, "--paths-to-mutate src/security/__init__.py") == 0
+    assert _mutmut_de(tmp_path, "src/security/drm.py")
+
+
+def test_quality_gate_muta_con_las_pruebas_que_importan_el_archivo(
+    lanzador: Lanzador, repo: Path, tmp_path: Path
+) -> None:
+    (repo / "tests").mkdir()
+    (repo / "tests" / "test_boveda.py").write_text(
+        "from src.security.drm import DRMValidator\n", encoding="utf-8"
+    )
+    (repo / "tests" / "test_drm_respaldo.py").touch()
+    (repo / "tests" / "test_ajena.py").write_text("import src.security.drm_viejo\n")
+    _versionar(repo)
+
+    _correr_con_opciones(lanzador, _entorno(tmp_path), lanzador.sin_instalar)
+
+    linea = _mutmut_de(tmp_path, "src/security/drm.py")
+    assert "tests/test_boveda.py" in linea
+    assert "tests/test_drm_respaldo.py" in linea
+    assert "tests/test_ajena.py" not in linea

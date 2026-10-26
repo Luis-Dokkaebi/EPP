@@ -61,12 +61,33 @@ function Get-PisoDeCobertura {
 }
 
 function Get-PruebasDe([string]$Archivo) {
-    # Convención de nombres: src/ppe/domain/asociacion.py -> tests/test_*asociacion*.py.
+    # Las que llevan su nombre (src/ppe/domain/asociacion.py -> tests/test_*asociacion*.py) y
+    # las que lo importan. Sin ninguna se usa toda la suite.
     if ($env:GATE_PRUEBAS_MUTACION) { return $env:GATE_PRUEBAS_MUTACION }
     $tema = [IO.Path]::GetFileNameWithoutExtension($Archivo)
-    $pruebas = @(Get-ChildItem -Path tests -Filter "test_*$tema*.py" | ForEach-Object { "tests/$($_.Name)" })
+    $porNombre = @(Get-ChildItem -Path tests -Filter "test_*$tema*.py" | ForEach-Object { "tests/$($_.Name)" })
+    $patron = "^\s*(from|import)\s.*\b$([regex]::Escape($tema))\b"
+    $porImport = @(Get-ChildItem -Path tests -Filter 'test_*.py' |
+        Where-Object { Select-String -LiteralPath $_.FullName -Pattern $patron -Quiet } |
+        ForEach-Object { "tests/$($_.Name)" })
+    $pruebas = @($porNombre + $porImport | Sort-Object -Unique)
     if ($pruebas.Count -eq 0) { return 'tests' }
     return ($pruebas -join ' ')
+}
+
+function Get-ArchivosDe([string[]]$Rutas) {
+    # Un directorio crítico se mide archivo por archivo, cada uno con sus propias pruebas. Los
+    # vacíos (__init__.py) no tienen mutantes y sin pruebas propias correrían toda la suite.
+    foreach ($ruta in $Rutas) {
+        if (Test-Path $ruta -PathType Container) {
+            Get-ChildItem -Path $ruta -Recurse -Filter '*.py' |
+                Where-Object { $_.Length -gt 0 -and $_.FullName -notmatch '__pycache__' } |
+                ForEach-Object { [IO.Path]::GetRelativePath((Get-Location).Path, $_.FullName).Replace('\', '/') } |
+                Sort-Object
+        } else {
+            $ruta
+        }
+    }
 }
 
 function Invoke-Mutacion([double]$Umbral, [string[]]$Objetivos, [string[]]$Parche = @()) {
@@ -139,7 +160,7 @@ if ($SinMutacion) {
     git diff -U0 "$Base...HEAD" | Out-File -Encoding utf8 $archivoParche
     Invoke-Paso '7-mutacion' { Invoke-Mutacion 85 $objetivos @('--use-patch-file', $archivoParche) }
 } else {
-    Invoke-Paso '7-mutacion' { Invoke-Mutacion 90 $ModulosCriticos }
+    Invoke-Paso '7-mutacion' { Invoke-Mutacion 90 @(Get-ArchivosDe $ModulosCriticos) }
 }
 Invoke-Paso '8a-suite' { python -m pytest }
 Invoke-Paso '8b-suite-sin-cache' { python -m pytest -p no:cacheprovider }

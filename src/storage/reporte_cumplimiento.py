@@ -7,14 +7,23 @@ horario con el que se haya guardado cada hora. Toda consulta es parametrizada o 
 import sqlite3
 from collections.abc import Callable
 from contextlib import closing
-from datetime import datetime
+from datetime import datetime, timedelta, tzinfo
 
-from src.analysis.cumplimiento_epp import InfraccionRegistrada
+from src.analysis.cumplimiento_epp import InfraccionRegistrada, Presencia
 
 _INFRACCIONES = (
     "SELECT employee_name, zona, elemento, inicio, fin FROM ppe_infracciones ORDER BY id"
 )
-_HAY_EMPLEADOS = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?"
+_HAY_TABLA = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?"
+# El seguimiento guarda la hora local sin huso (datetime.now().isoformat()). El filtro por texto
+# es solo un primer recorte con un día de margen; el período exacto se filtra en Python.
+_PRESENCIAS = (
+    "SELECT employee_name, zone, timestamp, inside_zone FROM tracking "
+    "WHERE employee_name IS NOT NULL AND employee_name NOT IN ('', ?) "
+    "AND timestamp >= ? AND timestamp < ?"
+)
+NOMBRE_DESCONOCIDO = "Unknown"
+MARGEN = timedelta(days=1)
 _TURNOS = "SELECT employee_name, shift FROM employees WHERE shift IS NOT NULL AND shift != ''"
 
 
@@ -40,6 +49,41 @@ def leer_infracciones(
 def leer_turnos(conectar: Callable[[], sqlite3.Connection]) -> dict[str, str]:
     """Turno de cada empleado que lo tiene cargado; sin tabla de empleados, ninguno."""
     with closing(conectar()) as conexion:
-        if conexion.execute(_HAY_EMPLEADOS, ("employees",)).fetchone() is None:
+        if conexion.execute(_HAY_TABLA, ("employees",)).fetchone() is None:
             return {}
         return dict(conexion.execute(_TURNOS).fetchall())
+
+
+def leer_presencias(
+    conectar: Callable[[], sqlite3.Connection],
+    desde: datetime,
+    hasta: datetime,
+    zona_horaria: tzinfo,
+) -> list[Presencia]:
+    """Presencias de personas reconocidas en [desde, hasta); sin tabla tracking, ninguna.
+
+    Una hora guardada sin huso se interpreta en el huso horario de la sucursal.
+    """
+    limites = (
+        NOMBRE_DESCONOCIDO,
+        _local(desde - MARGEN, zona_horaria),
+        _local(hasta + MARGEN, zona_horaria),
+    )
+    with closing(conectar()) as conexion:
+        if conexion.execute(_HAY_TABLA, ("tracking",)).fetchone() is None:
+            return []
+        filas = conexion.execute(_PRESENCIAS, limites).fetchall()
+    presencias = [
+        Presencia(persona, zona, _instante(hora, zona_horaria), bool(dentro))
+        for persona, zona, hora, dentro in filas
+    ]
+    return [presencia for presencia in presencias if desde <= presencia.instante < hasta]
+
+
+def _local(instante: datetime, zona_horaria: tzinfo) -> str:
+    return instante.astimezone(zona_horaria).replace(tzinfo=None).isoformat()
+
+
+def _instante(hora: str, zona_horaria: tzinfo) -> datetime:
+    instante = datetime.fromisoformat(hora)
+    return instante if instante.tzinfo is not None else instante.replace(tzinfo=zona_horaria)

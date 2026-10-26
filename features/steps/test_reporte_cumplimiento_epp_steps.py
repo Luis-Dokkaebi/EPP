@@ -45,6 +45,19 @@ class Sucursal:
         fin = inicio + timedelta(minutes=minutos)
         repositorio.guardar(InfraccionFinalizada(incumplimiento, inicio, "epp", fin))
 
+    def registrar_presencia(self, nombre: str, hora: str, minutos: int) -> None:
+        """Un registro del seguimiento por minuto, como lo deja la cámara con la persona en zona."""
+        inicio = datetime.combine(DIA, datetime.strptime(hora, "%H:%M").time())
+        horas = [(inicio + timedelta(minutes=minuto)).isoformat() for minuto in range(minutos + 1)]
+        with self.conectar() as conexion:
+            conexion.execute(
+                "CREATE TABLE IF NOT EXISTS tracking "
+                "(employee_name TEXT, timestamp TEXT, zone TEXT, inside_zone INTEGER)"
+            )
+            conexion.executemany(
+                "INSERT INTO tracking VALUES (?, ?, ?, 1)", [(nombre, h, ZONA) for h in horas]
+            )
+
     def filas(self) -> list[tuple[object, ...]]:
         hoja = load_workbook(self.reporte)["Cumplimiento EPP"]
         return list(hoja.iter_rows(min_row=FILA_DE_DATOS, values_only=True))
@@ -65,6 +78,11 @@ def empleado_con_turno(sucursal: Sucursal, nombre: str, turno: str) -> None:
 @given(parsers.parse('que "{nombre}" estuvo sin {elemento} {minutos:d} minutos a las {hora}'))
 def infraccion(sucursal: Sucursal, nombre: str, elemento: str, minutos: int, hora: str) -> None:
     sucursal.registrar(nombre, elemento, hora, minutos)
+
+
+@given(parsers.parse('que "{nombre}" estuvo {minutos:d} minutos en su zona desde las {hora}'))
+def presencia(sucursal: Sucursal, nombre: str, minutos: int, hora: str) -> None:
+    sucursal.registrar_presencia(nombre, hora, minutos)
 
 
 @given("que no hubo infracciones en el día")
@@ -96,3 +114,18 @@ def fila_del_reporte(
 @then("el reporte indica que no hubo infracciones en el período")
 def reporte_vacio(sucursal: Sucursal) -> None:
     assert sucursal.filas() == [("Sin infracciones en el período",) + (None,) * 6]
+
+
+def _cumplimiento(sucursal: Sucursal, nombre: str, elemento: str) -> object:
+    (fila,) = (f for f in sucursal.filas() if f[1] == nombre and f[3] == elemento)
+    return fila[6]
+
+
+@then(parsers.parse('el cumplimiento de {elemento} de "{nombre}" es del {porcentaje:d} %'))
+def cumplimiento(sucursal: Sucursal, elemento: str, nombre: str, porcentaje: int) -> None:
+    assert _cumplimiento(sucursal, nombre, elemento) == float(porcentaje)
+
+
+@then(parsers.parse('el cumplimiento de {elemento} de "{nombre}" figura sin datos'))
+def cumplimiento_sin_datos(sucursal: Sucursal, elemento: str, nombre: str) -> None:
+    assert _cumplimiento(sucursal, nombre, elemento) == "sin datos"

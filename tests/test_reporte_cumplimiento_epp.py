@@ -120,6 +120,27 @@ def test_reporte_escribe_una_fila_por_turno_empleado_zona_y_elemento(
     )
 
 
+def test_reporte_calcula_el_porcentaje_con_el_tiempo_en_la_zona(
+    conectar: Conectar, tmp_path: Path
+) -> None:
+    # Ana estuvo 20 minutos en la zona (un registro por minuto) y 5 sin casco: 75 % cumplido.
+    with conectar() as conexion:
+        conexion.execute(
+            "CREATE TABLE tracking (employee_name TEXT, timestamp TEXT, zone TEXT, "
+            "inside_zone INTEGER)"
+        )
+        conexion.executemany(
+            "INSERT INTO tracking VALUES ('Ana', ?, 'Boca de pozo', 1)",
+            [(f"2026-10-22T08:{minuto:02d}:00",) for minuto in range(21)],
+        )
+    _registrar(conectar, "Ana", _local(8), 5, ElementoEPP.CASCO)
+    ruta = tmp_path / "con_tiempo.xlsx"
+
+    _generador(conectar).generar(PedidoReporte(DIA, DIA, ruta))
+
+    assert _celdas(ruta)[2] == ("Matutino", "Ana", "Boca de pozo", "casco", 1, 5.0, 75.0)
+
+
 def test_reporte_de_hoy_cuenta_las_infracciones_abiertas_hasta_ahora(
     conectar: Conectar, tmp_path: Path
 ) -> None:

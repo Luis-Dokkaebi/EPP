@@ -5,18 +5,51 @@ tiempo en cumplimiento. La duración se cuenta hasta el corte del período: una 
 abierta, o que lo cruza, suma solo hasta ahí.
 
 El porcentaje es 100 * (1 - tiempo en infracción / tiempo en la zona), acotado a [0, 100]. El
-tiempo en la zona por persona llega como dato; si falta o es cero, el porcentaje es None ("sin
-datos"): no se inventa.
+tiempo en la zona sale de los registros de presencia del seguimiento: desde cada registro dentro
+de la zona hasta el siguiente, salvo que entre ambos pasen más de 5 minutos (la cámara se cortó;
+el mismo criterio que el reporte de eficiencia). Si una persona no tiene presencia registrada en
+la zona, el porcentaje es None ("sin datos"): no se inventa.
 """
 
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timedelta
+from itertools import pairwise
 from typing import NamedTuple
 
 SIN_TURNO = "sin turno"
 SIN_IDENTIFICAR = "persona no identificada"
 CIEN = 100
+SALTO_MAXIMO = timedelta(minutes=5)
+
+
+class Presencia(NamedTuple):
+    """Registro del seguimiento: la persona estaba (o no) dentro de la zona en ese instante."""
+
+    persona: str
+    zona: str
+    instante: datetime
+    dentro: bool
+
+
+def exposicion_por_zona(presencias: Iterable[Presencia]) -> dict[tuple[str, str], timedelta]:
+    """Tiempo que cada persona pasó en cada zona, según sus registros de presencia."""
+    por_clave: defaultdict[tuple[str, str], list[Presencia]] = defaultdict(list)
+    for presencia in presencias:
+        por_clave[(presencia.persona, presencia.zona)].append(presencia)
+    return {
+        clave: _tiempo_dentro(sorted(registros, key=lambda p: p.instante))
+        for clave, registros in por_clave.items()
+    }
+
+
+def _tiempo_dentro(registros: Sequence[Presencia]) -> timedelta:
+    total = timedelta(0)
+    for actual, siguiente in pairwise(registros):
+        paso = siguiente.instante - actual.instante
+        if actual.dentro and paso <= SALTO_MAXIMO:
+            total += paso
+    return total
 
 
 class InfraccionRegistrada(NamedTuple):

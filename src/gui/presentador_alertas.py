@@ -21,6 +21,7 @@ TEXTO_DEL_AVISO = {
     EstadoNotificacion.PENDIENTE: "Aviso pendiente",
     EstadoNotificacion.ENVIADA: "Aviso enviado",
     EstadoNotificacion.FALLIDA: "Aviso fallido",
+    EstadoNotificacion.DESCARTADA: "Descartado al salir del modo sombra",
 }
 
 

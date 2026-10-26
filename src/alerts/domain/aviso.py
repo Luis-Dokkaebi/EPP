@@ -12,6 +12,9 @@ class EstadoNotificacion(Enum):
     ENVIADA = "ENVIADA"
     # Se agotaron los reintentos: queda visible en la UI, nunca se descarta (P5).
     FALLIDA = "FALLIDA"
+    # Detectada durante el piloto en modo sombra: no se avisa al salir de él (decisión del
+    # 24/10/2026). Sigue visible en la UI y en los reportes.
+    DESCARTADA = "DESCARTADA"
 
 
 class Aviso(NamedTuple):

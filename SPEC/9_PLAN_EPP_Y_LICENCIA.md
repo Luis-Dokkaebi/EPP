@@ -305,6 +305,10 @@ waivers aprobados por un humano.
   de la §10 en orden, se detienen al primer fallo y guardan cada salida en `reports/gate/<paso>.txt`
   (ignorado por git), lista para pegar en el PR.
 - Opción `--changed` que limita la mutación a los archivos tocados (`mutmut run --paths-to-mutate`).
+- Pasos `4d-cobertura-json` y `4e-cobertura-critica`: `scripts/check_cobertura_criticos.py` exige
+  100 % de líneas y ramas en `src/security/`, `src/storage/`, `src/analysis/` y `src/ppe/` (§6 de
+  `CLAUDE.md`), salvo los heredados de `cobertura_critica_waiver` en `docs/quality/metricas.json`
+  (W-012), que salen de la lista en cuanto llegan al 100 % (trinquete).
 - Test del script: un test de humo que verifica que el script devuelve un código distinto de 0 cuando
   un paso falla (con una herramienta falsa en el `PATH`).
 

@@ -136,6 +136,9 @@ Invoke-Paso '4a-pruebas' {
 $piso = Get-PisoDeCobertura
 Invoke-Paso '4b-cobertura-global' { python -m coverage report --include='src/*' --fail-under=$piso }
 Invoke-Paso '4c-cobertura-diff' { diff-cover coverage.xml --compare-branch=$Base --fail-under=95 }
+$coberturaJson = Join-Path $Reportes 'cobertura.json'
+Invoke-Paso '4d-cobertura-json' { python -m coverage json -q -o $coberturaJson }
+Invoke-Paso '4e-cobertura-critica' { python scripts/check_cobertura_criticos.py $coberturaJson }
 Invoke-Paso '5-complejidad' { python scripts/check_trinquete.py src docs/quality/metricas.json }
 Invoke-Paso '5b-tamano' { python scripts/check_tamano.py }
 Invoke-Paso '6a-bandit' { bandit -r src -ll }

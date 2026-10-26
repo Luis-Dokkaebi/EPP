@@ -147,8 +147,12 @@ producto; `gate (ubuntu-latest)` y `mutacion` estaban en verde.
 - Una corrida del gate se colgó una vez en el paso de pruebas (c08) y pytest-timeout no la cortó;
   no se reprodujo. Vigilar en CI.
 - `pip-audit` del gate audita `/home/user/venv311` y no `.venv` si falta `PIPAPI_PYTHON_LOCATION`.
+- `tests/test_drm_rsa_b2b.py::test_wmi_crash_fallback` (heredado) saca `src.security.drm` de
+  `sys.modules` y deja colgado del paquete el módulo viejo: un `monkeypatch` por ruta de texto que
+  corra después parchea el módulo equivocado. `test_main_headless.py` ya se protege; corregir la
+  prueba heredada exige formatearla primero (WAIVER-#2), en un PR aparte.
 
-### Cobertura de ramas de los módulos críticos (propuesta de waiver, sin aprobar)
+### Cobertura de ramas de los módulos críticos (W-012, aprobado el 26/10/2026)
 
 CLAUDE.md §6 pide 100 % de ramas en `src/security/`, `src/storage/`, `src/analysis/` y `src/ppe/`;
 el gate no lo controla por módulo y no hay waiver para lo heredado. Medido en `main` el 26/10/2026:
@@ -158,6 +162,11 @@ todo `src/ppe/` y los módulos nuevos de `src/storage/` están al 100 %; los her
 `drm.py` 97 %, `db_crypto.py` 99 %; `src/storage/database_manager.py` 98 %. Propuesta (requiere
 aprobación humana, §15): waiver W-012 hasta el 2027-01-26 para esos archivos y un paso nuevo del
 gate que exija 100 % de ramas en los módulos críticos que no figuren en el waiver.
+
+El dueño del producto aprobó W-012 el 26/10/2026 (#133). El gate lo controla en el paso
+`4e-cobertura-critica` (`scripts/check_cobertura_criticos.py`): exige 100 % de líneas y ramas a los
+módulos críticos fuera de `cobertura_critica_waiver` y obliga a sacar de esa lista cada archivo que
+llegue al 100 % (trinquete).
 
 ## Próxima entrega
 

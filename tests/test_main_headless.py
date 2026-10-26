@@ -3,6 +3,7 @@
 Mismo criterio que las pruebas de CameraWorker: la fixture cambia de motor, las aserciones no.
 """
 
+import importlib
 import subprocess
 import sys
 import types
@@ -344,7 +345,10 @@ class ValidadorFalso:
 
 
 def test_la_licencia_del_equipo_se_valida_antes_de_usarla(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("src.security.drm.DRMValidator", ValidadorFalso)
+    # test_drm_rsa_b2b.py saca a drm de sys.modules y deja colgado del paquete el módulo viejo: se
+    # parchea el que `main` va a importar, no el que se alcanza por atributos.
+    drm = importlib.import_module("src.security.drm")
+    monkeypatch.setattr(drm, "DRMValidator", ValidadorFalso)
 
     licencia = main.licencia_del_equipo()
 

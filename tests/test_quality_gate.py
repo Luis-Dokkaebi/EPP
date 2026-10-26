@@ -239,6 +239,15 @@ def test_quality_gate_revisa_tamano_de_archivos_y_secretos(
     assert _invocaciones(tmp_path, "detect-secrets-hook --baseline .secrets.baseline") >= 1
 
 
+def test_quality_gate_exige_el_100_por_ciento_en_los_modulos_criticos(
+    lanzador: Lanzador, tmp_path: Path
+) -> None:
+    _correr(lanzador, _entorno(tmp_path))
+
+    assert _invocaciones(tmp_path, "python -m coverage json -q -o") == 1
+    assert _invocaciones(tmp_path, "python scripts/check_cobertura_criticos.py") == 1
+
+
 LIMITE_DE_CMD = 8191  # caracteres por línea de comandos de cmd.exe
 
 

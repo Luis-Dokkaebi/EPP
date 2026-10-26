@@ -20,5 +20,16 @@
   ],
   "longitud_waiver": [
     "src/gui_app.py"
+  ],
+  "cobertura_critica_waiver": [
+    "src/analysis/efficiency_calculator.py",
+    "src/analysis/generar_reporte.py",
+    "src/analysis/report_generator.py",
+    "src/analysis/report_main.py",
+    "src/analysis/state_manager.py",
+    "src/security/crash_logger.py",
+    "src/security/db_crypto.py",
+    "src/security/drm.py",
+    "src/storage/database_manager.py"
   ]
 }

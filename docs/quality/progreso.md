@@ -148,7 +148,7 @@ producto; `gate (ubuntu-latest)` y `mutacion` estaban en verde.
   no se reprodujo. Vigilar en CI.
 - `pip-audit` del gate audita `/home/user/venv311` y no `.venv` si falta `PIPAPI_PYTHON_LOCATION`.
 
-### Cobertura de ramas de los módulos críticos (propuesta de waiver, sin aprobar)
+### Cobertura de ramas de los módulos críticos (W-012, aprobado el 26/10/2026)
 
 CLAUDE.md §6 pide 100 % de ramas en `src/security/`, `src/storage/`, `src/analysis/` y `src/ppe/`;
 el gate no lo controla por módulo y no hay waiver para lo heredado. Medido en `main` el 26/10/2026:
@@ -158,6 +158,11 @@ todo `src/ppe/` y los módulos nuevos de `src/storage/` están al 100 %; los her
 `drm.py` 97 %, `db_crypto.py` 99 %; `src/storage/database_manager.py` 98 %. Propuesta (requiere
 aprobación humana, §15): waiver W-012 hasta el 2027-01-26 para esos archivos y un paso nuevo del
 gate que exija 100 % de ramas en los módulos críticos que no figuren en el waiver.
+
+El dueño del producto aprobó W-012 el 26/10/2026 (#133). El gate lo controla en el paso
+`4e-cobertura-critica` (`scripts/check_cobertura_criticos.py`): exige 100 % de líneas y ramas a los
+módulos críticos fuera de `cobertura_critica_waiver` y obliga a sacar de esa lista cada archivo que
+llegue al 100 % (trinquete).
 
 ## Próxima entrega
 

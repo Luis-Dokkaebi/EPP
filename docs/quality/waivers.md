@@ -18,6 +18,7 @@ el archivo afectado.
 | W-009 | Longitud de archivo ≤ 500 líneas (§3) | `src/gui_app.py` (`longitud_waiver` en `metricas.json`) | GUI heredada de 1094 líneas | Medio | 2027-01-20 | #16 |
 | W-010 | Sin secretos en el repositorio (§9) | `scripts/tu_llave_maestra_privada.pem` (registrado en `.secrets.baseline` como secreto real) | Llave privada versionada antes del gate; rotarla y purgar el historial es acción humana | **Alto** | 2027-01-20 | #17 |
 | W-011 | No se hace merge con checks en rojo (§13) | `.github/workflows/quality-gate.yml`, job `licencias` con `continue-on-error: true` | Dependencias y pesos heredados con licencia prohibida (AC-001) hasta A-14/A-16/A-17 | **Alto** | 2027-01-20 | #18 |
+| W-012 | 100 % de ramas en módulos críticos (§6) | `src/analysis/{efficiency_calculator,generar_reporte,report_generator,report_main,state_manager}.py`, `src/security/{crash_logger,db_crypto,drm}.py`, `src/storage/database_manager.py` (`cobertura_critica_waiver` en `metricas.json`) | Código heredado anterior al gate; el paso `4e-cobertura-critica` exige 100 % al resto y saca de la lista lo que ya cumple | Medio | 2027-01-26 | #133 |
 
 Las reglas para código **nuevo** (paquetes `src/inference`, `src/ppe`, `src/alerts`, `ml/`, `tools/`
 y archivos de prueba nuevos) no tienen ningún waiver.

@@ -164,6 +164,8 @@ paso 4b-cobertura-global python -m coverage report --include='src/*' \
     --fail-under="$(piso_de_cobertura)"
 paso 4c-cobertura-diff diff-cover coverage.xml --compare-branch="$BASE" \
     --fail-under="$UMBRAL_COBERTURA_DIFF"
+paso 4d-cobertura-json python -m coverage json -q -o "$REPORTES/cobertura.json"
+paso 4e-cobertura-critica python scripts/check_cobertura_criticos.py "$REPORTES/cobertura.json"
 paso 5-complejidad python scripts/check_trinquete.py src docs/quality/metricas.json
 paso 5b-tamano python scripts/check_tamano.py
 paso 6a-bandit bandit -r src -ll

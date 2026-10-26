@@ -14,6 +14,7 @@ from collections.abc import Callable, Iterator
 from datetime import timedelta
 from pathlib import Path
 
+import customtkinter as ctk
 import numpy as np
 import pytest
 
@@ -334,3 +335,52 @@ def test_sin_licencia_no_se_preparan_avisos(
     app.on_closing()
 
     assert (falso.eventos, pedidos) == ([], [])
+
+
+def _botones_del_menu(app: AppMain) -> list[str]:
+    return [
+        str(hijo.cget("text"))
+        for hijo in app.sidebar_frame.winfo_children()
+        if isinstance(hijo, ctk.CTkButton)
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("licencia", [LicenciaConEPP()], ids=["con_epp"])
+def test_con_licencia_de_epp_el_menu_suma_alertas_y_cumplimiento_antes_de_reportes(
+    app: AppMain,
+) -> None:
+    assert _botones_del_menu(app) == [
+        "Monitoreo en Vivo",
+        "Gestión de Empleados",
+        "Configuración de Zonas",
+        "Alertas EPP",
+        "Cumplimiento EPP",
+        "Reportes Históricos",
+        "Cambiar Sucursal",
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("licencia", [LicenciaConEPP()], ids=["con_epp"])
+@pytest.mark.parametrize(
+    ("boton", "vista"),
+    [("Alertas EPP", "AlertasEPP"), ("Cumplimiento EPP", "CumplimientoEPP")],
+    ids=["alertas", "cumplimiento"],
+)
+def test_cada_boton_del_modulo_abre_su_vista(app: AppMain, boton: str, vista: str) -> None:
+    (elegido,) = (
+        hijo
+        for hijo in app.sidebar_frame.winfo_children()
+        if isinstance(hijo, ctk.CTkButton) and hijo.cget("text") == boton
+    )
+
+    elegido.invoke()
+
+    assert app.view_manager.current_view is app.view_manager.views[vista]
+
+
+@pytest.mark.integration
+def test_sin_licencia_de_epp_el_menu_no_muestra_el_modulo(app: AppMain) -> None:
+    assert {"Alertas EPP", "Cumplimiento EPP"}.isdisjoint(_botones_del_menu(app))
+    assert {"AlertasEPP", "CumplimientoEPP"}.isdisjoint(app.view_manager.views)

@@ -112,6 +112,8 @@ class AppMain(ctk.CTk):
         self.view_zonas = create_zones_view(self.main_workspace)
         self.view_manager.register_view("Zonas", self.view_zonas)
         
+        self._registrar_vistas_epp()
+
         self.view_reportes = create_reports_view(self.main_workspace)
         self.view_manager.register_view("Reportes", self.view_reportes)
         
@@ -160,23 +162,22 @@ class AppMain(ctk.CTk):
             w.stop()
         self.camera_workers.clear()
 
+    def _modulo_epp_habilitado(self):
+        from src.gui import epp_en_la_app
+        return epp_en_la_app.modulo_habilitado(self.licencia)
+
+    def _registrar_vistas_epp(self):
+        """SPEC/9 §8.2 y §8.4: alertas y reporte de cumplimiento, solo con el módulo de EPP."""
+        if self._modulo_epp_habilitado():
+            from src.gui import epp_en_la_app
+            epp_en_la_app.registrar_vistas(self.view_manager, self.main_workspace)
+
     def _iniciar_avisos_epp(self):
-        """SPEC/9 §5.4: con el módulo de EPP en la licencia, purga evidencias vencidas (D5) y
-        arranca el despachador de avisos, salvo en modo sombra o sin canales configurados."""
-        if self.licencia is None or not self.licencia.incluye_modulo("epp"):
+        """SPEC/9 §5.4: los avisos de EPP arrancan solo si la licencia incluye el módulo."""
+        if not self._modulo_epp_habilitado():
             return None
-        import sqlite3
-        from pathlib import Path
-        from config.config import get_db_path, get_snapshots_dir
-        from src import composicion_avisos
-        from src.composicion_epp import RelojSistema
-        ruta_base = get_db_path()
-        despachador = composicion_avisos.preparar_avisos(
-            os.environ, lambda: sqlite3.connect(ruta_base), Path(get_snapshots_dir()),
-            RelojSistema())
-        if despachador is not None:
-            despachador.iniciar()
-        return despachador
+        from src.gui import epp_en_la_app
+        return epp_en_la_app.iniciar_avisos()
 
     def on_closing(self):
         for w in self.camera_workers:
@@ -195,6 +196,8 @@ class AppMain(ctk.CTk):
             ("Reportes Históricos", "Reportes"),
             ("Cambiar Sucursal", "Tenant")
         ]
+        if self._modulo_epp_habilitado():
+            buttons[3:3] = [("Alertas EPP", "AlertasEPP"), ("Cumplimiento EPP", "CumplimientoEPP")]
         
         for text, view_name in buttons:
             btn = ctk.CTkButton(

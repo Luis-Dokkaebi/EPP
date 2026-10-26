@@ -1448,14 +1448,14 @@ B-01..B-06 (datos y modelo EPP) ────────────────
 | AC-005 | Test de `sys.modules` + grep | En curso: el camino ONNX no carga torch (prueba en intérprete aparte, A-15); el parche de `torch.load` queda solo en el motor heredado hasta A-16 (D8) |
 | AC-010 | `tests/test_ppe_asociacion.py` + mutmut | Cumplido: asociación por anclas con solapamientos y casco en la mano; mutación 100 % (C-01) |
 | AC-011 | `features/cumplimiento_epp.feature` | Cumplido: escenario "Cabeza no visible", `NO_VERIFICABLE` sin alerta (C-04) |
-| AC-012 | `tests/test_ppe_ventana_temporal.py` + feature | Cumplido con reloj falso (C-02, C-04); el valor de T lo fija D4 |
+| AC-012 | `tests/test_ppe_ventana_temporal.py` + feature | Cumplido con reloj falso (C-02, C-04); T = 4 s (D4) en la composición del módulo |
 | AC-013 | `features/cumplimiento_epp.feature` | Cumplido: escenario "Entrar a una zona sin el EPP que exige" (C-03, C-04) |
-| AC-014 | `features/alertas_epp.feature` + unitarias | Cumplido en simulación: una alerta por infracción sostenida (C-03, C-10); el enfriamiento real lo fija D4 |
+| AC-014 | `features/alertas_epp.feature` + unitarias | Cumplido en simulación: una alerta por infracción sostenida (C-03, C-10); enfriamiento de 10 min (D4) en la composición |
 | AC-015 | Integración en `tmp_path` + muestra manual | En curso: prueba de integración con huella de la imagen (C-08); falta la revisión manual de una muestra (humano) |
 | AC-016 | Pruebas con un servidor local falso | Cumplido: outbox, reintentos, circuit breaker y canal caído con servidores falsos (C-09, C-10; D1 = email + webhook) |
-| AC-017 | Medición en el piloto | Bloqueado (D4, D8): requiere el piloto (`docs/runbooks/piloto_sombra.md`) |
-| AC-018 | `ml/promotion_gates.py` + informe del piloto | Bloqueado (D4, D6): puertas listas y fallando cerradas (B-04); faltan umbrales, modelo e informe |
-| AC-019 | Prueba de purga con un reloj falso | Cumplido con reloj falso (C-08): imagen borrada y registro anonimizado; sin N configurado falla en voz alta (D5) |
+| AC-017 | Medición en el piloto | Bloqueado (D6, D9): requiere un modelo de EPP entrenado y el piloto (`docs/runbooks/piloto_sombra.md`) |
+| AC-018 | `ml/promotion_gates.py` + informe del piloto | Bloqueado (D6): umbrales de D4 fijados en las puertas; faltan el modelo y el informe del piloto |
+| AC-019 | Prueba de purga con un reloj falso | Cumplido con reloj falso (C-08); la aplicación purga con N = 30 días (D5) al preparar los avisos |
 | AC-020 | PRs de prueba que demuestran que cada check falla | En curso: cada check tiene pruebas que lo hacen fallar con mensaje de corrección (A-03..A-07); falta ver la CI real fallar en un PR |
 
 Cada fase se cierra aplicando `verify-and-stop`: se corre la evidencia mínima que prueba sus AC, se

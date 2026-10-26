@@ -61,15 +61,11 @@ def test_datos_de_la_persona_se_leen_del_entorno(valor: str, datos: DatosDeLaPer
 @pytest.mark.parametrize(
     "entorno", [{}, {"EPP_ALERTAS_NOMBRE_EMPLEADO": " "}], ids=["falta", "vacia"]
 )
-def test_datos_de_la_persona_sin_configurar_falla_porque_lo_decide_el_negocio(
+def test_sin_configurar_el_aviso_nombra_al_empleado_como_decidio_el_negocio(
     entorno: dict[str, str],
 ) -> None:
-    with pytest.raises(
-        ConfiguracionAlertasError,
-        match=r"^Falta EPP_ALERTAS_NOMBRE_EMPLEADO: si el aviso nombra al empleado lo decide "
-        r"el negocio \(D5\) y no tiene valor por omisión$",
-    ):
-        datos_de_la_persona(entorno)
+    # D5 (24/10/2026): el aviso nombra al empleado reconocido; "omitir" sigue disponible.
+    assert datos_de_la_persona(entorno) is DatosDeLaPersona.NOMBRE
 
 
 def test_datos_de_la_persona_con_un_valor_desconocido_falla() -> None:
@@ -217,9 +213,10 @@ def test_canales_desde_entorno_sin_ningun_canal_falla(tmp_path: Path) -> None:
         canales_desde_entorno(CON_NOMBRE, LectorEvidencias(tmp_path), TLS)
 
 
-def test_canales_desde_entorno_exige_la_decision_sobre_el_nombre(tmp_path: Path) -> None:
-    with pytest.raises(ConfiguracionAlertasError, match=r"^Falta EPP_ALERTAS_NOMBRE_EMPLEADO"):
-        canales_desde_entorno(WEBHOOK, LectorEvidencias(tmp_path), TLS)
+def test_canales_desde_entorno_sin_la_variable_del_nombre_arma_el_canal(tmp_path: Path) -> None:
+    canales = canales_desde_entorno(WEBHOOK, LectorEvidencias(tmp_path), TLS)
+
+    assert canales.nombres == ("webhook",)
 
 
 def test_los_errores_de_configuracion_no_repiten_los_secretos() -> None:

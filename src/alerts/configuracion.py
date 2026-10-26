@@ -3,8 +3,8 @@
 Los secretos (secreto del webhook, contraseña SMTP) llegan por el entorno o el almacén de
 credenciales que lo cargue, nunca por archivos del repositorio, y ningún mensaje de error los
 repite. Un canal se activa si está su variable principal (la URL del webhook o el servidor SMTP)
-y entonces exige todas las demás. Si el aviso nombra al empleado lo decide el negocio (D5): sin
-esa variable, la configuración falla.
+y entonces exige todas las demás. El negocio decidió que el aviso nombra al empleado (D5); con
+`EPP_ALERTAS_NOMBRE_EMPLEADO=omitir` sale anónimo.
 """
 
 import ssl
@@ -28,12 +28,10 @@ SMTP_CONTRASENA = "EPP_ALERTAS_SMTP_CONTRASENA"  # pragma: allowlist secret
 
 
 def datos_de_la_persona(entorno: Mapping[str, str]) -> DatosDeLaPersona:
+    """D5 (24/10/2026): por omisión el aviso nombra al empleado; "omitir" lo deja anónimo."""
     valor = _opcional(entorno, NOMBRE_EMPLEADO)
     if valor is None:
-        raise ConfiguracionAlertasError(
-            f"Falta {NOMBRE_EMPLEADO}: si el aviso nombra al empleado lo decide el negocio (D5) "
-            "y no tiene valor por omisión"
-        )
+        return DatosDeLaPersona.NOMBRE
     try:
         return DatosDeLaPersona(valor)
     except ValueError as error:
@@ -77,7 +75,7 @@ def configuracion_email(
 def canales_desde_entorno(
     entorno: Mapping[str, str], evidencias: LectorEvidencias, contexto_tls: ssl.SSLContext
 ) -> CanalesDeAviso:
-    """Arma los canales configurados; sin ninguno, o sin la decisión D5, falla."""
+    """Arma los canales configurados; sin ninguno, falla."""
     datos = datos_de_la_persona(entorno)
     canales: dict[str, NotificadorPort] = {}
     email = configuracion_email(entorno, contexto_tls)

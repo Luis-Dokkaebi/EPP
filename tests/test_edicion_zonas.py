@@ -10,6 +10,7 @@ from src.ppe.domain.errores import ZonaSinPoligonoError
 from src.ppe.domain.reglas import ReglaZona
 from src.zones.edicion_zonas import (
     NombreDeZonaInvalidoError,
+    PoligonoInvalidoError,
     ZonaInexistenteError,
     borrar_zona,
     guardar_poligono,
@@ -148,3 +149,23 @@ def test_borrar_una_zona_inexistente_falla_sin_tocar_el_archivo(
         borrar_zona(ruta, "Taller")
 
     assert ruta.read_text(encoding="utf-8") == antes
+
+
+@pytest.mark.parametrize(
+    "puntos",
+    [
+        [(0, 0), (10, 10), (10, 0), (0, 10)],
+        [(0, 0), (5, 5), (10, 10)],
+        [(3, 3), (3, 3), (3, 3)],
+    ],
+    ids=["esquinas_cruzadas", "alineadas", "repetidas"],
+)
+def test_guardar_un_poligono_cruzado_o_sin_area_falla_sin_tocar_el_archivo(
+    tmp_path: Path, puntos: list[tuple[int, int]]
+) -> None:
+    ruta = tmp_path / "zonas.json"
+
+    with pytest.raises(PoligonoInvalidoError, match="se cruzan o están alineadas"):
+        guardar_poligono(ruta, "Taller", puntos)
+
+    assert not ruta.exists()

@@ -11,7 +11,9 @@ import re
 from collections.abc import Sequence
 from pathlib import Path
 
-from src.ppe.domain.reglas import ReglaZona
+from shapely.geometry import Polygon
+
+from src.ppe.domain.reglas import VERTICES_MINIMOS, ReglaZona
 from src.zones.formato_zonas import escribir_zonas, leer_zonas
 
 NOMBRE_VALIDO = re.compile(r"[\w-]+(?: [\w-]+)*")
@@ -19,6 +21,10 @@ NOMBRE_VALIDO = re.compile(r"[\w-]+(?: [\w-]+)*")
 
 class NombreDeZonaInvalidoError(ValueError):
     """El nombre de la zona tiene caracteres no permitidos o está vacío."""
+
+
+class PoligonoInvalidoError(ValueError):
+    """Las esquinas se cruzan o no encierran un área: no se puede saber quién está dentro."""
 
 
 class ZonaInexistenteError(LookupError):
@@ -32,6 +38,7 @@ def guardar_poligono(ruta: Path, nombre: str, puntos: Sequence[tuple[float, floa
             f"El nombre de zona solo admite letras, números, espacios, '_' y '-': {nombre!r}"
         )
     poligono = tuple((float(x), float(y)) for x, y in puntos)
+    _exigir_poligono_simple(nombre, poligono)
     zonas = list(leer_zonas(ruta))
     previa = next((zona for zona in zonas if zona.nombre == nombre), None)
     exigidos = frozenset() if previa is None else previa.exigidos
@@ -50,3 +57,15 @@ def borrar_zona(ruta: Path, nombre: str) -> None:
     if len(restantes) == len(zonas):
         raise ZonaInexistenteError(f"No existe la zona {nombre!r}")
     escribir_zonas(ruta, restantes)
+
+
+def _exigir_poligono_simple(nombre: str, poligono: tuple[tuple[float, float], ...]) -> None:
+    # Con menos de 3 vértices falla ReglaZona, con su propio mensaje.
+    if len(poligono) < VERTICES_MINIMOS:
+        return
+    forma = Polygon(poligono)
+    if not forma.is_valid or forma.area == 0:
+        raise PoligonoInvalidoError(
+            f"Las esquinas de la zona {nombre!r} se cruzan o están alineadas: márquelas en orden "
+            "alrededor de la zona"
+        )

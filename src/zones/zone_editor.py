@@ -1,72 +1,67 @@
-import cv2
+"""Herramienta técnica para dibujar una zona con clics sobre una foto de la cámara.
+
+Uso: python src/zones/zone_editor.py <sucursal>. Los clics marcan las esquinas y la tecla 's'
+guarda la zona en el archivo de zonas de la sucursal (formato v2, conserva su EPP exigido).
+"""
+
+import logging
 import os
 import sys
 from pathlib import Path
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+import cv2
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from config.config import get_zonas_file
-
 from src.zones.edicion_zonas import guardar_poligono
 
-class ZoneEditor:
-    def __init__(self, output_path=None):
-        if output_path is None:
-            # Las zonas de la sucursal activa: las mismas que leen la cámara y el módulo de EPP.
-            self.output_path = get_zonas_file()
-        else:
-            self.output_path = output_path
-        # Determina la raíz del proyecto (used only for loading reference images)
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        self.project_root = os.path.abspath(os.path.join(script_dir, "../.."))
-        self.points = []
+LOGGER = logging.getLogger(__name__)
+VENTANA = "Seleccione puntos (presione 's' para guardar)"
+TECLA_GUARDAR = ord("s")
+RADIO_PUNTO = 3
+VERDE = (0, 255, 0)
 
-    def click_event(self, event, x, y, flags, param):
+
+class ZoneEditor:
+    def __init__(self, output_path: str | None = None) -> None:
+        # Las zonas de la sucursal activa: las mismas que leen la cámara y el módulo de EPP.
+        self.output_path = get_zonas_file() if output_path is None else output_path
+        # Raíz del proyecto, solo para resolver la ruta de la foto de referencia.
+        self.project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        self.points: list[tuple[int, int]] = []
+
+    def click_event(self, event: int, x: int, y: int, *_banderas_y_parametro: object) -> None:
         if event == cv2.EVENT_LBUTTONDOWN:
-            print(f"🟢 Punto agregado: ({x}, {y})")
+            LOGGER.info("Punto agregado: (%d, %d)", x, y)
             self.points.append((x, y))
 
-    def save_zone(self, zone_name):
+    def save_zone(self, zone_name: str) -> None:
         # v2 conservando el EPP exigido de la zona (SPEC/9 §8.3); valida el nombre (TASK-5.3).
         guardar_poligono(Path(self.output_path), zone_name, self.points)
+        LOGGER.info("Zona '%s' guardada en %s", zone_name, self.output_path)
 
-        print(f"✅ Zona '{zone_name}' guardada en {self.output_path}")
-
-    def run(self, image_path, zone_name):
-        absolute_image_path = os.path.abspath(os.path.join(self.project_root, image_path))
-        print("📂 Ruta absoluta resuelta:", absolute_image_path)
-        print("🧭 Cargando imagen desde:", absolute_image_path)
-
-        image = cv2.imread(absolute_image_path)
+    def run(self, image_path: str, zone_name: str) -> None:
+        ruta_imagen = os.path.abspath(os.path.join(self.project_root, image_path))
+        image = cv2.imread(ruta_imagen)
         if image is None:
-            print("❌ La imagen no se pudo cargar. Verifica la ruta o el archivo.")
+            LOGGER.error("No se pudo cargar la imagen %s: verifique la ruta", ruta_imagen)
             return
-        print("✅ Imagen cargada correctamente. Tamaño:", image.shape)
-
         clone = image.copy()
-        cv2.namedWindow("Seleccione puntos (presione 's' para guardar)", cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback("Seleccione puntos (presione 's' para guardar)", self.click_event)
-
-        while True:
-            for point in self.points:
-                cv2.circle(image, point, 3, (0, 255, 0), -1)
-
-            cv2.imshow("Seleccione puntos (presione 's' para guardar)", image)
-            key = cv2.waitKey(1) & 0xFF
-
-            if key == ord("s"):
-                break
-
+        cv2.namedWindow(VENTANA, cv2.WINDOW_NORMAL)
+        cv2.setMouseCallback(VENTANA, self.click_event)
+        while cv2.waitKey(1) & 0xFF != TECLA_GUARDAR:
             image = clone.copy()
-
+            for point in self.points:
+                cv2.circle(image, point, RADIO_PUNTO, VERDE, -1)
+            cv2.imshow(VENTANA, image)
         cv2.destroyAllWindows()
         self.save_zone(zone_name)
 
-# 💖 Bloque de ejecución directa
+
 if __name__ == "__main__":
     from config.path_utils import ConfigManager
 
-    # Uso: python src/zones/zone_editor.py <sucursal>
+    logging.basicConfig(level=logging.INFO)
     ConfigManager.set_active_tenant(sys.argv[1])
-    editor = ZoneEditor()
-    editor.run("data/zonas/frame_referencia.jpg", "Zona")
+    ZoneEditor().run("data/zonas/frame_referencia.jpg", "Zona")

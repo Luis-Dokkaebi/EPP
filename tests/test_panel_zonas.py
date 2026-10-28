@@ -117,10 +117,14 @@ def test_panel_muestra_el_aviso_si_no_hay_zonas(raiz: ctk.CTk, tmp_path: Path) -
 
 
 def _vista_de_la_aplicacion(
-    raiz: ctk.CTk, ruta: Path, monkeypatch: pytest.MonkeyPatch
+    raiz: ctk.CTk,
+    ruta: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    camara: tuple[int, int] = (800, 450),
 ) -> tuple[PanelDibujoZonas, PanelZonas]:
     monkeypatch.setattr(config, "get_zonas_file", lambda: str(ruta))
-    vista = views.create_zones_view(raiz, lambda: np.zeros((450, 800, 3), dtype=np.uint8))
+    ancho, alto = camara
+    vista = views.create_zones_view(raiz, lambda: np.zeros((alto, ancho, 3), dtype=np.uint8))
     (dibujo,) = (h for h in _hijos(vista) if isinstance(h, PanelDibujoZonas))
     (epp,) = (h for h in _hijos(vista) if isinstance(h, PanelZonas))
     return dibujo, epp
@@ -148,3 +152,35 @@ def test_una_zona_dibujada_en_la_aplicacion_aparece_en_el_editor_de_epp(
 
     assert "Taller" in _textos(epp)
     assert [zona.nombre for zona in leer_zonas(ruta)] == ["Boca de pozo", "Taller"]
+
+
+def test_la_vista_de_zonas_pone_el_dibujo_a_la_izquierda_y_el_epp_a_la_derecha(
+    raiz: ctk.CTk, ruta: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dibujo, epp = _vista_de_la_aplicacion(raiz, ruta, monkeypatch)
+    marco = dibujo.master
+    lugar_dibujo, lugar_epp = dibujo.grid_info(), epp.grid_info()
+
+    assert (lugar_dibujo["row"], lugar_dibujo["column"], lugar_dibujo["padx"]) == (0, 0, (0, 10))
+    assert (lugar_epp["row"], lugar_epp["column"]) == (0, 1)
+    assert [marco.grid_columnconfigure(c)["weight"] for c in (0, 1, 2)] == [0, 1, 0]
+    assert [marco.grid_rowconfigure(r)["weight"] for r in (0, 1)] == [1, 0]
+
+
+@pytest.mark.parametrize(
+    ("camara", "lienzo"),
+    [((1600, 400), (720, 180)), ((400, 900), (180, 405))],
+    ids=["limitada_a_720_de_ancho", "limitada_a_405_de_alto"],
+)
+def test_la_foto_de_la_camara_entra_en_720_por_405_para_dibujar(
+    raiz: ctk.CTk,
+    ruta: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    camara: tuple[int, int],
+    lienzo: tuple[int, int],
+) -> None:
+    dibujo, _epp = _vista_de_la_aplicacion(raiz, ruta, monkeypatch, camara)
+
+    dibujo.tomar_foto()
+
+    assert (int(dibujo.lienzo.cget("width")), int(dibujo.lienzo.cget("height"))) == lienzo

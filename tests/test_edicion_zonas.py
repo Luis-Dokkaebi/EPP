@@ -145,7 +145,7 @@ def test_borrar_una_zona_inexistente_falla_sin_tocar_el_archivo(
     escribir_zonas(ruta, [ReglaZona(nombre, CUADRADO, CASCO) for nombre in existentes])
     antes = ruta.read_text(encoding="utf-8")
 
-    with pytest.raises(ZonaInexistenteError, match="No existe la zona 'Taller'"):
+    with pytest.raises(ZonaInexistenteError, match=r"^No existe la zona 'Taller'$"):
         borrar_zona(ruta, "Taller")
 
     assert ruta.read_text(encoding="utf-8") == antes
@@ -157,15 +157,28 @@ def test_borrar_una_zona_inexistente_falla_sin_tocar_el_archivo(
         [(0, 0), (10, 10), (10, 0), (0, 10)],
         [(0, 0), (5, 5), (10, 10)],
         [(3, 3), (3, 3), (3, 3)],
+        [(0, 0), (10, 0), (0, 10), (10, 10), (5, 20)],
     ],
-    ids=["esquinas_cruzadas", "alineadas", "repetidas"],
+    ids=["esquinas_cruzadas", "alineadas", "repetidas", "cruzada_con_area"],
 )
 def test_guardar_un_poligono_cruzado_o_sin_area_falla_sin_tocar_el_archivo(
     tmp_path: Path, puntos: list[tuple[int, int]]
 ) -> None:
     ruta = tmp_path / "zonas.json"
 
-    with pytest.raises(PoligonoInvalidoError, match="se cruzan o están alineadas"):
+    with pytest.raises(
+        PoligonoInvalidoError,
+        match=r"^Las esquinas de la zona 'Taller' se cruzan o están alineadas: márquelas en orden "
+        r"alrededor de la zona$",
+    ):
         guardar_poligono(ruta, "Taller", puntos)
 
     assert not ruta.exists()
+
+
+def test_guardar_acepta_el_triangulo_valido_mas_chico_de_area_uno(tmp_path: Path) -> None:
+    ruta = tmp_path / "zonas.json"
+
+    guardar_poligono(ruta, "Rincón", [(0, 0), (2, 0), (0, 1)])
+
+    assert [zona.nombre for zona in leer_zonas(ruta)] == ["Rincón"]

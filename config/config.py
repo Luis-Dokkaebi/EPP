@@ -1,16 +1,25 @@
 # --- config/config.py ---
 import os
-from config.path_utils import get_resource_path, ConfigManager
+from pathlib import Path
 
-# --- Versioning ---
-VERSION = "2.0.0" 
-try:
-    version_path = get_resource_path('VERSION')
-    if os.path.exists(version_path):
-        with open(version_path, 'r') as f:
-            VERSION = f.read().strip()
-except Exception:
-    pass
+from config.path_utils import ConfigManager, get_resource_path
+
+
+class VersionNoEncontradaError(RuntimeError):
+    """Falta el archivo VERSION o está vacío: la aplicación no sabe qué versión es."""
+
+
+def leer_version(ruta: Path) -> str:
+    """La versión del producto; su única fuente es el archivo VERSION (SPEC/9 §15, 9.3)."""
+    if not ruta.is_file():
+        raise VersionNoEncontradaError(f"No se encontró el archivo VERSION en {ruta}")
+    version = ruta.read_text(encoding="utf-8").strip()
+    if not version:
+        raise VersionNoEncontradaError(f"El archivo VERSION en {ruta} está vacío")
+    return version
+
+
+VERSION = leer_version(Path(get_resource_path("VERSION")))
 
 MODE = 'local'
 

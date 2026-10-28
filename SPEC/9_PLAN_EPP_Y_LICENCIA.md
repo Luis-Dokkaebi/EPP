@@ -1190,6 +1190,10 @@ circuit breaker), `security-review`. **[BLOQUEADA por D1]**
   - Toda la lógica vive en un presentador probado con pytest; la vista es delgada.
 - **8.3 Editor de zonas:**
   - casillas de EPP exigido por zona (escribe el formato v2 de la §6.3);
+  - dibujo y borrado de zonas dentro de la aplicación, con clics sobre una foto de la cámara
+    activa (los puntos se guardan en píxeles de la cámara); se rechazan las esquinas cruzadas o
+    alineadas. La herramienta técnica `src/zones/zone_editor.py` queda como alternativa y guarda
+    en la sucursal que recibe como argumento;
   - validación de entradas (TASK-5.3 del SPEC).
 - **8.4 Reporte Excel de cumplimiento:**
   - por turno, empleado, zona y elemento: cantidad de infracciones, duración total y % del tiempo en

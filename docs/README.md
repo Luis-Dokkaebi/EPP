@@ -75,6 +75,9 @@ calidad sin enlazar.
 
 - [Build 2.0.0 y piloto en modo sombra](runbooks/piloto_sombra.md) — pasos humanos de C-14;
   **no ejecutado**, bloqueado por D8 y D9.
+- [Manual de usuario (PDF)](manual/manual_usuario.pdf) — para quien compra el producto:
+  licencia, sucursales, cámara, registro de empleados, zonas y EPP, alertas, avisos y reportes.
+  Su anexo enlaza cada capítulo con las pruebas que verifican lo descrito.
 
 ## Seguridad
 

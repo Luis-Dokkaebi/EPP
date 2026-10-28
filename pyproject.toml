@@ -12,7 +12,6 @@ max-complexity = 10
 # WAIVER-#2 (caduca 2027-01-19): código heredado sin formatear. Cada PR que toque
 # uno de estos archivos lo formatea en un commit aparte y lo quita de la lista.
 exclude = [
-    "config/config.py",
     "config/path_utils.py",
     "generate_license.py",
     "migrate_data.py",
@@ -73,7 +72,6 @@ exclude = [
 "features/**" = ["S101"]
 # WAIVER-#3 (caduca 2027-01-19): hallazgos del código heredado, solo los códigos que hoy
 # incumple cada archivo. Al tocar un archivo se corrigen y se borra su entrada.
-"config/config.py" = ["E501", "I001", "S110", "UP015", "W291"]
 "config/path_utils.py" = ["E501", "W293"]
 "generate_license.py" = ["I001", "T201", "W293"]
 "migrate_data.py" = ["E501", "T201"]
@@ -182,10 +180,6 @@ ignore_missing_imports = true
 
 # WAIVER-#4 (caduca 2027-01-19): módulos heredados sin anotar. Cada override desactiva solo
 # los códigos que hoy incumple el módulo; al tocarlo se anota y se borra su bloque.
-
-[[tool.mypy.overrides]]
-module = "config.config"
-disable_error_code = ["no-untyped-def"]
 
 [[tool.mypy.overrides]]
 module = "config.path_utils"

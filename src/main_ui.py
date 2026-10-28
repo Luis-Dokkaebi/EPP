@@ -83,7 +83,6 @@ class AppMain(ctk.CTk):
         
     def setup_views(self):
         """Inicializa las vistas con lógica de negocio REAL."""
-        import queue
         from src.gui.dashboard import DashboardFrame
         from src.gui.views import create_employees_view, create_zones_view, create_reports_view, create_tenant_view
         
@@ -120,13 +119,12 @@ class AppMain(ctk.CTk):
         self.view_manager.register_view("Tenant", create_tenant_view(self.main_workspace))
 
     def _start_local_camera(self, camera_index=None):
-        import queue
         from config.config import LOCAL_CAMERA_INDEX
         from src.tracking.camera_worker import CameraWorker
-        if self.detector is None: return
-        if not self._hay_cupo_de_camaras():
-            return
-
+        from src.acquisition.cupo_camaras import motivo_sin_cupo
+        motivo = motivo_sin_cupo(self.licencia, len(self.camera_workers))
+        if motivo: self._cam_status_label.configure(text=f"⛔ {motivo}", text_color="#E74C3C")
+        if self.detector is None or motivo: return
         idx = camera_index if camera_index is not None else LOCAL_CAMERA_INDEX
         self._active_camera_index = idx
         
@@ -146,18 +144,6 @@ class AppMain(ctk.CTk):
                 text=f"✅ Activa: índice {idx}",
                 text_color="#2ECC71"
             )
-
-    def _hay_cupo_de_camaras(self):
-        """La licencia fija cuántas cámaras pueden estar conectadas a la vez."""
-        if self.licencia is None:
-            return True
-        from src.acquisition.cupo_camaras import CupoDeCamarasAgotadoError, exigir_cupo_de_camaras
-        try:
-            exigir_cupo_de_camaras(len(self.camera_workers), self.licencia.get_max_cameras())
-        except CupoDeCamarasAgotadoError as error:
-            self._cam_status_label.configure(text=f"⛔ {error}", text_color="#E74C3C")
-            return False
-        return True
 
     def _conectar_epp(self, worker):
         """Cada cámara lleva su propio módulo de EPP (estado por track), si la licencia lo habilita."""

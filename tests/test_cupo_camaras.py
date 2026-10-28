@@ -5,7 +5,11 @@
 
 import pytest
 
-from src.acquisition.cupo_camaras import CupoDeCamarasAgotadoError, exigir_cupo_de_camaras
+from src.acquisition.cupo_camaras import (
+    CupoDeCamarasAgotadoError,
+    exigir_cupo_de_camaras,
+    motivo_sin_cupo,
+)
 
 
 @pytest.mark.parametrize(
@@ -32,3 +36,23 @@ def test_el_error_dice_cuantas_camaras_permite_la_licencia() -> None:
         exigir_cupo_de_camaras(2, 2)
 
     assert str(error.value) == "La licencia permite 2 cámara(s) a la vez"
+
+
+class LicenciaDe:
+    def __init__(self, maximo: int) -> None:
+        self._maximo = maximo
+
+    def get_max_cameras(self) -> int:
+        return self._maximo
+
+
+def test_sin_licencia_no_hay_tope_de_camaras() -> None:
+    assert motivo_sin_cupo(None, 99) is None
+
+
+def test_con_cupo_no_hay_motivo_para_impedir_la_conexion() -> None:
+    assert motivo_sin_cupo(LicenciaDe(2), 1) is None
+
+
+def test_sin_cupo_el_motivo_dice_cuantas_camaras_permite_la_licencia() -> None:
+    assert motivo_sin_cupo(LicenciaDe(1), 1) == "La licencia permite 1 cámara(s) a la vez"

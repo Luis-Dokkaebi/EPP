@@ -145,6 +145,17 @@ class LicenciaConEPP:
     def incluye_modulo(self, modulo: str) -> bool:
         return modulo == "epp"
 
+    def get_max_cameras(self) -> int:
+        return 4
+
+
+class LicenciaDeUnaCamara:
+    def incluye_modulo(self, modulo: str) -> bool:
+        return False
+
+    def get_max_cameras(self) -> int:
+        return 1
+
 
 class DespachadorFalso:
     def __init__(self) -> None:
@@ -272,6 +283,30 @@ def test_sin_licencia_la_camara_no_recibe_modulo_de_epp(
     app._start_local_camera(3)
 
     assert [trabajador.modulos_epp for trabajador in trabajadores.creados] == [[]]
+
+
+@pytest.mark.parametrize("licencia", [LicenciaDeUnaCamara()], ids=["una_camara"])
+def test_no_se_conectan_mas_camaras_que_las_de_la_licencia(
+    app: AppMain, trabajadores: FabricaDeTrabajadoresFalsa
+) -> None:
+    app._start_local_camera(3)
+
+    app._start_local_camera(4)
+
+    assert trabajadores.camaras_iniciadas() == [3]
+    assert texto_de_estado(app) == "⛔ La licencia permite 1 cámara(s) a la vez"
+
+
+@pytest.mark.parametrize("licencia", [LicenciaDeUnaCamara()], ids=["una_camara"])
+def test_cambiar_de_camara_libera_el_cupo_de_la_licencia(
+    app: AppMain, trabajadores: FabricaDeTrabajadoresFalsa
+) -> None:
+    app._start_local_camera(3)
+    app._stop_local_camera()
+
+    app._start_local_camera(4)
+
+    assert trabajadores.camaras_iniciadas() == [4]
 
 
 @pytest.mark.integration

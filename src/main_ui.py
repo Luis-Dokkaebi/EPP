@@ -124,7 +124,9 @@ class AppMain(ctk.CTk):
         from config.config import LOCAL_CAMERA_INDEX
         from src.tracking.camera_worker import CameraWorker
         if self.detector is None: return
-        
+        if not self._hay_cupo_de_camaras():
+            return
+
         idx = camera_index if camera_index is not None else LOCAL_CAMERA_INDEX
         self._active_camera_index = idx
         
@@ -144,6 +146,18 @@ class AppMain(ctk.CTk):
                 text=f"✅ Activa: índice {idx}",
                 text_color="#2ECC71"
             )
+
+    def _hay_cupo_de_camaras(self):
+        """La licencia fija cuántas cámaras pueden estar conectadas a la vez."""
+        if self.licencia is None:
+            return True
+        from src.acquisition.cupo_camaras import CupoDeCamarasAgotadoError, exigir_cupo_de_camaras
+        try:
+            exigir_cupo_de_camaras(len(self.camera_workers), self.licencia.get_max_cameras())
+        except CupoDeCamarasAgotadoError as error:
+            self._cam_status_label.configure(text=f"⛔ {error}", text_color="#E74C3C")
+            return False
+        return True
 
     def _conectar_epp(self, worker):
         """Cada cámara lleva su propio módulo de EPP (estado por track), si la licencia lo habilita."""

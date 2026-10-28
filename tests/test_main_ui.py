@@ -20,6 +20,7 @@ import pytest
 
 from config.path_utils import ConfigManager
 from src.composicion_epp import PublicadorEnMemoria
+from src.gui.panel_dibujo_zonas import PanelDibujoZonas
 from src.main_ui import AppMain
 from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
 
@@ -419,3 +420,20 @@ def test_cada_boton_del_modulo_abre_su_vista(app: AppMain, boton: str, vista: st
 def test_sin_licencia_de_epp_el_menu_no_muestra_el_modulo(app: AppMain) -> None:
     assert {"Alertas EPP", "Cumplimiento EPP"}.isdisjoint(_botones_del_menu(app))
     assert {"AlertasEPP", "CumplimientoEPP"}.isdisjoint(app.view_manager.views)
+
+
+def test_el_dibujo_de_zonas_usa_la_imagen_del_monitoreo(app: AppMain) -> None:
+    cola: queue.Queue[object] = queue.Queue()
+    app.view_dashboard.camera_queues["Cámara Local"] = cola
+    cola.put(("Cámara Local", np.zeros((450, 800, 3), dtype=np.uint8)))
+    app.view_dashboard.update_frames()
+    (dibujo,) = (h for h in _descendientes(app.view_zonas) if isinstance(h, PanelDibujoZonas))
+
+    dibujo.tomar_foto()
+
+    tipos = [dibujo.lienzo.type(item) for item in dibujo.lienzo.find_all()]
+    assert tipos == ["image"]
+
+
+def _descendientes(widget: tkinter.Misc) -> list[tkinter.Misc]:
+    return [h for hijo in widget.winfo_children() for h in (hijo, *_descendientes(hijo))]

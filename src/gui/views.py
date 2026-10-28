@@ -10,6 +10,8 @@ from src.gui.buzon_hilo_ui import BuzonHiloUI
 
 # Cada cuánto revisa la vista de reportes los avisos que deja el hilo de la exportación.
 INTERVALO_BUZON_MS = 100
+# La foto de la cámara se reduce a este tamaño para dibujar zonas sin salirse de la pantalla.
+VISTA_MAXIMA_DE_ZONAS = (720, 405)
 
 def create_employees_view(app_instance, workspace):
     """Panel funcional de registro y eliminación de empleados con FaceRecognizer."""
@@ -235,16 +237,29 @@ def create_employees_view(app_instance, workspace):
     return frame
 
 
-def create_zones_view(workspace):
-    """Editor de EPP exigido por zona (SPEC/9 §8.3); escribe el formato v2 de zonas."""
+def create_zones_view(workspace, tomar_cuadro):
+    """Zonas de la sucursal (SPEC/9 §8.3): dibujo sobre la cámara a la izquierda y EPP exigido a
+    la derecha. Ambos escriben el formato v2; al guardar o borrar un polígono, el editor de EPP
+    se recarga para no pisarlo con una lista vieja."""
     from config.config import get_zonas_file
+    from src.gui.panel_dibujo_zonas import PanelDibujoZonas
     from src.gui.panel_zonas import PanelZonas
+    from src.gui.presentador_dibujo_zonas import PresentadorDibujoZonas
     from src.gui.presentador_zonas import PresentadorZonas
     from src.ppe.domain.elementos import ElementoEPP
 
     # D3: la primera versión ofrece casco y chaleco.
     ofrecidos = (ElementoEPP.CASCO, ElementoEPP.CHALECO)
-    return PanelZonas(workspace, PresentadorZonas(Path(get_zonas_file()), ofrecidos))
+    ruta = Path(get_zonas_file())
+    marco = ctk.CTkFrame(workspace, fg_color="#1E1E1E")
+    epp = PanelZonas(marco, PresentadorZonas(ruta, ofrecidos))
+    dibujo = PanelDibujoZonas(
+        marco, PresentadorDibujoZonas(ruta, tomar_cuadro, VISTA_MAXIMA_DE_ZONAS, epp.descartar))
+    dibujo.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+    epp.grid(row=0, column=1, sticky="nsew")
+    marco.grid_columnconfigure(1, weight=1)
+    marco.grid_rowconfigure(0, weight=1)
+    return marco
 
 
 def create_reports_view(workspace):

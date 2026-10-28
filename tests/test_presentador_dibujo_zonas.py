@@ -338,6 +338,7 @@ def test_antes_de_cargar_no_hay_zonas_ni_mensaje(ruta: Path, avisos: Avisos) -> 
 
     assert presentador.zonas == []
     assert presentador.mensaje is None
+    assert presentador.zona_guardada is None
 
 
 def test_sin_foto_las_zonas_se_dibujan_en_tamano_real(ruta: Path, avisos: Avisos) -> None:
@@ -347,3 +348,23 @@ def test_sin_foto_las_zonas_se_dibujan_en_tamano_real(ruta: Path, avisos: Avisos
 
     assert presentador.escala == 1.0
     assert presentador.poligonos_en_vista == {"Boca de pozo": list(CUADRADO)}
+
+
+def test_tras_guardar_indica_que_zona_se_guardo(ruta: Path, avisos: Avisos) -> None:
+    presentador = _con_foto(ruta, avisos)
+    _marcar(presentador, (0, 0), (100, 0), (100, 50))
+
+    presentador.guardar("Taller")
+
+    assert presentador.zona_guardada == "Taller"
+
+
+def test_un_intento_fallido_no_indica_zona_guardada(ruta: Path, avisos: Avisos) -> None:
+    presentador = _con_foto(ruta, avisos)
+    _marcar(presentador, (0, 0), (100, 0), (100, 50))
+    presentador.guardar("Taller")
+    _marcar(presentador, (0, 0))
+
+    presentador.guardar("Taller")
+
+    assert presentador.zona_guardada is None

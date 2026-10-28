@@ -108,7 +108,7 @@ class AppMain(ctk.CTk):
         self.view_empleados = create_employees_view(self, self.main_workspace)
         self.view_manager.register_view("Empleados", self.view_empleados)
         
-        self.view_zonas = create_zones_view(self.main_workspace)
+        self.view_zonas = create_zones_view(self.main_workspace, self.view_dashboard.ultimo_cuadro)
         self.view_manager.register_view("Zonas", self.view_zonas)
         
         self._registrar_vistas_epp()

@@ -7,12 +7,15 @@ presentador y le pase los clics.
 
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 
 import customtkinter as ctk
+import numpy as np
 import pytest
 
 from config import config
 from src.gui import views
+from src.gui.panel_dibujo_zonas import PanelDibujoZonas
 from src.gui.panel_zonas import PanelZonas
 from src.gui.presentador_zonas import PresentadorZonas
 from src.ppe.domain.elementos import ElementoEPP
@@ -113,12 +116,35 @@ def test_panel_muestra_el_aviso_si_no_hay_zonas(raiz: ctk.CTk, tmp_path: Path) -
     assert _casillas(panel) == {}
 
 
+def _vista_de_la_aplicacion(
+    raiz: ctk.CTk, ruta: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[PanelDibujoZonas, PanelZonas]:
+    monkeypatch.setattr(config, "get_zonas_file", lambda: str(ruta))
+    vista = views.create_zones_view(raiz, lambda: np.zeros((450, 800, 3), dtype=np.uint8))
+    (dibujo,) = (h for h in _hijos(vista) if isinstance(h, PanelDibujoZonas))
+    (epp,) = (h for h in _hijos(vista) if isinstance(h, PanelZonas))
+    return dibujo, epp
+
+
 def test_la_vista_de_zonas_de_la_aplicacion_usa_el_editor_de_epp(
     raiz: ctk.CTk, ruta: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(config, "get_zonas_file", lambda: str(ruta))
+    _dibujo, epp = _vista_de_la_aplicacion(raiz, ruta, monkeypatch)
 
-    vista = views.create_zones_view(raiz)
+    assert set(_casillas(epp)) == {"Casco", "Chaleco"}
 
-    assert isinstance(vista, PanelZonas)
-    assert set(_casillas(vista)) == {"Casco", "Chaleco"}
+
+def test_una_zona_dibujada_en_la_aplicacion_aparece_en_el_editor_de_epp(
+    raiz: ctk.CTk, ruta: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dibujo, epp = _vista_de_la_aplicacion(raiz, ruta, monkeypatch)
+    dibujo.tomar_foto()
+    dibujo.clic(SimpleNamespace(x=200, y=200))
+    dibujo.clic(SimpleNamespace(x=300, y=200))
+    dibujo.clic(SimpleNamespace(x=300, y=300))
+    dibujo.nombre.insert(0, "Taller")
+
+    dibujo.guardar()
+
+    assert "Taller" in _textos(epp)
+    assert [zona.nombre for zona in leer_zonas(ruta)] == ["Boca de pozo", "Taller"]

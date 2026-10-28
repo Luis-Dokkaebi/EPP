@@ -38,6 +38,7 @@ class PresentadorDibujoZonas:
     foto: np.ndarray | None
     puntos: list[Punto]
     mensaje: str | None
+    zona_guardada: str | None
     _zonas: tuple[ReglaZona, ...]
 
     def __init__(
@@ -56,6 +57,7 @@ class PresentadorDibujoZonas:
         self.foto = None
         self.puntos = []
         self.mensaje = None
+        self.zona_guardada = None
         self._zonas = ()
 
     @property
@@ -120,7 +122,9 @@ class PresentadorDibujoZonas:
         self.puntos = []
 
     def guardar(self, nombre: str) -> None:
+        """Guarda la zona; `zona_guardada` dice cuál, o None si el intento falló."""
         nombre = nombre.strip()
+        self.zona_guardada = None
         if len(self.puntos) < VERTICES_MINIMOS:
             self.mensaje = FALTAN_ESQUINAS
             return
@@ -133,6 +137,7 @@ class PresentadorDibujoZonas:
             self.mensaje = f"No se pudo guardar la zona: {error}"
             return
         self.puntos = []
+        self.zona_guardada = nombre
         self._recargar(
             f"Zona '{nombre}' guardada. Marque su EPP abajo; rige al reconectar la cámara."
         )

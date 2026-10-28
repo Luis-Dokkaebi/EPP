@@ -10,6 +10,8 @@ class DashboardFrame(ctk.CTkFrame):
         self.video_labels = {}
         self.is_single_view = False
         self.single_view_cam_id = None
+        # Último cuadro recibido de cualquier cámara: el editor de zonas dibuja sobre él.
+        self._ultimo_cuadro = None
         
         self.setup_grid()
         self.update_frames()
@@ -56,6 +58,10 @@ class DashboardFrame(ctk.CTkFrame):
             col = i % cols
             lbl.grid(row=row, column=col, sticky="nsew", padx=4, pady=4)
 
+    def ultimo_cuadro(self):
+        """Copia del último cuadro mostrado, o None si todavía no llegó ninguno."""
+        return None if self._ultimo_cuadro is None else self._ultimo_cuadro.copy()
+
     def update_frames(self):
         """Bucle consumidor asincrono Zero-Blocking de TKinter, recupera y muestra el ultimo UI_Frame."""
         try:
@@ -71,6 +77,7 @@ class DashboardFrame(ctk.CTkFrame):
                 
                 if frame_data is not None:
                     _, bgr_frame = frame_data
+                    self._ultimo_cuadro = bgr_frame
                     # Transformacion a render PIL nativo
                     rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
                     

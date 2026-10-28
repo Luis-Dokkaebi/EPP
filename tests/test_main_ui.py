@@ -286,6 +286,7 @@ def test_sin_licencia_la_camara_no_recibe_modulo_de_epp(
     assert [trabajador.modulos_epp for trabajador in trabajadores.creados] == [[]]
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("licencia", [LicenciaDeUnaCamara()], ids=["una_camara"])
 def test_no_se_conectan_mas_camaras_que_las_de_la_licencia(
     app: AppMain, trabajadores: FabricaDeTrabajadoresFalsa
@@ -298,6 +299,7 @@ def test_no_se_conectan_mas_camaras_que_las_de_la_licencia(
     assert texto_de_estado(app) == "⛔ La licencia permite 1 cámara(s) a la vez"
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("licencia", [LicenciaDeUnaCamara()], ids=["una_camara"])
 def test_cambiar_de_camara_libera_el_cupo_de_la_licencia(
     app: AppMain, trabajadores: FabricaDeTrabajadoresFalsa
@@ -422,6 +424,7 @@ def test_sin_licencia_de_epp_el_menu_no_muestra_el_modulo(app: AppMain) -> None:
     assert {"AlertasEPP", "CumplimientoEPP"}.isdisjoint(app.view_manager.views)
 
 
+@pytest.mark.integration
 def test_el_dibujo_de_zonas_usa_la_imagen_del_monitoreo(app: AppMain) -> None:
     cola: queue.Queue[object] = queue.Queue()
     app.view_dashboard.camera_queues["Cámara Local"] = cola

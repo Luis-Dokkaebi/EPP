@@ -5,17 +5,15 @@ from pathlib import Path
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-try:
-    from config.config import ZONAS_FILE as _DEFAULT_ZONAS
-except ImportError:
-    _DEFAULT_ZONAS = "data/zonas/zonas.json"
+from config.config import get_zonas_file
 
 from src.zones.edicion_zonas import guardar_poligono
 
 class ZoneEditor:
     def __init__(self, output_path=None):
         if output_path is None:
-            self.output_path = _DEFAULT_ZONAS
+            # Las zonas de la sucursal activa: las mismas que leen la cámara y el módulo de EPP.
+            self.output_path = get_zonas_file()
         else:
             self.output_path = output_path
         # Determina la raíz del proyecto (used only for loading reference images)
@@ -66,5 +64,9 @@ class ZoneEditor:
 
 # 💖 Bloque de ejecución directa
 if __name__ == "__main__":
+    from config.path_utils import ConfigManager
+
+    # Uso: python src/zones/zone_editor.py <sucursal>
+    ConfigManager.set_active_tenant(sys.argv[1])
     editor = ZoneEditor()
     editor.run("data/zonas/frame_referencia.jpg", "Zona")

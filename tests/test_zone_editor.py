@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from config import config
+from config.path_utils import ConfigManager
 from src.ppe.domain.elementos import ElementoEPP
 from src.ppe.domain.reglas import ReglaZona
 from src.zones.edicion_zonas import NombreDeZonaInvalidoError
@@ -48,3 +50,20 @@ def test_zone_editor_rechaza_un_nombre_con_separadores_de_ruta(tmp_path: Path) -
         _editor(tmp_path / "zonas.json").save_zone("../afuera")
 
     assert not (tmp_path / "zonas.json").exists()
+
+
+def test_zone_editor_sin_ruta_guarda_en_las_zonas_de_la_sucursal_activa(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regresión: buscaba config.ZONAS_FILE, que no existe, y guardaba en data/zonas/zonas.json,
+    un archivo que la aplicación no lee."""
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    monkeypatch.setattr(ConfigManager, "_active_tenant_id", "Planta_Norte")
+    editor = ZoneEditor()
+    editor.points = [(0, 0), (10, 0), (0, 10)]
+
+    editor.save_zone("Playa")
+
+    ruta_de_la_sucursal = Path(config.get_zonas_file())
+    assert ruta_de_la_sucursal.is_relative_to(tmp_path / "OficinaEficiencia" / "Tenants")
+    assert [zona.nombre for zona in leer_zonas(ruta_de_la_sucursal)] == ["Playa"]

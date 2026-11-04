@@ -32,7 +32,6 @@ exclude = [
     "src/gui/views.py",
     "src/gui_app.py",
     "src/main_ui.py",
-    "src/recognition/face_recognizer.py",
     "src/security/crash_logger.py",
     "src/security/db_crypto.py",
     "src/security/drm.py",
@@ -51,7 +50,6 @@ exclude = [
     "tests/test_db_migration.py",
     "tests/test_drm_rsa_b2b.py",
     "tests/test_efficiency.py",
-    "tests/test_face_recognition.py",
     "tests/test_model_verifier.py",
     "tests/test_obfuscate_pipeline.py",
     "tests/test_person_detector.py",
@@ -95,7 +93,6 @@ exclude = [
 "src/gui_app.py" = ["C901", "E402", "E501", "E722", "F401", "F811", "F841", "I001", "PLR0912", "PLR0915", "PLR2004", "RUF005", "S110", "T201", "UP012", "W291", "W293"]
 "src/main.py" = ["C901", "E402", "E501", "F401", "I001", "PLR0912", "PLR0915", "PLR2004", "T201", "W292", "W293"]
 "src/main_ui.py" = ["E402", "E501", "E701", "F401", "I001", "S110", "T201", "W291", "W293"]
-"src/recognition/face_recognizer.py" = ["C901", "E501", "F401", "I001", "N806", "PLR0912", "RUF100"]
 "src/security/crash_logger.py" = ["E702", "S110", "T201", "UP007"]
 "src/security/db_crypto.py" = ["UP007"]
 "src/security/drm.py" = ["E501", "F401", "I001", "PLR0911", "PLR2004", "UP006", "UP007", "UP015", "UP035"]
@@ -113,7 +110,6 @@ exclude = [
 "tests/test_db_migration.py" = ["E501", "F841", "I001", "W293"]
 "tests/test_drm_rsa_b2b.py" = ["E501", "F401", "I001", "T201", "W291", "W293"]
 "tests/test_efficiency.py" = ["E501", "F401", "I001", "W293"]
-"tests/test_face_recognition.py" = ["E402", "F401", "I001", "W293"]
 "tests/test_model_verifier.py" = ["I001"]
 "tests/test_obfuscate_pipeline.py" = ["F401", "I001"]
 "tests/test_person_detector.py" = ["E501", "I001", "PLR2004"]
@@ -165,7 +161,6 @@ files = [
 # Librerías de terceros sin anotaciones de tipos publicadas (no es un waiver).
 module = [
     "customtkinter.*",
-    "face_recognition.*",
     "onnxruntime.*",
     "openpyxl.*",
     "pandas.*",
@@ -248,10 +243,6 @@ disable_error_code = ["no-untyped-def"]
 [[tool.mypy.overrides]]
 module = "src.main_ui"
 disable_error_code = ["no-untyped-def", "var-annotated"]
-
-[[tool.mypy.overrides]]
-module = "src.recognition.face_recognizer"
-disable_error_code = ["no-untyped-def"]
 
 [[tool.mypy.overrides]]
 module = "src.security.crash_logger"

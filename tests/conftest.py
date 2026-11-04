@@ -4,7 +4,6 @@ import gc
 import os
 import sys
 from collections.abc import Iterator
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -49,7 +48,3 @@ def importacion_sin_efectos(monkeypatch: pytest.MonkeyPatch) -> None:
     # src/gui_app.py reemplaza sys.excepthook y src/main.py fija una variable de entorno.
     monkeypatch.setattr(sys, "excepthook", sys.excepthook)
     monkeypatch.delenv("KMP_DUPLICATE_LIB_OK", raising=False)
-    # face_recognition (dlib) solo existe en Windows; en Linux se usa un doble.
-    monkeypatch.setitem(
-        sys.modules, "face_recognition", sys.modules.get("face_recognition") or MagicMock()
-    )

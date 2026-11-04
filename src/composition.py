@@ -16,6 +16,8 @@ from src.inference.adapters.onnx_detector import ConfiguracionOnnx, DetectorOnnx
 from src.inference.adapters.ultralytics_detector import DetectorUltralytics
 from src.inference.ports import DetectorPort
 from src.inference.types import CATALOGO_COCO, CatalogoDeClases, ClaseObjeto
+from src.models.model_verifier import assert_model_integrity
+from src.recognition.motor_facial_opencv import MotorFacialOpenCV, crear_motor_facial_opencv
 
 MOTOR_ULTRALYTICS = "ultralytics"
 MOTOR_ONNX = "onnx"
@@ -49,6 +51,13 @@ def crear_detector_configurado(confianza_minima: float) -> DetectorPort:
     motor = config.DETECTION_ENGINE
     manifiesto = leer_manifiesto(config.MANIFEST_PATH) if motor == MOTOR_ONNX else None
     return crear_detector(config.MODEL_PATH, confianza_minima, motor, manifiesto)
+
+
+def crear_motor_facial_configurado() -> MotorFacialOpenCV:
+    """YuNet + SFace de `config/config.py`, solo si sus hashes son los del manifiesto."""
+    for ruta in (config.FACE_DETECTOR_PATH, config.FACE_RECOGNIZER_PATH):
+        assert_model_integrity(ruta)
+    return crear_motor_facial_opencv(config.FACE_DETECTOR_PATH, config.FACE_RECOGNIZER_PATH)
 
 
 def leer_manifiesto(ruta: str) -> dict[str, Any]:

@@ -9,7 +9,6 @@
     "src/gui_app.py:SystemGUI._process_burst",
     "src/gui_app.py:SystemGUI._update_video",
     "src/main.py:start_video_stream",
-    "src/recognition/face_recognizer.py:FaceRecognizer.load_known_faces",
     "src/security/drm.py:DRMValidator._generate_machine_id",
     "src/storage/database_manager.py:DatabaseManager.get_efficiency_report",
     "src/tracking/camera_worker.py:CameraWorker.run",

@@ -9,9 +9,20 @@
       "motor": "ultralytics",
       "licencia_pesos": "AGPL-3.0",
       "licencia_codigo_entrenamiento": "AGPL-3.0",
-      "datasets": [{"nombre": "COCO 2017", "licencia": "CC-BY-4.0"}],
-      "clases": {"0": "persona", "67": "celular"},
-      "tamano_entrada": [640, 640],
+      "datasets": [
+        {
+          "nombre": "COCO 2017",
+          "licencia": "CC-BY-4.0"
+        }
+      ],
+      "clases": {
+        "0": "persona",
+        "67": "celular"
+      },
+      "tamano_entrada": [
+        640,
+        640
+      ],
       "origen": "Pesos preentrenados de Ultralytics. Es el modelo que usa la app (config.MODEL_PATH). Se retira en A-16 (requiere D8)."
     },
     {
@@ -22,10 +33,65 @@
       "motor": "ultralytics",
       "licencia_pesos": "AGPL-3.0",
       "licencia_codigo_entrenamiento": "AGPL-3.0",
-      "datasets": [{"nombre": "COCO 2017", "licencia": "CC-BY-4.0"}],
-      "clases": {"0": "persona", "67": "celular"},
-      "tamano_entrada": [640, 640],
+      "datasets": [
+        {
+          "nombre": "COCO 2017",
+          "licencia": "CC-BY-4.0"
+        }
+      ],
+      "clases": {
+        "0": "persona",
+        "67": "celular"
+      },
+      "tamano_entrada": [
+        640,
+        640
+      ],
       "origen": "Copia de origen desconocido: su sha256 difiere del yolov8n.pt de la raíz y el código no la usa. Se borra en A-16 (requiere D8)."
+    },
+    {
+      "nombre": "yunet-deteccion-facial",
+      "version": "2023mar",
+      "archivo": "models/rostros/face_detection_yunet_2023mar.onnx",
+      "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+      "motor": "opencv-dnn",
+      "licencia_pesos": "MIT",
+      "licencia_codigo_entrenamiento": "MIT",
+      "datasets": [
+        {
+          "nombre": "WIDER FACE",
+          "licencia": "solo investigación no comercial (por verificar en D9)"
+        }
+      ],
+      "clases": {
+        "0": "cara"
+      },
+      "tamano_entrada": [
+        640,
+        640
+      ],
+      "origen": "opencv_zoo (huggingface.co/opencv/face_detection_yunet), entrenado con libfacedetection.train. Detecta la cara y 5 puntos; reemplaza a dlib/face_recognition."
+    },
+    {
+      "nombre": "sface-reconocimiento-facial",
+      "version": "2021dec",
+      "archivo": "models/rostros/face_recognition_sface_2021dec.onnx",
+      "sha256": "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
+      "motor": "opencv-dnn",
+      "licencia_pesos": "Apache-2.0",
+      "licencia_codigo_entrenamiento": "Apache-2.0",
+      "datasets": [
+        {
+          "nombre": "no publicado por opencv_zoo (el repo de SFace entrena con CASIA-WebFace / MS1M)",
+          "licencia": "desconocida (por verificar en D9)"
+        }
+      ],
+      "clases": {},
+      "tamano_entrada": [
+        112,
+        112
+      ],
+      "origen": "opencv_zoo (huggingface.co/opencv/face_recognition_sface), MobileFaceNet con pérdida SFace. Vector de 128 dimensiones; coincide con similitud coseno >= 0.363."
     }
   ]
 }

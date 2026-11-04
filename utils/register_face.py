@@ -25,9 +25,7 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.dirname(current_dir)
     faces_dir = os.path.join(root_dir, 'data', 'faces')
-    encodings_file = os.path.join(faces_dir, 'encodings.pkl')
-
-    recognizer = FaceRecognizer(faces_dir=faces_dir, encodings_file=encodings_file)
+    recognizer = FaceRecognizer(faces_dir=faces_dir)
     success = recognizer.register_face(image_path, name)
     
     if success:

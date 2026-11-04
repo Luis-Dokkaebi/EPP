@@ -1,303 +1,230 @@
-import os
+"""Registro y reconocimiento de empleados por su cara, sobre MotorFacialPort.
+
+Los vectores se guardan en `.npz` (sin pickle) firmados con HMAC ligado a la máquina del DRM
+(OWASP A08, CR-08). Cada archivo recuerda el motor que lo generó: los vectores de otro motor
+(por ejemplo los de dlib) no son comparables y se recalculan desde las fotos.
+"""
+
+import hashlib
+import hmac
 import io
+import logging
+import os
+import shutil
+import zipfile
+from collections.abc import Sequence
+
 import cv2
 import numpy as np
-import shutil
-import hashlib
-import hmac as _hmac_mod
-import platform
-import logging
+
+from src.recognition.ports import MotorFacialPort
 
 _logger = logging.getLogger(__name__)
 
-try:
-    import face_recognition
-except ImportError:
-    _logger.warning("face_recognition module not found. Face recognition will not work.")
-    face_recognition = None
+NOMBRE_DESCONOCIDO = "Unknown"
+LARGO_DE_FIRMA = 32  # SHA-256
+EXTENSIONES_DE_FOTO = (".jpg", ".jpeg", ".png")
+SAL_DE_INTEGRIDAD = b"_oe_face_integrity_v2"
+ERRORES_DE_ARCHIVO = (OSError, ValueError, KeyError, zipfile.BadZipFile)
 
 
-def _get_integrity_key() -> bytes:
-    """Clave HMAC específica de la máquina — liga el archivo de encodings a esta PC.
+class ArchivoDeVectoresInvalidoError(ValueError):
+    """El archivo de vectores está corrupto, manipulado, es de otra máquina o de otro motor."""
 
-    CR-08 / P2-2: derivar del MISMO `machine_id` (WMI) que usa el DRM, no del
-    hostname (`platform.node()`), que es trivialmente modificable (renombrar la PC,
-    unirse a un dominio AD) e invalidaría la biometría. Consistente con
-    `db_crypto.py` y `crash_logger.py`. Bump a `v2` para no colisionar con firmas
-    viejas (las `.npz` firmadas con v1 se re-codifican desde las imágenes).
-    """
+
+def _identificador_de_maquina() -> str:
+    """El mismo machine_id (WMI) que usa el DRM; el hostname se cambia demasiado fácil."""
     try:
         from src.security.drm import DRMValidator
-        machine_id = DRMValidator().machine_id
-    except Exception:
+
+        return str(DRMValidator().machine_id)
+    except (ImportError, OSError, RuntimeError) as error:
         import uuid
-        machine_id = f"FALLBACK_{uuid.getnode()}"
-    return hashlib.sha256(machine_id.encode("utf-8") + b"_oe_face_integrity_v2").digest()
+
+        _logger.warning("[FaceRecognizer] Sin machine_id del DRM (%s).", type(error).__name__)
+        return f"FALLBACK_{uuid.getnode()}"
 
 
-def _sign(data: bytes) -> bytes:
-    return _hmac_mod.new(_get_integrity_key(), data, hashlib.sha256).digest()
+def _clave_de_integridad() -> bytes:
+    return hashlib.sha256(_identificador_de_maquina().encode("utf-8") + SAL_DE_INTEGRIDAD).digest()
 
 
-def _verify(data: bytes, sig: bytes) -> bool:
-    return _hmac_mod.compare_digest(_sign(data), sig)
+def firmar(contenido: bytes) -> bytes:
+    return hmac.new(_clave_de_integridad(), contenido, hashlib.sha256).digest()
+
+
+def firma_valida(contenido: bytes, firma: bytes) -> bool:
+    return hmac.compare_digest(firmar(contenido), firma)
+
+
+def leer_imagen(ruta: str) -> np.ndarray | None:
+    """Imagen BGR o None; admite rutas con acentos (cv2.imread no las abre en Windows)."""
+    try:
+        contenido = np.fromfile(ruta, dtype=np.uint8)
+    except OSError:
+        return None
+    if contenido.size == 0:
+        return None
+    imagen: np.ndarray | None = cv2.imdecode(contenido, cv2.IMREAD_COLOR)
+    return imagen
+
+
+def _carpeta_por_omision() -> str:
+    datos = os.environ.get("APPDATA", os.path.expanduser("~"))
+    return os.path.join(datos, "OficinaEficiencia", "data", "faces")
+
+
+def _motor_configurado() -> MotorFacialPort:
+    from src.composition import crear_motor_facial_configurado
+
+    return crear_motor_facial_configurado()
 
 
 class FaceRecognizer:
-    def __init__(self, faces_dir=None, encodings_file=None):
-        if faces_dir is None:
-            data_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'OficinaEficiencia', 'data')
-            self.faces_dir = os.path.join(data_dir, 'faces')
-        else:
-            self.faces_dir = faces_dir
-
-        if encodings_file is None:
-            self.encodings_file = os.path.join(self.faces_dir, 'encodings.npz')
-        else:
-            self.encodings_file = encodings_file
-
-        self.known_face_encodings = []
-        self.known_face_names = []
-        self._encodings_mtime = 0
-
+    def __init__(
+        self,
+        faces_dir: str | None = None,
+        encodings_file: str | None = None,
+        motor: MotorFacialPort | None = None,
+    ) -> None:
+        self.faces_dir = faces_dir or _carpeta_por_omision()
+        self.encodings_file = encodings_file or os.path.join(self.faces_dir, "encodings.npz")
+        self.motor = motor or _motor_configurado()
+        self.known_face_encodings: list[np.ndarray] = []
+        self.known_face_names: list[str] = []
+        self._encodings_mtime = 0.0
         os.makedirs(self.faces_dir, exist_ok=True)
         self.load_known_faces()
 
-    def load_known_faces(self):
-        """Loads known faces from disk. Uses numpy format with HMAC integrity check."""
-        if face_recognition is None:
+    def load_known_faces(self) -> None:
+        """Lee el archivo firmado; si no sirve, recalcula los vectores desde las fotos."""
+        try:
+            self._leer_archivo()
+            _logger.info("[FaceRecognizer] %d rostro(s) cargados.", len(self.known_face_names))
             return
-
-        if os.path.exists(self.encodings_file):
-            try:
-                with open(self.encodings_file, 'rb') as f:
-                    raw = f.read()
-
-                _HMAC_LEN = 32  # SHA-256 digest length
-                if len(raw) < _HMAC_LEN:
-                    raise ValueError("File too short — corrupted or legacy format")
-
-                sig, payload = raw[:_HMAC_LEN], raw[_HMAC_LEN:]
-                if not _verify(payload, sig):
-                    raise ValueError("HMAC integrity check failed — file may be tampered or from another machine")
-
-                loaded = np.load(io.BytesIO(payload), allow_pickle=False)
-                enc = loaded['encodings']
-                names = loaded['names']
-
-                self.known_face_encodings = [enc[i] for i in range(len(enc))] if len(enc) > 0 else []
-                self.known_face_names = [str(n) for n in names]
-                self._encodings_mtime = os.path.getmtime(self.encodings_file)
-                _logger.info("[FaceRecognizer] Loaded %d face(s).", len(self.known_face_names))
-                return
-            except Exception as e:
-                _logger.warning("[FaceRecognizer] Could not load encodings (%s). Re-encoding from images.", type(e).__name__)
-
-        # Migrate from legacy pickle format (one-time migration, then delete old file)
-        legacy_pkl = os.path.splitext(self.encodings_file)[0] + '.pkl'
-        if legacy_pkl != self.encodings_file and os.path.exists(legacy_pkl):
-            try:
-                import pickle  # noqa: S403 — controlled one-time migration from trusted local file
-                with open(legacy_pkl, 'rb') as f:
-                    data = pickle.load(f)  # noqa: S301  # nosec B301  # WAIVER-#6
-                self.known_face_encodings = data.get('encodings', [])
-                self.known_face_names = data.get('names', [])
-                _logger.info("[FaceRecognizer] Migrating %d encoding(s) from legacy .pkl to .npz.", len(self.known_face_names))
-                self.save_encodings()
-                return
-            except Exception as e:
-                _logger.warning("[FaceRecognizer] Legacy .pkl migration failed (%s). Re-encoding.", type(e).__name__)
-
-        _logger.info("[FaceRecognizer] Encoding faces from image directory...")
-        self.known_face_encodings = []
-        self.known_face_names = []
-
-        if not os.path.exists(self.faces_dir):
-            return
-
-        for name in os.listdir(self.faces_dir):
-            person_dir = os.path.join(self.faces_dir, name)
-            if not os.path.isdir(person_dir):
-                continue
-
-            for filename in os.listdir(person_dir):
-                if filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-                    filepath = os.path.join(person_dir, filename)
-                    image = face_recognition.load_image_file(filepath)
-                    encodings = face_recognition.face_encodings(image)
-
-                    if encodings:
-                        self.known_face_encodings.append(encodings[0])
-                        self.known_face_names.append(name)
-                    else:
-                        _logger.debug("[FaceRecognizer] No face found in %s", filename)
-
+        except ERRORES_DE_ARCHIVO as error:
+            _logger.info("[FaceRecognizer] Se recalculan los vectores (%s).", error)
+        self._codificar_carpeta()
         self.save_encodings()
 
-    def save_encodings(self):
-        """Saves encodings as numpy compressed format with HMAC integrity signature."""
-        if self.known_face_encodings:
-            encodings_arr = np.array(self.known_face_encodings, dtype=np.float64)
-        else:
-            encodings_arr = np.empty((0, 128), dtype=np.float64)
-        names_arr = np.array(self.known_face_names, dtype=str)
-
-        buf = io.BytesIO()
-        np.savez_compressed(buf, encodings=encodings_arr, names=names_arr)
-        payload = buf.getvalue()
-        sig = _sign(payload)
-
-        with open(self.encodings_file, 'wb') as f:
-            f.write(sig + payload)
-
+    def save_encodings(self) -> None:
+        """Escribe el archivo de vectores firmado (npz comprimido, sin pickle)."""
+        vectores = _como_matriz(self.known_face_encodings)
+        buffer = io.BytesIO()
+        np.savez_compressed(
+            buffer,
+            encodings=vectores,
+            names=np.array(self.known_face_names, dtype=str),
+            motor=np.array(self.motor.identificador),
+        )
+        contenido = buffer.getvalue()
+        with open(self.encodings_file, "wb") as archivo:
+            archivo.write(firmar(contenido) + contenido)
         self._encodings_mtime = os.path.getmtime(self.encodings_file)
-        _logger.info("[FaceRecognizer] Saved %d encoding(s).", len(self.known_face_names))
 
-    def check_reload(self):
-        """
-        Hot-reload: checks if encodings file was modified by another process and reloads if so.
-        Enables CameraWorker to pick up newly registered faces without restart.
-        """
+    def check_reload(self) -> None:
+        """Recarga si otro proceso (la vista de registro) actualizó el archivo."""
         if not os.path.exists(self.encodings_file):
             return
-        try:
-            current_mtime = os.path.getmtime(self.encodings_file)
-            if current_mtime > self._encodings_mtime:
-                _logger.info("[FaceRecognizer] Encodings file changed on disk. Hot-reloading...")
-                self.load_known_faces()
-        except Exception as e:
-            _logger.warning("[FaceRecognizer] Error checking reload: %s", type(e).__name__)
+        if os.path.getmtime(self.encodings_file) > self._encodings_mtime:
+            _logger.info("[FaceRecognizer] El archivo de vectores cambió: se recarga.")
+            self.load_known_faces()
 
-    def recognize_face(self, frame, bbox=None):
-        """Recognizes a face in the frame. Returns the name or 'Unknown'."""
-        if face_recognition is None:
-            return "Unknown"
+    def recognize_face(self, frame: np.ndarray, bbox: Sequence[float] | None = None) -> str:
+        """Nombre de la persona más parecida sobre el umbral del motor, o NOMBRE_DESCONOCIDO."""
+        vector = self.motor.codificar(_recortar(frame, bbox) if bbox else frame)
+        if vector is None or not self.known_face_encodings:
+            return NOMBRE_DESCONOCIDO
+        similitudes = [self.motor.similitud(c, vector) for c in self.known_face_encodings]
+        mejor = int(np.argmax(similitudes))
+        if similitudes[mejor] < self.motor.umbral_de_coincidencia:
+            return NOMBRE_DESCONOCIDO
+        return self.known_face_names[mejor]
 
-        if bbox:
-            x1, y1, x2, y2 = map(int, bbox)
-            h, w, _ = frame.shape
-            x1 = max(0, x1)
-            y1 = max(0, y1)
-            x2 = min(w, x2)
-            y2 = min(h, y2)
-            face_image = frame[y1:y2, x1:x2]
-        else:
-            face_image = frame
-
-        rgb_face_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
-        face_locations = face_recognition.face_locations(rgb_face_image)
-        if not face_locations:
-            return "Unknown"
-
-        face_encodings = face_recognition.face_encodings(rgb_face_image, face_locations)
-        if not face_encodings:
-            return "Unknown"
-
-        encoding = face_encodings[0]
-
-        if not self.known_face_encodings:
-            return "Unknown"
-
-        matches = face_recognition.compare_faces(self.known_face_encodings, encoding, tolerance=0.65)
-        name = "Unknown"
-
-        face_distances = face_recognition.face_distance(self.known_face_encodings, encoding)
-        best_match_index = np.argmin(face_distances)
-
-        if matches[best_match_index]:
-            name = self.known_face_names[best_match_index]
-
-        return name
-
-    def register_face(self, image_path, name):
-        """Registers a new face from an image file."""
-        if face_recognition is None:
-            _logger.warning("Face recognition module not available.")
+    def register_face(self, image_path: str, name: str) -> bool:
+        """Registra a `name` con una foto; False si no existe o no tiene cara."""
+        vector = self._vector_de(image_path)
+        if vector is None:
+            _logger.info("[FaceRecognizer] Registro abortado: foto ausente o sin cara.")
             return False
+        self._guardar_foto(image_path, name, os.path.basename(image_path))
+        self._agregar(vector, name)
+        self.save_encodings()
+        return True
 
-        if not os.path.exists(image_path):
-            _logger.warning("Image path does not exist: registration aborted.")
+    def register_face_burst(self, image_paths: Sequence[str], name: str) -> int:
+        """Registra varias fotos de una ráfaga; devuelve cuántas tenían cara."""
+        registradas = 0
+        for indice, ruta in enumerate(image_paths):
+            vector = self._vector_de(ruta)
+            if vector is None:
+                continue
+            self._guardar_foto(ruta, name, f"burst_{indice}.jpg")
+            self._agregar(vector, name)
+            registradas += 1
+        if registradas:
+            self.save_encodings()
+        return registradas
+
+    def delete_face(self, name: str) -> bool:
+        """Quita a `name` de la memoria, del archivo de vectores y sus fotos del disco."""
+        if name not in self.known_face_names:
             return False
+        conservados = [i for i, nombre in enumerate(self.known_face_names) if nombre != name]
+        self.known_face_encodings = [self.known_face_encodings[i] for i in conservados]
+        self.known_face_names = [self.known_face_names[i] for i in conservados]
+        self.save_encodings()
+        shutil.rmtree(os.path.join(self.faces_dir, name), ignore_errors=True)
+        return True
 
-        image = face_recognition.load_image_file(image_path)
-        encodings = face_recognition.face_encodings(image)
+    def _leer_archivo(self) -> None:
+        with open(self.encodings_file, "rb") as archivo:
+            crudo = archivo.read()
+        firma, contenido = crudo[:LARGO_DE_FIRMA], crudo[LARGO_DE_FIRMA:]
+        if len(crudo) < LARGO_DE_FIRMA or not firma_valida(contenido, firma):
+            raise ArchivoDeVectoresInvalidoError("firma inválida o de otra máquina")
+        cargado = np.load(io.BytesIO(contenido), allow_pickle=False)
+        if str(cargado["motor"]) != self.motor.identificador:
+            raise ArchivoDeVectoresInvalidoError(f"vectores de otro motor ({cargado['motor']})")
+        self.known_face_encodings = list(cargado["encodings"])
+        self.known_face_names = [str(nombre) for nombre in cargado["names"]]
+        self._encodings_mtime = os.path.getmtime(self.encodings_file)
 
-        if not encodings:
-            _logger.info("No face found in the provided image.")
-            return False
+    def _codificar_carpeta(self) -> None:
+        self.known_face_encodings, self.known_face_names = [], []
+        for nombre in sorted(os.listdir(self.faces_dir)):
+            carpeta = os.path.join(self.faces_dir, nombre)
+            if not os.path.isdir(carpeta):
+                continue
+            fotos = (
+                a for a in sorted(os.listdir(carpeta)) if a.lower().endswith(EXTENSIONES_DE_FOTO)
+            )
+            for foto in fotos:
+                vector = self._vector_de(os.path.join(carpeta, foto))
+                if vector is not None:
+                    self._agregar(vector, nombre)
 
-        encoding = encodings[0]
+    def _vector_de(self, ruta: str) -> np.ndarray | None:
+        imagen = leer_imagen(ruta) if os.path.isfile(ruta) else None
+        return None if imagen is None else self.motor.codificar(imagen)
 
-        person_dir = os.path.join(self.faces_dir, name)
-        os.makedirs(person_dir, exist_ok=True)
+    def _guardar_foto(self, origen: str, name: str, archivo: str) -> None:
+        carpeta = os.path.join(self.faces_dir, name)
+        os.makedirs(carpeta, exist_ok=True)
+        shutil.copy(origen, os.path.join(carpeta, archivo))
 
-        filename = os.path.basename(image_path)
-        dest_path = os.path.join(person_dir, filename)
-        shutil.copy(image_path, dest_path)
-
-        self.known_face_encodings.append(encoding)
+    def _agregar(self, vector: np.ndarray, name: str) -> None:
+        self.known_face_encodings.append(vector)
         self.known_face_names.append(name)
 
-        self.save_encodings()
-        _logger.info("[FaceRecognizer] Registered '%s' successfully.", name)
-        return True
 
-    def register_face_burst(self, image_paths, name):
-        """Registers a face from multiple burst images. Returns number of successful registrations."""
-        if face_recognition is None:
-            _logger.warning("Face recognition module not available.")
-            return 0
+def _como_matriz(vectores: list[np.ndarray]) -> np.ndarray:
+    if not vectores:
+        return np.empty((0, 0), dtype=np.float32)
+    return np.stack([np.asarray(v, dtype=np.float32).ravel() for v in vectores])
 
-        person_dir = os.path.join(self.faces_dir, name)
-        os.makedirs(person_dir, exist_ok=True)
 
-        success_count = 0
-        for idx, image_path in enumerate(image_paths):
-            if not os.path.exists(image_path):
-                continue
-            try:
-                image = face_recognition.load_image_file(image_path)
-                encodings = face_recognition.face_encodings(image)
-
-                if not encodings:
-                    _logger.debug("No face found in burst image %d", idx)
-                    continue
-
-                encoding = encodings[0]
-                dest_path = os.path.join(person_dir, f"burst_{idx}.jpg")
-                shutil.copy(image_path, dest_path)
-
-                self.known_face_encodings.append(encoding)
-                self.known_face_names.append(name)
-                success_count += 1
-            except Exception as e:
-                _logger.warning("[FaceRecognizer] Error processing burst image %d: %s", idx, type(e).__name__)
-
-        if success_count > 0:
-            self.save_encodings()
-            _logger.info("[FaceRecognizer] Registered '%s' with %d burst image(s).", name, success_count)
-
-        return success_count
-
-    def delete_face(self, name):
-        """Removes a face from memory and disk."""
-        if name not in self.known_face_names:
-            _logger.warning("[FaceRecognizer] Employee not found in memory: deletion aborted.")
-            return False
-
-        indexes_to_delete = [i for i, n in enumerate(self.known_face_names) if n == name]
-        for index in sorted(indexes_to_delete, reverse=True):
-            del self.known_face_names[index]
-            del self.known_face_encodings[index]
-
-        self.save_encodings()
-
-        person_dir = os.path.join(self.faces_dir, name)
-        if os.path.exists(person_dir):
-            try:
-                shutil.rmtree(person_dir)
-            except Exception as e:
-                _logger.warning("[FaceRecognizer] Error deleting face directory: %s", type(e).__name__)
-
-        _logger.info("[FaceRecognizer] Deleted '%s' successfully.", name)
-        return True
+def _recortar(frame: np.ndarray, bbox: Sequence[float]) -> np.ndarray:
+    alto, ancho = frame.shape[:2]
+    x1, y1, x2, y2 = (int(valor) for valor in bbox)
+    return frame[max(0, y1) : min(alto, y2), max(0, x1) : min(ancho, x2)]

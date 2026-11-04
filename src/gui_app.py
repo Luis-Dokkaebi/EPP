@@ -60,7 +60,7 @@ from src.storage.database_manager import DatabaseManager
 # Explicitly import main so PyInstaller bundles all its heavy dependencies (ultralytics, supervision)
 from src import main
 from src.recognition.face_recognizer import FaceRecognizer
-import face_recognition
+from src.gui.puntos_faciales import dibujar_puntos_faciales
 
 class SystemGUI:
     def __init__(self, root):
@@ -708,30 +708,9 @@ class SystemGUI:
                         cv2.putText(display, "Esperando movimiento...", (fx, fy - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 180, 255), 1)
 
-                    # --- Landmarks (Demo Mode) ---
+                    # --- Puntos de referencia (modo demostración): los 5 de YuNet ---
                     if self.landmarks_var.get():
-                        try:
-                            display_rgb = cv2.cvtColor(display, cv2.COLOR_BGR2RGB)
-                            # Optimize by providing the pre-computed bounding box from Haar cascade
-                            # face_recognition takes (top, right, bottom, left) format
-                            face_locs = [(fy, fx + fw, fy + fh, fx)]
-                            landmarks_list = face_recognition.face_landmarks(display_rgb, face_locations=face_locs)
-                            for landmarks in landmarks_list:
-                                for feature_name, points in landmarks.items():
-                                    # Puntos más pequeños y de color celeste neón
-                                    for point in points:
-                                        cv2.circle(display, point, 2, (255, 200, 50), -1) 
-                                    
-                                    # Líneas conectando los puntos para formar la malla
-                                    pts = list(points)
-                                    for j in range(len(pts) - 1):
-                                        cv2.line(display, pts[j], pts[j+1], (255, 200, 50), 1)
-                                        
-                                    # Para polígonos cerrados como ojos y labios, conectar el último con el primero
-                                    if feature_name in ['left_eye', 'right_eye', 'top_lip', 'bottom_lip'] and len(pts) > 0:
-                                        cv2.line(display, pts[-1], pts[0], (255, 200, 50), 1)
-                        except Exception as e:
-                            print(f"Error drawing landmarks: {e}")
+                        dibujar_puntos_faciales(display, self.face_recognizer.motor.localizar(display))
                 else:
                     self.quality_state = 'red'
                     self.liveness_confirmed = False

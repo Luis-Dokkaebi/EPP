@@ -17,16 +17,7 @@ import hashlib
 import hmac as _hmac_mod
 from unittest.mock import MagicMock
 
-# Stub heavy native libs not present in the test environment. cv2 no: está fijado en los
-# requisitos y un doble en sys.modules contaminaba al resto de la sesión.
-
-_fr_stub = MagicMock()
-_fr_stub.face_locations = lambda *a, **kw: []
-_fr_stub.face_encodings = lambda *a, **kw: []
-_fr_stub.compare_faces = lambda *a, **kw: []
-_fr_stub.face_distance = lambda *a, **kw: np.array([])
-_fr_stub.load_image_file = lambda p: np.zeros((100, 100, 3), dtype=np.uint8)
-sys.modules.setdefault('face_recognition', _fr_stub)
+from tests.dobles_motor_facial import MotorFacialFalso
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -47,21 +38,12 @@ def _sign(data: bytes) -> bytes:
 class TestFaceEncodingsIntegrity:
     """FaceRecognizer must reject tampered or foreign-machine encodings files."""
 
-    @pytest.fixture(autouse=True)
-    def _face_recognition_disponible(self, monkeypatch):
-        """Aísla la clase del orden de importación de la suite.
-
-        Si otro módulo importó `face_recognizer` antes de que existiera el doble de
-        `face_recognition`, el módulo queda con `face_recognition = None` y no carga nada.
-        """
-        monkeypatch.setattr("src.recognition.face_recognizer.face_recognition", _fr_stub)
-
     @pytest.fixture
     def face_rec(self, tmp_path):
         """FaceRecognizer with faces_dir and encodings_file in tmp_path."""
         from src.recognition.face_recognizer import FaceRecognizer
         enc_file = str(tmp_path / "encodings.npz")
-        return FaceRecognizer(faces_dir=str(tmp_path), encodings_file=enc_file)
+        return FaceRecognizer(faces_dir=str(tmp_path), encodings_file=enc_file, motor=MotorFacialFalso())
 
     def test_encodings_file_is_not_pickle(self, face_rec):
         """Saved encodings must NOT be pickle — first two bytes of pickle are 0x80 0x04+."""
@@ -104,21 +86,21 @@ class TestFaceEncodingsIntegrity:
             f.write(wrong_sig + payload)
 
         from src.recognition.face_recognizer import FaceRecognizer
-        fr = FaceRecognizer(faces_dir=str(tmp_path), encodings_file=enc_file)
+        fr = FaceRecognizer(faces_dir=str(tmp_path), encodings_file=enc_file, motor=MotorFacialFalso())
         assert fr.known_face_encodings == []
 
     def test_valid_roundtrip_load_save(self, tmp_path):
         """Encodings saved then loaded must be bit-identical."""
         from src.recognition.face_recognizer import FaceRecognizer
         enc_file = str(tmp_path / "encodings.npz")
-        fr = FaceRecognizer(faces_dir=str(tmp_path), encodings_file=enc_file)
+        fr = FaceRecognizer(faces_dir=str(tmp_path), encodings_file=enc_file, motor=MotorFacialFalso())
 
         fake_enc = np.random.rand(128).astype(np.float64)
         fr.known_face_encodings = [fake_enc]
         fr.known_face_names = ["Alice"]
         fr.save_encodings()
 
-        fr2 = FaceRecognizer(faces_dir=str(tmp_path), encodings_file=enc_file)
+        fr2 = FaceRecognizer(faces_dir=str(tmp_path), encodings_file=enc_file, motor=MotorFacialFalso())
         assert fr2.known_face_names == ["Alice"]
         assert len(fr2.known_face_encodings) == 1
         np.testing.assert_array_almost_equal(fr2.known_face_encodings[0], fake_enc)

@@ -22,17 +22,19 @@ humana falta.
 - **Falta:** `gui_app.spec` todavía lo nombra en `hiddenimports` y en un `collect_all` protegido;
   se limpia con el build en A-16 (D8). Prueba de humo manual de la vista de reportes.
 
-## 3. Modelo de 68 puntos de dlib (`face_recognition_models`)
+## 3. Reconocimiento facial: de dlib a YuNet + SFace
 
-- **Hecho:** `src/gui_app.py` (modo demostración de marcas faciales) llama a
-  `face_recognition.face_landmarks`, que por omisión usa el predictor de 68 puntos entrenado con
-  iBUG 300-W, cuyo uso comercial está restringido (verificar los términos vigentes).
-- **Hecho:** aunque la demostración usara el modelo de 5 puntos, el paquete
-  `face_recognition_models` distribuye el archivo de 68 puntos y `face_recognition` lo carga al
-  importarse; cambiar la llamada no basta para dejar de distribuirlo.
-- **Decisión humana:** (a) obtener permiso de uso comercial; (b) eliminar la demostración y
-  sustituir `face_recognition` por dlib con solo el predictor de 5 puntos y el modelo de
-  codificación (requiere cambiar el build, D8); o (c) aceptar el riesgo por escrito.
+- **Hecho (2026-11-04):** `face_recognition`/dlib y su predictor de 68 puntos (iBUG 300-W,
+  uso comercial restringido) salieron del producto. El reconocimiento usa
+  `src/recognition/motor_facial_opencv.py` con dos modelos de opencv_zoo en `models/rostros/`:
+  YuNet (detección y 5 puntos, licencia MIT) y SFace (vector de 128, Apache-2.0). La demostración
+  de la GUI dibuja los 5 puntos de YuNet.
+- **Falta (decisión humana):** las licencias de los pesos son permisivas, pero los datos de
+  entrenamiento no: YuNet se entrenó con WIDER FACE (solo investigación no comercial) y
+  opencv_zoo no publica el dataset de SFace (el repositorio original usa CASIA-WebFace / MS1M).
+  El gate de licencias los marca por eso. Ningún modelo facial abierto se entrenó con datos de
+  uso comercial claro: el abogado decide si el riesgo se acepta, se compra un modelo comercial o
+  se entrena uno propio con fotos con consentimiento.
 
 ## 4. PyArmor
 

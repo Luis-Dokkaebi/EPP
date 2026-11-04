@@ -90,3 +90,15 @@ def test_una_entrada_de_exactamente_100_columnas_queda_en_una_linea() -> None:
     cuerpo = generar_modulo(manifiesto).split("= {\n", 1)[1]
 
     assert cuerpo.splitlines()[1] == f'    "{archivo}": "{"d" * 64}",'
+
+
+COLUMNAS_DE_RUFF = 100  # pyproject.toml, [tool.ruff] line-length
+
+
+def test_una_entrada_de_101_columnas_ya_se_parte() -> None:
+    archivo = "m" * (COLUMNAS_DE_RUFF + 1 - len('    "": "",') - 64)
+    manifiesto = {"modelos": [{"archivo": archivo, "sha256": "e" * 64}]}
+
+    cuerpo = generar_modulo(manifiesto).split("= {\n", 1)[1]
+
+    assert cuerpo.splitlines()[0] == f'    "{archivo}": ('

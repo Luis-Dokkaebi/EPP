@@ -384,3 +384,28 @@ def test_cada_boton_del_modulo_abre_su_vista(app: AppMain, boton: str, vista: st
 def test_sin_licencia_de_epp_el_menu_no_muestra_el_modulo(app: AppMain) -> None:
     assert {"Alertas EPP", "Cumplimiento EPP"}.isdisjoint(_botones_del_menu(app))
     assert {"AlertasEPP", "CumplimientoEPP"}.isdisjoint(app.view_manager.views)
+
+
+@pytest.fixture
+def dialogos_de_error(entorno: None, monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str]]:
+    """Registra los diálogos de error (después de que `entorno` los silencia)."""
+    mostrados: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        "tkinter.messagebox.showerror", lambda titulo, texto: mostrados.append((titulo, texto))
+    )
+    return mostrados
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("motor", [modelo_que_no_carga], ids=["motor_que_no_carga"])
+def test_si_el_motor_de_ia_no_carga_se_avisa_al_usuario_y_se_registra(
+    capsys: pytest.CaptureFixture[str], dialogos_de_error: list[tuple[str, str]], app: AppMain
+) -> None:
+    assert dialogos_de_error == [
+        (
+            "Error Crítico de IA",
+            "No se pudo cargar el motor de IA:\n\npesos corruptos\n\n"
+            "Favor de reportar este problema.",
+        )
+    ]
+    assert "[VMS] No se pudo cargar el motor de IA: pesos corruptos\n" in capsys.readouterr().out

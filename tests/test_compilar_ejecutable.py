@@ -12,7 +12,7 @@ from scripts.compilar_ejecutable import (
     carpeta_del_ejecutable,
     main,
 )
-from tests.utilidades_scripts import RAIZ
+from tests.utilidades_scripts import RAIZ, ejecutar_script
 
 
 def _raiz(tmp_path: Path, version: str = "2.0.0") -> Path:
@@ -23,7 +23,7 @@ def _raiz(tmp_path: Path, version: str = "2.0.0") -> Path:
 def test_compila_la_app_de_escritorio_como_carpeta_independiente(tmp_path: Path) -> None:
     argumentos = argumentos_de_nuitka("linux", _raiz(tmp_path))
 
-    assert argumentos[:3] == ["-m", "nuitka", "--standalone"]
+    assert argumentos[:4] == ["-m", "nuitka", "--standalone", "--assume-yes-for-downloads"]
     assert argumentos[-1] == str(Path("src") / "main_ui.py")
     assert "--enable-plugin=tk-inter" in argumentos
     assert "--include-package=src" in argumentos
@@ -44,7 +44,8 @@ def test_no_sigue_imports_a_paquetes_de_desarrollo_ni_a_motores_retirados(tmp_pa
 
     excluidos = {a.split("=", 1)[1] for a in argumentos if a.startswith("--nofollow-import-to=")}
     assert excluidos == set(PAQUETES_FUERA_DEL_EJECUTABLE)
-    assert {"torch", "ultralytics", "face_recognition", "dlib", "tests", "ml", "tools"} <= excluidos
+    assert excluidos == {"dlib", "face_recognition", "ml", "pytest", "tests", "tools", "torch",
+                         "torchvision", "ultralytics"}  # fmt: skip
 
 
 def test_en_windows_agrega_los_datos_del_producto_y_la_version(tmp_path: Path) -> None:
@@ -54,6 +55,7 @@ def test_en_windows_agrega_los_datos_del_producto_y_la_version(tmp_path: Path) -
     assert "--windows-product-version=2.1.0" in argumentos
     assert "--windows-file-version=2.1.0" in argumentos
     assert "--windows-product-name=Oficina Eficiencia" in argumentos
+    assert "--windows-file-description=Oficina Eficiencia" in argumentos
     assert "--output-filename=OficinaEficiencia_VMS.exe" in argumentos
 
 
@@ -76,24 +78,30 @@ def test_deja_el_resultado_y_el_informe_en_build_nuitka(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("version", ["", "2.0", "2.0.0-beta", "dos"])
 def test_una_version_que_no_es_x_y_z_detiene_el_build(tmp_path: Path, version: str) -> None:
-    with pytest.raises(compilar.VersionInvalidaError, match="VERSION"):
+    with pytest.raises(compilar.VersionInvalidaError) as error:
         argumentos_de_nuitka("win32", _raiz(tmp_path, version))
 
+    assert str(error.value) == f"VERSION debe ser X.Y.Z; tiene '{version}'."
 
-def test_main_corre_nuitka_con_el_mismo_interprete_desde_la_raiz(tmp_path, monkeypatch) -> None:
+
+def test_main_corre_nuitka_con_el_mismo_interprete_desde_la_raiz(
+    tmp_path, monkeypatch, capsys
+) -> None:
     raiz = _raiz(tmp_path)
     llamadas: list[tuple[list[str], Path]] = []
 
     def correr(comando: list[str], cwd: Path, check: bool) -> object:
-        llamadas.append((comando, cwd))
+        llamadas.append((comando, cwd, check))
         return object()
 
     monkeypatch.setattr(compilar.subprocess, "run", correr)
 
     codigo = main(["--raiz", str(raiz)])
 
-    [(comando, carpeta)] = llamadas
+    [(comando, carpeta, falla_si_nuitka_falla)] = llamadas
     assert codigo == 0
+    assert falla_si_nuitka_falla is True
+    assert capsys.readouterr().out == f"Ejecutable en {carpeta_del_ejecutable(raiz)}\n"
     assert comando[0] == compilar.sys.executable
     assert comando[1:] == argumentos_de_nuitka(compilar.sys.platform, raiz)
     assert carpeta == raiz
@@ -106,3 +114,13 @@ def test_todos_los_modelos_del_manifiesto_quedan_dentro_de_lo_empaquetado() -> N
 
     assert archivos
     assert all(archivo.parts[0] == "models" and (RAIZ / archivo).is_file() for archivo in archivos)
+
+
+@pytest.mark.integration
+def test_ejecutado_como_programa_detiene_el_build_si_la_version_es_invalida(tmp_path) -> None:
+    raiz = _raiz(tmp_path, "dos")
+
+    resultado = ejecutar_script("compilar_ejecutable.py", "--raiz", str(raiz))
+
+    assert resultado.returncode == 1
+    assert "VersionInvalidaError: VERSION debe ser X.Y.Z; tiene 'dos'." in resultado.stderr

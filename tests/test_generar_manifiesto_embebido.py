@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.generar_manifiesto_embebido import generar_modulo, main
+from scripts.generar_manifiesto_embebido import LINEA_MAXIMA, generar_modulo, main
 from tests.utilidades_scripts import ejecutar_script
 
 MANIFIESTO = {
@@ -65,3 +65,28 @@ def test_script_ejecutado_como_programa_regenera_el_modulo(tmp_path: Path) -> No
 
     assert resultado.returncode == 0, resultado.stderr
     assert (tmp_path / "src/models/manifiesto_aprobado.py").read_text(encoding="utf-8") == ESPERADO
+
+
+def test_una_entrada_que_no_entra_en_100_columnas_parte_el_hash_en_otra_linea() -> None:
+    archivo = "models/rostros/" + "x" * 20 + ".onnx"
+    manifiesto = {"modelos": [{"archivo": archivo, "sha256": "c" * 64}]}
+
+    cuerpo = generar_modulo(manifiesto).split("= {\n", 1)[1]
+
+    assert cuerpo == (
+        f'    "{archivo}": (\n'
+        "        # pragma: allowlist nextline secret\n"
+        f'        "{"c" * 64}"\n'
+        "    ),\n"
+        "}\n"
+    )
+    assert max(len(linea) for linea in cuerpo.splitlines()) <= LINEA_MAXIMA
+
+
+def test_una_entrada_de_exactamente_100_columnas_queda_en_una_linea() -> None:
+    archivo = "m" * (LINEA_MAXIMA - len('    "": "",') - 64)
+    manifiesto = {"modelos": [{"archivo": archivo, "sha256": "d" * 64}]}
+
+    cuerpo = generar_modulo(manifiesto).split("= {\n", 1)[1]
+
+    assert cuerpo.splitlines()[1] == f'    "{archivo}": "{"d" * 64}",'

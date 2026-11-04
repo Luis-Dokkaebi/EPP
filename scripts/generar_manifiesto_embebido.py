@@ -14,6 +14,7 @@ from typing import Any
 
 MANIFIESTO = Path("models/manifest.json")
 DESTINO = Path("src/models/manifiesto_aprobado.py")
+LINEA_MAXIMA = 100  # la de ruff (CLAUDE.md §3)
 ENCABEZADO = '''"""Modelos aprobados (archivo -> sha256), generado desde models/manifest.json.
 
 No editar a mano: python scripts/generar_manifiesto_embebido.py (SPEC/9 §1.8).
@@ -23,14 +24,23 @@ MODELOS_APROBADOS: dict[str, str] = {
 '''
 
 
+def _fila(archivo: str, sha256: str) -> str:
+    """Una entrada; si no entra en LINEA_MAXIMA columnas, el hash va en su propia línea."""
+    en_una_linea = f'    "{archivo}": "{sha256}",'
+    if len(en_una_linea) <= LINEA_MAXIMA:
+        return f"    # pragma: allowlist nextline secret\n{en_una_linea}\n"
+    return (
+        f'    "{archivo}": (\n'
+        "        # pragma: allowlist nextline secret\n"
+        f'        "{sha256}"\n'
+        "    ),\n"
+    )
+
+
 def generar_modulo(manifiesto: dict[str, Any]) -> str:
     """Código del módulo con una entrada por modelo, ordenadas por archivo."""
     entradas = sorted(manifiesto["modelos"], key=lambda entrada: entrada["archivo"])
-    filas = "".join(
-        "    # pragma: allowlist nextline secret\n"
-        f'    "{entrada["archivo"]}": "{entrada["sha256"]}",\n'
-        for entrada in entradas
-    )
+    filas = "".join(_fila(entrada["archivo"], entrada["sha256"]) for entrada in entradas)
     return f"{ENCABEZADO}{filas}}}\n"
 
 

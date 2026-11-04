@@ -25,7 +25,7 @@ NOMBRE_DESCONOCIDO = "Unknown"
 LARGO_DE_FIRMA = 32  # SHA-256
 EXTENSIONES_DE_FOTO = (".jpg", ".jpeg", ".png")
 SAL_DE_INTEGRIDAD = b"_oe_face_integrity_v2"
-ERRORES_DE_ARCHIVO = (OSError, ValueError, KeyError, zipfile.BadZipFile)
+ERRORES_DE_ARCHIVO = (OSError, ValueError, KeyError, EOFError, zipfile.BadZipFile)
 
 
 class ArchivoDeVectoresInvalidoError(ValueError):
@@ -90,9 +90,10 @@ class FaceRecognizer:
         self.faces_dir = faces_dir or _carpeta_por_omision()
         self.encodings_file = encodings_file or os.path.join(self.faces_dir, "encodings.npz")
         self.motor = motor or _motor_configurado()
-        self.known_face_encodings: list[np.ndarray] = []
-        self.known_face_names: list[str] = []
-        self._encodings_mtime = 0.0
+        # load_known_faces siempre los asigna: desde el archivo o desde las fotos.
+        self.known_face_encodings: list[np.ndarray]
+        self.known_face_names: list[str]
+        self._encodings_mtime: float
         os.makedirs(self.faces_dir, exist_ok=True)
         self.load_known_faces()
 

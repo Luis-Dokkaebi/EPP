@@ -7,20 +7,19 @@
 Estado al cierre de A-18. Cada punto dice qué se encontró, dónde, qué ya se hizo y qué decisión
 humana falta.
 
-## 1. Motor de IA con licencia AGPL-3.0 (Ultralytics)
+## 1. Motor de IA: de Ultralytics (AGPL-3.0) a RF-DETR (Apache-2.0)
 
-- **Hecho:** `ultralytics==8.1.15` en `requirements.txt` y los pesos `yolov8n.pt` (raíz) y
-  `models/yolov8/yolov8n.pt` son AGPL-3.0 (ver [manifiesto de modelos](../../models/manifest.json)).
-- **Hecho en el plan:** puerto `DetectorPort`, adaptador ONNX Runtime (MIT) e interruptor
-  `config.DETECTION_ENGINE` (A-10 a A-15). El gate de licencias falla mientras sigan instalados.
-- **Falta:** un modelo ONNX con licencia permisiva que pase la puerta de A-13 (umbrales de D2) y
-  la autorización D8 para contraer (A-16: quitar `ultralytics` y `torch`, borrar los `.pt`).
+- **Hecho (2026-11-04):** `ultralytics`, `torch`, `torchvision` y los dos `yolov8n.pt` salieron
+  del producto. La app detecta con RF-DETR Nano (pesos y código Apache-2.0, `rfdetr==1.11.2`)
+  exportado a ONNX y ejecutado con ONNX Runtime (MIT): `models/rfdetr/rfdetr-nano-coco-int8.onnx`.
+- **Falta (decisión humana):** RF-DETR se preentrenó con Objects365 y se afinó con COCO 2017
+  (CC-BY-4.0, con imágenes de Flickr de licencias variadas). El gate marca Objects365 para que
+  el abogado confirme sus términos.
 
 ## 2. `tkcalendar` (GPLv3)
 
-- **Hecho:** reemplazado por un selector de fecha propio (A-17); ya no está en `requirements.txt`.
-- **Falta:** `gui_app.spec` todavía lo nombra en `hiddenimports` y en un `collect_all` protegido;
-  se limpia con el build en A-16 (D8). Prueba de humo manual de la vista de reportes.
+- **Hecho:** reemplazado por un selector de fecha propio (A-17) y fuera del build: el
+  `gui_app.spec` que lo nombraba se borró con el paso a Nuitka.
 
 ## 3. Reconocimiento facial: de dlib a YuNet + SFace
 
@@ -36,13 +35,11 @@ humana falta.
   uso comercial claro: el abogado decide si el riesgo se acepta, se compra un modelo comercial o
   se entrena uno propio con fotos con consentimiento.
 
-## 4. PyArmor
+## 4. PyArmor y PyInstaller
 
-- **Hecho:** `pyarmor==8.4.6` en `requirements.txt`; `src/gui/views.py` dice que se extrajo de
-  `main_ui.py` "para respetar el límite de ofuscación de PyArmor trial". `obfuscate.py` hoy copia
-  el código sin ofuscar (waiver W-007, #8, prueba `xfail` estricta en `tests/test_obfuscate_pipeline.py`).
-- **Decisión humana:** confirmar la licencia comercial de PyArmor para la versión usada o
-  retirar la ofuscación del build. Sin licencia, el modo de prueba no es apto para distribuir.
+- **Hecho (2026-11-04):** salieron del build. El ejecutable se compila con Nuitka 2.8.10
+  (Apache-2.0; desde Nuitka 4.0 la licencia es AGPL-3.0 con una excepción que libera el
+  ejecutable compilado, por eso se fija la 2.8.10). `requirements-build.txt` lo declara.
 
 ## 5. Datos personales en el repositorio
 
@@ -57,8 +54,9 @@ humana falta.
 
 - **Hecho:** `scripts/generar_avisos_terceros.py` genera `THIRD_PARTY_NOTICES.txt` desde el
   entorno de runtime y el manifiesto (A-18); el job `licencias` de CI lo publica como artefacto.
-- **Falta:** generarlo desde el entorno del ejecutable final, revisar los paquetes marcados
-  "revisar a mano" (sin texto de licencia) e incluirlo en el instalador `setup_oficina.iss` (D8).
+- **Hecho (2026-11-04):** `compilar_exe.bat` lo genera desde el entorno del build y
+  `setup_oficina.iss` lo instala junto al ejecutable.
+- **Falta:** revisar a mano los paquetes marcados "revisar a mano" (sin texto de licencia).
 
 ## 7. Licencias pendientes de aprobación humana
 

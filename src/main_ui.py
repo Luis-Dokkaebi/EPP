@@ -90,16 +90,15 @@ class AppMain(ctk.CTk):
         self.camera_workers = []
         self.camera_queues = {}
         
-        # CR-05: el parche de torch.load vive confinado en la raíz de composición (A-15).
         try:
             from src.composition import crear_detector_configurado
 
             detector = crear_detector_configurado(CONFIANZA_MINIMA_GUI)
 
         except Exception as e:
-            print(f"[VMS] No se pudo cargar YOLO: {e}")
+            print(f"[VMS] No se pudo cargar el motor de IA: {e}")
             import tkinter.messagebox
-            tkinter.messagebox.showerror("Error Crítico de IA", f"No se pudo cargar el motor YOLO B2B:\n\n{e}\n\nFavor de reportar este problema.")
+            tkinter.messagebox.showerror("Error Crítico de IA", f"No se pudo cargar el motor de IA:\n\n{e}\n\nFavor de reportar este problema.")
             detector = None
         
         self.detector = detector

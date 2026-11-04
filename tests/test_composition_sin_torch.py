@@ -17,8 +17,8 @@ pytestmark = pytest.mark.integration
 
 PROGRAMA = """
 import json, sys
-from src.composition import MOTOR_ONNX, crear_detector
-detector = crear_detector(sys.argv[1], 0.5, MOTOR_ONNX, json.loads(sys.argv[2]))
+from src.composition import crear_detector
+detector = crear_detector(sys.argv[1], 0.5, json.loads(sys.argv[2]))
 print(type(detector).__name__, sorted({"torch", "ultralytics"} & set(sys.modules)))
 """
 

@@ -153,13 +153,17 @@ def test_main_con_manifiesto_completo_devuelve_cero(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
-def test_script_ejecutado_como_programa_falla_con_el_manifiesto_actual_por_la_agpl(
+def test_el_manifiesto_actual_ya_no_tiene_agpl_y_solo_espera_la_revision_de_datasets(
     tmp_path: Path,
 ) -> None:
+    """Tras retirar YOLO queda la decisión legal D9 sobre los datos de entrenamiento."""
     sin_paquetes = tmp_path / "paquetes.json"
     sin_paquetes.write_text("[]", encoding="utf-8")
 
     resultado = ejecutar_script("check_licenses.py", "--paquetes", str(sin_paquetes))
 
+    errores = resultado.stdout.splitlines()
     assert resultado.returncode == 1
-    assert "yolov8n.pt: licencia_pesos prohibida o sin revisar (AGPL-3.0)." in resultado.stdout
+    assert "AGPL" not in resultado.stdout
+    assert all(": dataset " in error for error in errores)
+    assert any("WIDER FACE" in error for error in errores)

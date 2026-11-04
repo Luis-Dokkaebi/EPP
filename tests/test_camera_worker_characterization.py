@@ -13,18 +13,18 @@ from typing import Any
 import numpy as np
 import pytest
 
-from src.inference.adapters.ultralytics_detector import DetectorUltralytics
-from src.inference.types import CATALOGO_COCO, ClaseObjeto
+from src.inference.types import ClaseObjeto
 from src.ppe.application.evaluar_cumplimiento import EstadoCumplimiento
 from src.ppe.domain.elementos import ElementoEPP, EstadoElemento
 from src.tracking import camera_worker as modulo_worker
 from src.tracking.camera_worker import CameraWorker
-from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
+from tests.dobles_onnx import ID_CELULAR, ID_PERSONA, DeteccionCruda, DetectorEspia
 
-CLASE_PERSONA = 0
-CLASE_AUTO = 2
-CLASE_CELULAR = 67
-ALTO, ANCHO = 120, 640
+CLASE_PERSONA = ID_PERSONA
+CLASE_AUTO = 3  # 'car' en COCO-91: el catálogo del modelo no la incluye
+CLASE_CELULAR = ID_CELULAR
+ORDINAL_PERSONA = 0
+ALTO, ANCHO = 256, 640
 BLANCO = 255
 MARCA_TIEMPO = 1_000.0
 FRAMES_ENTRE_RECARGAS = 60
@@ -105,7 +105,7 @@ class ReconocedorFalso:
 class Escenario:
     worker: CameraWorker
     cola: queue.Queue[tuple[int | str, np.ndarray]]
-    modelo: ModeloFalso
+    modelo: DetectorEspia
     reloj: RelojFalso
     capturas: list[tuple[tuple[Any, ...], CapturaFalsa]]
 
@@ -130,9 +130,8 @@ def crear_worker(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> Callable[...
         reloj = RelojFalso()
         monkeypatch.setattr(modulo_worker, "time", reloj)
         cola: queue.Queue[tuple[int | str, np.ndarray]] = queue.Queue(maxsize=tamano_cola)
-        modelo = ModeloFalso(detecciones or [])
-        detector = DetectorUltralytics(modelo, CATALOGO_COCO, confianza_minima=0.0)
-        worker = CameraWorker(camera_id=camara, frame_queue=cola, detector=detector, fps_limit=10)
+        modelo = DetectorEspia(detecciones or [], ANCHO, ALTO)
+        worker = CameraWorker(camera_id=camara, frame_queue=cola, detector=modelo, fps_limit=10)
         capturas: list[tuple[tuple[Any, ...], CapturaFalsa]] = []
 
         def _abrir(*argumentos: Any) -> CapturaFalsa:
@@ -165,7 +164,7 @@ def test_camera_worker_encola_un_frame_anotado_por_frame_leido(
     assert escenario.modelo.frames_recibidos == frames
 
 
-def test_camera_worker_pasa_al_pipeline_personas_de_clase_0_y_celulares_de_clase_67(
+def test_camera_worker_pasa_al_pipeline_personas_y_celulares_y_descarta_otras_clases(
     crear_worker: Callable[..., Escenario],
 ) -> None:
     frame = frame_blanco()
@@ -185,7 +184,7 @@ def test_camera_worker_pasa_al_pipeline_personas_de_clase_0_y_celulares_de_clase
     [(frame_recibido, personas, celulares, marca)] = pipeline.llamadas
     assert frame_recibido is frame
     assert personas.xyxy.tolist() == [[10.0, 20.0, 110.0, 220.0]]
-    assert personas.class_id.tolist() == [CLASE_PERSONA]
+    assert personas.class_id.tolist() == [ORDINAL_PERSONA]
     assert celulares == [(5, 6, 30, 40)]
     assert marca == MARCA_TIEMPO
 
@@ -338,7 +337,7 @@ def test_camera_worker_por_omision_limita_a_15_fps(
     monkeypatch.setattr("config.config.get_db_path", _sin_tenant)
     monkeypatch.setattr(modulo_worker, "FaceRecognizer", ReconocedorFalso)
 
-    worker = CameraWorker(0, queue.Queue(), DetectorUltralytics(ModeloFalso([]), CATALOGO_COCO, 0))
+    worker = CameraWorker(0, queue.Queue(), DetectorEspia([], ANCHO, ALTO))
 
     assert worker.fps_limit == FPS_POR_OMISION
 
@@ -416,7 +415,7 @@ def test_camera_worker_entrega_el_modulo_de_epp_al_pipeline(
     monkeypatch.setattr("config.config.get_snapshots_dir", lambda: str(tmp_path / "snapshots"))
     monkeypatch.setattr(modulo_worker, "FaceRecognizer", ReconocedorFalso)
     modulo_epp = object()
-    detector = DetectorUltralytics(ModeloFalso([]), CATALOGO_COCO, 0)
+    detector = DetectorEspia([], ANCHO, ALTO)
 
     worker = CameraWorker(0, queue.Queue(), detector)
 

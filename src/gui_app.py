@@ -24,13 +24,6 @@ def global_exception_handler(exctype, value, tb):
 
 sys.excepthook = global_exception_handler
 
-# Prevent duplicate library OpenMP OMP: Error #15 crash upon loading torch/numpy together
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-# CRITICAL PRIORITY PRELOAD: Torch must be imported BEFORE EVERYTHING ELSE (cv2, numpy, ultralytics).
-# If cv2 loads first, it poisons Windows memory with an incompatible 600KB Conda libiomp5md.dll,
-# crashing PyTorch's shm.dll with WinError 127. By calling torch first, we inject the 1.6MB master DLL!
-import torch
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog
@@ -57,7 +50,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.storage.database_manager import DatabaseManager
 
-# Explicitly import main so PyInstaller bundles all its heavy dependencies (ultralytics, supervision)
+# Import explícito de main para que el build incluya sus dependencias (supervision, onnxruntime).
 from src import main
 from src.recognition.face_recognizer import FaceRecognizer
 from src.gui.puntos_faciales import dibujar_puntos_faciales

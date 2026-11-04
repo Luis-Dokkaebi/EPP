@@ -26,8 +26,6 @@ exclude = [
     "src/analysis/report_generator.py",
     "src/analysis/report_main.py",
     "src/analysis/state_manager.py",
-    "src/detection/people_detector.py",
-    "src/detection/person_detector.py",
     "src/gui/dashboard.py",
     "src/gui/views.py",
     "src/gui_app.py",
@@ -52,7 +50,6 @@ exclude = [
     "tests/test_efficiency.py",
     "tests/test_model_verifier.py",
     "tests/test_obfuscate_pipeline.py",
-    "tests/test_person_detector.py",
     "tests/test_person_tracker.py",
     "tests/test_report_generation.py",
     "tests/test_report_sql_injection.py",
@@ -86,8 +83,6 @@ exclude = [
 "src/analysis/report_generator.py" = ["B904", "E501", "F401", "I001", "PLR0913", "T201", "UP035", "W291", "W293"]
 "src/analysis/report_main.py" = ["I001"]
 "src/analysis/state_manager.py" = ["E501", "F401", "I001", "W291", "W293"]
-"src/detection/people_detector.py" = ["I001", "T201", "UP015"]
-"src/detection/person_detector.py" = ["E401", "I001", "W293"]
 "src/gui/dashboard.py" = ["E501", "E741", "F841", "I001", "PLR2004", "S110", "W291", "W293"]
 "src/gui/views.py" = ["C901", "E501", "E701", "I001", "N806", "PLR0915", "PLR2004", "W293"]
 "src/gui_app.py" = ["C901", "E402", "E501", "E722", "F401", "F811", "F841", "I001", "PLR0912", "PLR0915", "PLR2004", "RUF005", "S110", "T201", "UP012", "W291", "W293"]
@@ -112,7 +107,6 @@ exclude = [
 "tests/test_efficiency.py" = ["E501", "F401", "I001", "W293"]
 "tests/test_model_verifier.py" = ["I001"]
 "tests/test_obfuscate_pipeline.py" = ["F401", "I001"]
-"tests/test_person_detector.py" = ["E501", "I001", "PLR2004"]
 "tests/test_person_tracker.py" = ["F401", "I001"]
 "tests/test_report_generation.py" = ["E501", "F401", "I001", "T201"]
 "tests/test_report_sql_injection.py" = ["E501", "I001", "PLR2004", "S608"]
@@ -171,8 +165,6 @@ module = [
     "shapely.*",
     "supervision.*",
     "tkcalendar.*",
-    "torch.*",
-    "ultralytics.*",
     "wmi",
 ]
 ignore_missing_imports = true
@@ -214,14 +206,6 @@ disable_error_code = ["no-untyped-def"]
 
 [[tool.mypy.overrides]]
 module = "src.analysis.state_manager"
-disable_error_code = ["no-untyped-def"]
-
-[[tool.mypy.overrides]]
-module = "src.detection.people_detector"
-disable_error_code = ["attr-defined", "no-untyped-def"]
-
-[[tool.mypy.overrides]]
-module = "src.detection.person_detector"
 disable_error_code = ["no-untyped-def"]
 
 [[tool.mypy.overrides]]

@@ -21,7 +21,7 @@ import pytest
 from config.path_utils import ConfigManager
 from src.composicion_epp import PublicadorEnMemoria
 from src.main_ui import AppMain
-from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
+from tests.dobles_onnx import ID_PERSONA, DeteccionCruda, SesionOnnxFalsa
 
 Camaras = list[dict[str, object]]
 
@@ -41,12 +41,12 @@ CAMARA_3: dict[str, object] = {
 }
 
 
-def modelo_yolo_falso(_ruta_modelo: str) -> ModeloFalso:
-    """Doble de `ultralytics.YOLO`: la prueba no carga pesos reales (CLAUDE.md §16)."""
-    return ModeloFalso([DeteccionCruda(0, (1.0, 2.0, 3.0, 4.0), CONFIANZA_BAJA)])
+def modelo_onnx_falso(_ruta_modelo: str) -> SesionOnnxFalsa:
+    """Doble de la sesión de ONNX Runtime: la prueba no carga pesos reales (CLAUDE.md §16)."""
+    return SesionOnnxFalsa([DeteccionCruda(ID_PERSONA, (1.0, 2.0, 3.0, 4.0), CONFIANZA_BAJA)], 4, 4)
 
 
-def modelo_que_no_carga(_ruta_modelo: str) -> ModeloFalso:
+def modelo_que_no_carga(_ruta_modelo: str) -> SesionOnnxFalsa:
     raise RuntimeError("pesos corruptos")
 
 
@@ -137,8 +137,8 @@ def trabajadores(monkeypatch: pytest.MonkeyPatch) -> FabricaDeTrabajadoresFalsa:
 
 
 @pytest.fixture
-def motor() -> Callable[[str], ModeloFalso]:
-    return modelo_yolo_falso
+def motor() -> Callable[[str], SesionOnnxFalsa]:
+    return modelo_onnx_falso
 
 
 class LicenciaConEPP:
@@ -165,12 +165,12 @@ def licencia() -> object | None:
 
 @pytest.fixture
 def entorno(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, motor: Callable[[str], ModeloFalso]
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, motor: Callable[[str], SesionOnnxFalsa]
 ) -> None:
     """Tenant en tmp_path, motor falso y diálogos de error mudos."""
     monkeypatch.setenv("APPDATA", str(tmp_path))
     monkeypatch.setattr(ConfigManager, "_active_tenant_id", "Prueba_Escaneo")
-    monkeypatch.setattr("ultralytics.YOLO", motor)
+    monkeypatch.setattr("src.composition.crear_sesion", motor)
     monkeypatch.setattr("tkinter.messagebox.showerror", lambda *_argumentos: None)
 
 

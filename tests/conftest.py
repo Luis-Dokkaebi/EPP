@@ -48,3 +48,13 @@ def importacion_sin_efectos(monkeypatch: pytest.MonkeyPatch) -> None:
     # src/gui_app.py reemplaza sys.excepthook y src/main.py fija una variable de entorno.
     monkeypatch.setattr(sys, "excepthook", sys.excepthook)
     monkeypatch.delenv("KMP_DUPLICATE_LIB_OK", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def sin_modelos_faciales_reales(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Quien cree un FaceRecognizer sin motor recibe el doble, no YuNet + SFace (CLAUDE.md §16)."""
+    from src import composition
+    from tests.dobles_motor_facial import MotorFacialFalso
+
+    monkeypatch.setattr(composition, "assert_model_integrity", lambda _ruta: None)
+    monkeypatch.setattr(composition, "crear_motor_facial_opencv", lambda *_r: MotorFacialFalso())

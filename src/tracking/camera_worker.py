@@ -72,7 +72,7 @@ class CameraWorker(threading.Thread):
                   f"({type(exc).__name__}: {exc}). El video seguirá mostrándose.")
 
         # --- TASK-5.2: Verificacion de integridad del modelo AI (Anti-Tamper) ---
-        # Si el yolov8n.pt en disco fue reemplazado por un modelo falso/backdoor,
+        # Si el modelo ONNX en disco fue reemplazado por uno falso/backdoor,
         # el hash SHA-256 no coincide y el tracking se deshabilita (SPEC 5.2 DoD).
         self.model_verified = True
         try:

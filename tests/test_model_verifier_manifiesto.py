@@ -149,7 +149,7 @@ def test_verify_model_sin_tabla_usa_los_modelos_aprobados_embebidos(
 ) -> None:
     caplog.set_level(logging.INFO, logger="src.models.model_verifier")
 
-    assert verify_model(str(RAIZ / "yolov8n.pt")) is True
+    assert verify_model(str(RAIZ / "models/rostros/face_detection_yunet_2023mar.onnx")) is True
     assert caplog.messages == ["[ModelVerifier] Integridad del modelo AI verificada (SHA-256 OK)."]
 
 

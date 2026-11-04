@@ -1,5 +1,5 @@
 # tests/test_model_verifier.py
-# TASK-5.2 DoD: reemplazar yolov8n.pt por un modelo falso detiene el tracking.
+# TASK-5.2 DoD: reemplazar el modelo por uno falso detiene el tracking.
 
 import os
 import sys
@@ -14,19 +14,20 @@ from src.models.model_verifier import (
     ModelIntegrityError,
 )
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'yolov8n.pt')
+# El más chico de los modelos distribuidos: la prueba lee el archivo, no lo carga.
+ARCHIVO = 'models/rostros/face_detection_yunet_2023mar.onnx'
+MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', ARCHIVO)
 
 
-@pytest.mark.skipif(not os.path.exists(MODEL_PATH), reason="yolov8n.pt no presente")
 def test_real_model_matches_embedded_hash():
     """El modelo distribuido coincide con el hash pre-aprobado embebido."""
     assert verify_model(MODEL_PATH) is True
-    assert compute_model_hash(MODEL_PATH) == MODELOS_APROBADOS["yolov8n.pt"]
+    assert compute_model_hash(MODEL_PATH) == MODELOS_APROBADOS[ARCHIVO]
 
 
 def test_tampered_model_is_rejected(tmp_path):
     """Un modelo manipulado (backdoor) es rechazado y aborta el tracking."""
-    fake = tmp_path / "yolov8n.pt"
+    fake = tmp_path / "rfdetr-nano-coco-int8.onnx"
     fake.write_bytes(b"FAKE_MODEL_WITH_BACKDOOR" * 100)
 
     assert verify_model(str(fake)) is False
@@ -47,11 +48,11 @@ def test_missing_model_raises(tmp_path):
 
 def test_camera_worker_disabled_when_model_tampered(monkeypatch, tmp_path):
     """CameraWorker.run() no arranca si la verificacion del modelo falla."""
-    # Stub config para no exigir Tenant activo ni face_recognition real.
+    # Stub config para no exigir Tenant activo; el motor facial es el doble de conftest.
     import config.config as cfg
     monkeypatch.setattr(cfg, "get_faces_dir", lambda: str(tmp_path / "faces"))
-    monkeypatch.setattr(cfg, "MODEL_PATH", str(tmp_path / "yolov8n.pt"))
-    (tmp_path / "yolov8n.pt").write_bytes(b"NOT THE REAL MODEL")
+    monkeypatch.setattr(cfg, "MODEL_PATH", str(tmp_path / "rfdetr-nano-coco-int8.onnx"))
+    (tmp_path / "rfdetr-nano-coco-int8.onnx").write_bytes(b"NOT THE REAL MODEL")
 
     import queue
     from src.tracking.camera_worker import CameraWorker

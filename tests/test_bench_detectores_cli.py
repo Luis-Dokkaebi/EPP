@@ -12,7 +12,6 @@ import pytest
 
 from src import composition as composicion
 from src.inference.adapters.onnx_detector import DetectorOnnx
-from src.inference.adapters.ultralytics_detector import DetectorUltralytics
 from src.inference.types import Caja, ClaseObjeto, Deteccion
 from tests.utilidades_scripts import RAIZ
 from tools import bench_detectores
@@ -59,16 +58,6 @@ def test_leer_frames_etiquetados_falla_si_el_video_tiene_menos_frames(tmp_path: 
         leer_frames_etiquetados(_video(tmp_path, cuadros=2), _etiquetas(tmp_path))
 
 
-def test_crear_variante_ultralytics_usa_la_raiz_de_composicion(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setitem(sys.modules, "ultralytics", types.SimpleNamespace(YOLO=lambda _r: None))
-
-    detector = crear_variante("ultralytics", "yolov8n.pt", 0.5, manifiesto={})
-
-    assert isinstance(detector, DetectorUltralytics)
-
-
 def test_crear_variante_onnx_toma_normalizacion_y_clases_del_manifiesto(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -106,7 +95,7 @@ def test_main_mide_cada_variante_contra_el_baseline(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     acierto = [Deteccion(ClaseObjeto.PERSONA, 0.9, Caja(4, 4, 20, 28))]
-    variantes = {"base.pt": DetectorFijo(acierto), "nuevo.onnx": DetectorFijo([])}
+    variantes = {"base.onnx": DetectorFijo(acierto), "nuevo.onnx": DetectorFijo([])}
     monkeypatch.setattr(
         bench_detectores, "crear_variante", lambda _motor, ruta, _c, manifiesto: variantes[ruta]
     )
@@ -114,7 +103,7 @@ def test_main_mide_cada_variante_contra_el_baseline(
     codigo = main(
         ["--video", str(_video(tmp_path)), "--etiquetas", str(_etiquetas(tmp_path)),
          "--hardware", "CI", "--confianza-minima", "0.5",
-         "--variante", "base", "ultralytics", "base.pt", "estado actual",
+         "--variante", "base", "onnx", "base.onnx", "estado actual",
          "--variante", "nuevo", "onnx", "nuevo.onnx", "más liviano"]
     )  # fmt: skip
 
@@ -142,7 +131,7 @@ def test_memoria_se_informa_en_mib(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.parametrize(
     ("motor", "manifiesto", "mensaje"),
-    [("tensorflow", {}, "Motor desconocido: tensorflow (usa ultralytics u onnx)."),
+    [("tensorflow", {}, "Motor desconocido: tensorflow (usa onnx)."),
      ("onnx", {"modelos": []},
       "m.onnx no está declarado en models/manifest.json (clases y normalización).")],
 )  # fmt: skip

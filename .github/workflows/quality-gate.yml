@@ -93,8 +93,9 @@ jobs:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # WAIVER-#18 (W-011): en rojo por diseño hasta cerrar AC-001 (ultralytics AGPL, tkcalendar
-    # GPL, pesos .pt AGPL). Reporta sin bloquear el merge; vence el 2027-01-20.
+    # WAIVER-#18 (W-011): en rojo hasta que la revisión legal D9 decida sobre los datasets de
+    # entrenamiento de los modelos (WIDER FACE, SFace, Objects365). Reporta sin bloquear el
+    # merge; vence el 2027-01-20.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
@@ -102,11 +103,9 @@ jobs:
         with:
           python-version: "3.11"
       - name: Entorno limpio con solo requirements.txt
-        # El índice CPU de PyTorch reproduce el torch del ejecutable de Windows (sin CUDA).
         run: |
           python -m venv .venv-licencias
-          .venv-licencias/bin/python -m pip install -r requirements.txt \
-            --extra-index-url https://download.pytorch.org/whl/cpu
+          .venv-licencias/bin/python -m pip install -r requirements.txt
       - name: Avisos de terceros del runtime
         # Antes del gate: el gate falla por diseño (W-011) y los avisos no deben perderse.
         shell: bash

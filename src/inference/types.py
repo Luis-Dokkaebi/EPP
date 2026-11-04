@@ -73,10 +73,3 @@ class CatalogoDeClases:
 
     def clase_de(self, id_modelo: int) -> ClaseObjeto | None:
         return self._ids.get(id_modelo)
-
-
-ID_COCO_PERSONA = 0
-ID_COCO_CELULAR = 67
-CATALOGO_COCO = CatalogoDeClases(
-    {ID_COCO_PERSONA: ClaseObjeto.PERSONA, ID_COCO_CELULAR: ClaseObjeto.CELULAR}
-)

@@ -7,8 +7,8 @@ Los números se publican en docs/benchmarks/motor_ia.md solo si vienen de corrid
 Uso:
   python -m tools.bench_detectores --video clip.mp4 --etiquetas etiquetas.json \\
       --hardware "i5-8400, solo CPU" --confianza-minima 0.5 \\
-      --variante baseline-yolov8n ultralytics yolov8n.pt "estado actual (AGPL)" \\
-      --variante rfdetr-nano-onnx onnx models/rfdetr_nano.onnx "objetos chicos"
+      --variante rfdetr-nano-int8 onnx models/rfdetr/rfdetr-nano-coco-int8.onnx "estado actual" \\
+      --variante rfdetr-small onnx models/rfdetr/rfdetr-small.onnx "objetos chicos"
   etiquetas.json: {"frames": {"<índice del frame>": [[x1, y1, x2, y2], ...]}} (solo personas)
 """
 
@@ -30,6 +30,7 @@ from src.composition import crear_detector
 from src.inference.ports import DetectorPort
 from src.inference.types import Caja, ClaseObjeto
 
+MOTOR_ONNX = "onnx"
 IOU_MINIMO = 0.5
 MILISEGUNDOS = 1000.0
 BYTES_POR_MB = 1024 * 1024
@@ -176,10 +177,16 @@ def leer_frames_etiquetados(video: Path, etiquetas: Path) -> list[FrameEtiquetad
     return frames
 
 
+class MotorDesconocidoError(ValueError):
+    """La variante pide un motor que el producto no tiene."""
+
+
 def crear_variante(
     motor: str, ruta: str, confianza_minima: float, manifiesto: dict[str, Any]
 ) -> DetectorPort:
-    return crear_detector(ruta, confianza_minima, motor=motor, manifiesto=manifiesto)
+    if motor != MOTOR_ONNX:
+        raise MotorDesconocidoError(f"Motor desconocido: {motor} (usa {MOTOR_ONNX}).")
+    return crear_detector(ruta, confianza_minima, manifiesto)
 
 
 def _memoria_mb() -> float:

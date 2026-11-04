@@ -5,7 +5,6 @@ import math
 import pytest
 
 from src.inference.types import (
-    CATALOGO_COCO,
     Caja,
     CajaInvalidaError,
     CatalogoDeClases,
@@ -13,10 +12,6 @@ from src.inference.types import (
     ConfianzaInvalidaError,
     Deteccion,
 )
-
-ID_COCO_PERSONA = 0
-ID_COCO_AUTO = 2
-ID_COCO_CELULAR = 67
 
 
 def test_caja_valida_conserva_sus_coordenadas() -> None:
@@ -83,18 +78,6 @@ def test_deteccion_con_confianza_fuera_de_rango_lanza_error_tipado(confianza: fl
         Deteccion(ClaseObjeto.PERSONA, confianza, Caja(0, 0, 1, 1))
 
     assert str(error.value) == f"La confianza debe estar entre 0 y 1; llegó {confianza}."
-
-
-@pytest.mark.parametrize(
-    ("id_modelo", "clase"),
-    [(ID_COCO_PERSONA, ClaseObjeto.PERSONA), (ID_COCO_CELULAR, ClaseObjeto.CELULAR)],
-)
-def test_catalogo_coco_traduce_ids_a_clases(id_modelo: int, clase: ClaseObjeto) -> None:
-    assert CATALOGO_COCO.clase_de(id_modelo) is clase
-
-
-def test_catalogo_ignora_ids_que_no_son_del_dominio() -> None:
-    assert CATALOGO_COCO.clase_de(ID_COCO_AUTO) is None
 
 
 def test_catalogo_no_cambia_si_se_modifica_el_diccionario_original() -> None:

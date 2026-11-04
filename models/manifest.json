@@ -2,52 +2,42 @@
   "version_esquema": 1,
   "modelos": [
     {
-      "nombre": "yolov8n-coco",
-      "version": "ultralytics-8.1.15",
-      "archivo": "yolov8n.pt",
-      "sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
-      "motor": "ultralytics",
-      "licencia_pesos": "AGPL-3.0",
-      "licencia_codigo_entrenamiento": "AGPL-3.0",
+      "nombre": "rfdetr-nano-coco",
+      "version": "rfdetr-1.11.2-int8",
+      "archivo": "models/rfdetr/rfdetr-nano-coco-int8.onnx",
+      "sha256": "0eefa7a4dac204ee93a1ea7e4583e98e8d529a4df31ae0b6631f3a82cc633d3e",
+      "motor": "onnxruntime",
+      "licencia_pesos": "Apache-2.0",
+      "licencia_codigo_entrenamiento": "Apache-2.0",
       "datasets": [
         {
           "nombre": "COCO 2017",
           "licencia": "CC-BY-4.0"
-        }
-      ],
-      "clases": {
-        "0": "persona",
-        "67": "celular"
-      },
-      "tamano_entrada": [
-        640,
-        640
-      ],
-      "origen": "Pesos preentrenados de Ultralytics. Es el modelo que usa la app (config.MODEL_PATH). Se retira en A-16 (requiere D8)."
-    },
-    {
-      "nombre": "yolov8n-coco-copia",
-      "version": "desconocida",
-      "archivo": "models/yolov8/yolov8n.pt",
-      "sha256": "31e20dde3def09e2cf938c7be6fe23d9150bbbe503982af13345706515f2ef95",
-      "motor": "ultralytics",
-      "licencia_pesos": "AGPL-3.0",
-      "licencia_codigo_entrenamiento": "AGPL-3.0",
-      "datasets": [
+        },
         {
-          "nombre": "COCO 2017",
-          "licencia": "CC-BY-4.0"
+          "nombre": "Objects365 (preentrenamiento de RF-DETR)",
+          "licencia": "CC-BY-4.0 (por verificar en D9)"
         }
       ],
       "clases": {
-        "0": "persona",
-        "67": "celular"
+        "1": "persona",
+        "77": "celular"
       },
       "tamano_entrada": [
-        640,
-        640
+        384,
+        384
       ],
-      "origen": "Copia de origen desconocido: su sha256 difiere del yolov8n.pt de la raíz y el código no la usa. Se borra en A-16 (requiere D8)."
+      "media": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "desviacion": [
+        0.229,
+        0.224,
+        0.225
+      ],
+      "origen": "Pesos preentrenados RF-DETR Nano de Roboflow (rfdetr==1.11.2, tamaño Apache-2.0), exportados a ONNX con RFDETRNano().export() y cuantizados a int8 dinámico con onnxruntime.quantization.quantize_dynamic(per_channel=True). Ver docs/benchmarks/motor_ia.md."
     },
     {
       "nombre": "yunet-deteccion-facial",

@@ -2,9 +2,10 @@
 
 ## Estado
 
-**Provisional** (2026-10-22). Se confirma o se cambia con el benchmark de la entrega A-13
-(`docs/benchmarks/motor_ia.md`, SPEC/9 §1.5). La decisión de negocio sobre el hardware (D2) está
-abierta: el benchmark se corre en CPU y el proveedor de ejecución queda configurable.
+**Aceptada** (2026-11-04) por el dueño del producto: RF-DETR Nano en ONNX Runtime, cuantizado a
+int8 (`models/rfdetr/rfdetr-nano-coco-int8.onnx`), y Ultralytics retirado del producto (A-16).
+El benchmark con el video del piloto (A-13, `docs/benchmarks/motor_ia.md`) sigue pendiente y
+puede llevar a otro tamaño de RF-DETR sin tocar el dominio.
 
 ## Contexto
 

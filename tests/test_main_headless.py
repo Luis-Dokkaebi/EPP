@@ -5,7 +5,6 @@ Mismo criterio que las pruebas de CameraWorker: la fixture cambia de motor, las 
 
 import subprocess
 import sys
-import types
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -17,14 +16,15 @@ import pytest
 
 from config.path_utils import ConfigManager
 from src import main
-from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
+from tests.dobles_onnx import ID_CELULAR, ID_PERSONA, DeteccionCruda, SesionOnnxFalsa
 
 MODULO_EPP = "modulo-epp"
 VERDE = (0, 255, 0)
 INDICE_LOCAL = 5
 TECLA_Q_CON_MODIFICADOR = 0x100 | ord("q")
-CLASE_PERSONA = 0
-CLASE_CELULAR = 67
+CLASE_PERSONA = ID_PERSONA
+CLASE_CELULAR = ID_CELULAR
+LADO = 256
 UMBRAL = 0.4
 MARCA_TIEMPO = 2_000.0
 
@@ -154,11 +154,9 @@ def correr_headless(
         detecciones: list[DeteccionCruda],
         pistas: list[dict[str, Any]] | None = None,
     ) -> Corrida:
-        modelo = ModeloFalso(detecciones)
-        # Paquete `ultralytics` falso: la prueba no importa el motor real ni carga pesos.
-        monkeypatch.setitem(
-            sys.modules, "ultralytics", types.SimpleNamespace(YOLO=lambda _r: modelo)
-        )
+        # Sesión ONNX falsa: la prueba no carga el modelo real (CLAUDE.md §16).
+        sesion = SesionOnnxFalsa(detecciones, LADO, LADO)
+        monkeypatch.setattr("src.composition.crear_sesion", lambda _ruta: sesion)
         corrida = Corrida(pipelines=[], capturas=[], ventanas_cerradas=[])
         _aislar_entorno(monkeypatch, tmp_path, entorno_de_corrida.camara_elegida)
         monkeypatch.setattr(main, "StateManager", lambda _bd: corrida.estados)
@@ -269,7 +267,7 @@ def test_headless_entrega_personas_y_celulares_por_encima_del_umbral(
         DeteccionCruda(CLASE_CELULAR, (7.0, 7.0, 9.0, 9.0), 0.1),
     ]
 
-    corrida = correr_headless(frames=[np.zeros((4, 4, 3), dtype=np.uint8)], detecciones=detecciones)
+    corrida = correr_headless(frames=[np.zeros((LADO, LADO, 3), np.uint8)], detecciones=detecciones)
 
     [(_, personas, celulares, _)] = corrida.llamadas()
     assert personas.xyxy.tolist() == [[10.0, 20.0, 110.0, 220.0]]
@@ -307,7 +305,7 @@ def test_headless_con_licencia_de_epp_evalua_con_todas_las_detecciones(
         DeteccionCruda(CLASE_CELULAR, (5.7, 6.2, 30.9, 40.1), 0.8),
     ]
 
-    corrida = correr_headless(frames=[np.zeros((4, 4, 3), dtype=np.uint8)], detecciones=detecciones)
+    corrida = correr_headless(frames=[np.zeros((LADO, LADO, 3), np.uint8)], detecciones=detecciones)
 
     [pipeline] = corrida.pipelines
     [opciones] = pipeline.opciones

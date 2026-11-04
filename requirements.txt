@@ -1,6 +1,5 @@
 # === Stack B2B (versiones fijadas — ver SPEC/3_TASKS TASK-0.1) ===
 customtkinter==5.2.2
-ultralytics==8.1.15
 opencv-python-headless==4.9.0.80
 supervision==0.18.0
 shapely==2.0.3

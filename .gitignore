@@ -21,3 +21,5 @@ mutants/
 # Artefactos del build de Windows (compilar_exe.bat)
 build_paquetes.json
 THIRD_PARTY_NOTICES.txt
+# Llave privada del DRM: firma licencias y JAMÁS se versiona (CLAUDE.md §9).
+scripts/tu_llave_maestra_privada.pem

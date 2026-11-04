@@ -15,7 +15,7 @@ el archivo afectado.
 | W-006 | `--cov-fail-under=85` (§6, §10.4) | `src/` (global) | La línea base es 41 %; el piso del gate es `cobertura_global_minima` de `metricas.json` y solo sube | Medio | 2027-01-19 | #7 |
 | W-008 | Contrato `dominio-sin-detalles` de import-linter (§16) | `src/zones/zone_editor.py -> cv2` (`ignore_imports` en `.importlinter`) | Editor interactivo heredado con ventana de OpenCV dentro de `src/zones` | Bajo | 2027-01-20 | #10 |
 | W-009 | Longitud de archivo ≤ 500 líneas (§3) | `src/gui_app.py` (`longitud_waiver` en `metricas.json`) | GUI heredada de 1094 líneas | Medio | 2027-01-20 | #16 |
-| W-010 | Sin secretos en el repositorio (§9) | `scripts/tu_llave_maestra_privada.pem` (registrado en `.secrets.baseline` como secreto real) | Llave privada versionada antes del gate; rotarla y purgar el historial es acción humana | **Alto** | 2027-01-20 | #17 |
+| W-010 | Sin secretos en el repositorio (§9) | Historial de git: `scripts/tu_llave_maestra_privada.pem` | El archivo salió del árbol (2026-11-04) y está en `.gitignore`, pero sigue en commits viejos: la llave está comprometida. Falta rotar el par (`scripts/generar_llaves_maestras.py` en la PC del dueño, nueva pública en `src/security/drm.py`) y purgar el historial; ambas son acciones humanas | **Alto** | 2027-01-20 | #17 |
 | W-011 | No se hace merge con checks en rojo (§13) | `.github/workflows/quality-gate.yml`, job `licencias` con `continue-on-error: true` | Ya no hay dependencias ni pesos AGPL/GPL; quedan los datasets de entrenamiento de los modelos (WIDER FACE, SFace, Objects365) hasta la revisión legal D9 | **Alto** | 2027-01-20 | #18 |
 
 Las reglas para código **nuevo** (paquetes `src/inference`, `src/ppe`, `src/alerts`, `ml/`, `tools/`

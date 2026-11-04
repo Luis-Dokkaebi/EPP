@@ -16,7 +16,6 @@ exclude = [
     "config/path_utils.py",
     "generate_license.py",
     "migrate_data.py",
-    "obfuscate.py",
     "scripts/generar_llaves_maestras.py",
     "scripts/keygen_b2b.py",
     "src/acquisition/camera_enumerator.py",
@@ -49,7 +48,6 @@ exclude = [
     "tests/test_drm_rsa_b2b.py",
     "tests/test_efficiency.py",
     "tests/test_model_verifier.py",
-    "tests/test_obfuscate_pipeline.py",
     "tests/test_person_tracker.py",
     "tests/test_report_generation.py",
     "tests/test_report_sql_injection.py",
@@ -73,7 +71,6 @@ exclude = [
 "config/path_utils.py" = ["E501", "W293"]
 "generate_license.py" = ["I001", "T201", "W293"]
 "migrate_data.py" = ["E501", "T201"]
-"obfuscate.py" = ["E501", "F401", "T201"]
 "scripts/generar_llaves_maestras.py" = ["I001", "T201"]
 "scripts/keygen_b2b.py" = ["E501", "F541", "I001", "N801", "RUF013", "T201"]
 "src/acquisition/camera_enumerator.py" = ["C901", "I001", "PLR0912", "S110", "W293"]
@@ -106,7 +103,6 @@ exclude = [
 "tests/test_drm_rsa_b2b.py" = ["E501", "F401", "I001", "T201", "W291", "W293"]
 "tests/test_efficiency.py" = ["E501", "F401", "I001", "W293"]
 "tests/test_model_verifier.py" = ["I001"]
-"tests/test_obfuscate_pipeline.py" = ["F401", "I001"]
 "tests/test_person_tracker.py" = ["F401", "I001"]
 "tests/test_report_generation.py" = ["E501", "F401", "I001", "T201"]
 "tests/test_report_sql_injection.py" = ["E501", "I001", "PLR2004", "S608"]
@@ -164,7 +160,6 @@ module = [
     "seaborn.*",
     "shapely.*",
     "supervision.*",
-    "tkcalendar.*",
     "wmi",
 ]
 ignore_missing_imports = true

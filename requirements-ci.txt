@@ -1,7 +1,6 @@
 # Runtime instalable en Linux para CI y sesiones en la nube (SPEC/9 §0.1 y §0.6).
 # Mismas versiones que requirements.txt (lo verifica tests/test_harness_dependencias.py).
-# Se excluyen: wmi (solo Windows),
-# pyarmor y pyinstaller (solo build del ejecutable).
+# Se excluye wmi (solo Windows). El build usa requirements-build.txt.
 customtkinter==5.2.2
 opencv-python-headless==4.9.0.80
 supervision==0.18.0

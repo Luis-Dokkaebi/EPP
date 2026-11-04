@@ -16,3 +16,10 @@ pre-commit install   # formato, lint, arquitectura, gemelos, tamaño y secretos 
 - Gate de licencias (en rojo hasta cerrar AC-001): `pre-commit run licencias --hook-stage manual`.
 - Un falso positivo de secretos se marca con `# pragma: allowlist secret` o se audita con
   `detect-secrets audit .secrets.baseline`.
+
+## Ejecutable de Windows
+
+`compilar_exe.bat` compila la app con Nuitka (Python a C) y arma el instalador con Inno Setup;
+el procedimiento completo, las llaves del DRM y el checklist de release están en
+`SPEC/7_BUILD_RELEASE.md`. Los modelos (`models/`) son RF-DETR Nano en ONNX para personas y
+YuNet + SFace para rostros; la app no usa PyTorch, Ultralytics ni dlib.

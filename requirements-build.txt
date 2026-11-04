@@ -1,0 +1,6 @@
+# Herramientas de build del ejecutable de Windows: no viajan en el ejecutable ni hacen falta en CI.
+# Nuitka 2.8.10 es la última versión Apache-2.0 (desde 4.0 es AGPL con excepción de runtime);
+# compila Python a C y reemplaza a PyInstaller + PyArmor.
+nuitka==2.8.10
+# Genera THIRD_PARTY_NOTICES.txt para el instalador (misma versión que requirements-dev.txt).
+pip-licenses==5.5.5

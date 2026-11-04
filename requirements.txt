@@ -4,8 +4,6 @@ opencv-python-headless==4.9.0.80
 supervision==0.18.0
 shapely==2.0.3
 wmi==1.5.1; sys_platform == "win32"
-pyarmor==8.4.6
-pyinstaller==6.4.0
 pandas==2.2.0
 openpyxl==3.1.2
 # 42.0.5 tenía 7 vulnerabilidades conocidas (pip-audit, 2026-10-21); 50.0.2 las corrige.

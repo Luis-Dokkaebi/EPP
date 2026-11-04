@@ -1,226 +1,156 @@
-# 7. BUILD & RELEASE: Runbook de Empaquetado B2B (PyArmor → PyInstaller → Inno Setup)
+# 7. BUILD & RELEASE: Runbook de Empaquetado B2B (Nuitka → Inno Setup)
 
 Este documento es el **procedimiento operativo** para convertir el código fuente
 en un instalador `.exe` distribuible que corre en otra computadora **sin Python
 instalado**. Complementa el checklist de aceptación de `5_REVIEW.md`.
 
-> **🚨 PLATAFORMA OBLIGATORIA:** Todo este pipeline es **Windows-only**. PyArmor,
-> PyInstaller (target Windows), `wmi`, `pywin32` e Inno Setup **no** funcionan en
-> Linux/macOS. No intentes compilar el binario de distribución fuera de Windows.
+> **Cambio del 2026-11-04:** PyArmor (ofuscación, sin licencia comercial) y PyInstaller se
+> reemplazaron por **Nuitka 2.8.10** (Apache-2.0), que compila el Python a C: el ejecutable no
+> lleva bytecode legible, así que no hace falta un ofuscador aparte. El motor de IA es
+> RF-DETR Nano en ONNX Runtime y el reconocimiento facial es YuNet + SFace (OpenCV): el
+> ejecutable ya no incluye PyTorch, Ultralytics (AGPL) ni dlib.
 
-> **Estado al momento de escribir este runbook:** el código está implementado y
-> cubierto por pruebas unitarias (115 + 5 GUI) y revisión de seguridad, pero el
-> binario **aún no se ha construido ni validado en Windows**. Este documento es
-> la ruta para hacerlo. Hasta completar §7.5 el producto **no** está aprobado
-> para distribución (ver `5_REVIEW.md`).
+> **🚨 PLATAFORMA:** el instalador de distribución se compila en **Windows** (Nuitka no compila
+> para otro sistema operativo). En Linux, `python scripts/compilar_ejecutable.py` compila un
+> binario de Linux: sirve para probar que el build no se rompió, no para distribuir.
 
 ---
 
-## 7.0 Prerrequisitos (PC de Build — la tuya, el proveedor)
+## 7.0 Prerrequisitos (PC de build del proveedor)
 
 | Requisito | Versión | Notas |
 |---|---|---|
-| Windows | 10 / 11 x64 | El binario heredará el target de esta máquina. |
-| Python | **3.10 o 3.11** | NO 3.12+ (PyArmor/PyInstaller no garantizan ofuscado completo — TASK-0.1). |
-| Inno Setup | 6.x | `ISCC.exe` en `C:\Program Files (x86)\Inno Setup 6\` (ruta usada por `compilar_exe.bat`). |
-| Git | cualquiera | Para clonar/versionar. |
-| Visual C++ Build Tools | opcional | Solo si decides intentar `pysqlcipher3` nativo (no requerido: se usa el fallback AES-256). |
-
-Comprueba la versión de Python:
-```bat
-python --version
-```
+| Windows | 10 / 11 x64 | |
+| Python | **3.11 de 64 bits** (python.org) | Nuitka no soporta el Python de la Microsoft Store. |
+| Compilador de C | MSVC 2022 (Build Tools) o MinGW64 | Si no hay ninguno, Nuitka descarga MinGW64 solo (`--assume-yes-for-downloads`). |
+| Inno Setup | 6.x | `ISCC.exe` en `C:\Program Files (x86)\Inno Setup 6\`. |
 
 ---
 
-## 7.1 Paso 0 — Entorno virtual y dependencias (Environment Freeze)
+## 7.1 Paso 0 — Entorno virtual
 
-Desde la raíz del proyecto (`MLCLAUDE\`):
+Desde la raíz del proyecto:
 
 ```bat
 python -m venv venv
 .\venv\Scripts\activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt -r requirements-build.txt
 ```
 
-`compilar_exe.bat` asume que el venv vive en `.\venv\` (usa `.\venv\Scripts\pyinstaller`
-y `.\venv\Scripts\python.exe`). **No cambies esa ubicación** o ajusta el `.bat`.
-
-Verifica que las herramientas críticas quedaron instaladas:
-```bat
-pyarmor --version
-pyinstaller --version
-python -c "import wmi, Crypto, cv2, ultralytics; print('stack OK')"
-```
-
-> Si `pysqlcipher3` falla al compilar: **es esperado y NO bloquea**. El cifrado
-> de la BD usa el fallback AES-256 a nivel de aplicación (`src/security/db_crypto.py`),
-> no SQLCipher nativo (ver TASK-0.1 y `0_REVIEW_FINDINGS` P0-2). `pysqlcipher3`
-> **no** está en `requirements.txt` por esta razón.
+`compilar_exe.bat` asume que el venv vive en `.\venv\`. `requirements-build.txt` trae solo las
+herramientas de build (Nuitka y pip-licenses); no viajan en el ejecutable.
 
 ---
 
-## 7.2 Paso 1 — Llaves DRM RSA-2048 (Provisión del proveedor)
+## 7.2 Paso 1 — Llaves DRM RSA-2048 (obligatorio antes de vender)
 
-El licenciamiento offline depende de un par de llaves RSA. La **pública** se
-embebe en `src/security/drm.py` (`_PUBLIC_KEY_PEM`); la **privada** firma las
-licencias y **jamás** se distribuye ni se compila en el `.exe`.
+El licenciamiento offline depende de un par de llaves RSA. La **pública** se embebe en
+`src/security/drm.py` (`_PUBLIC_KEY_PEM`); la **privada** firma las licencias y **jamás** se
+versiona ni se compila en el `.exe`.
 
-### 7.2.1 Para PRODUCCIÓN (obligatorio antes del primer release real)
+> ⚠️ **La llave privada que estuvo en `scripts/` está comprometida:** se versionó y sigue en el
+> historial de git. Salió del árbol y está en `.gitignore`, pero hay que **rotar el par** antes del
+> primer cliente. Las pruebas generan su propio par y no la necesitan.
 
-El repo incluye un par de llaves de **desarrollo** en `scripts/`. Para un release
-comercial **debes rotarlas** (las dev son públicas en el historial de Git):
+En **tu PC** (no en la nube ni en CI):
 
 ```bat
 python scripts\generar_llaves_maestras.py
 ```
-Esto genera:
-- `scripts\tu_llave_maestra_privada.pem` → **guárdala en USB/cofre, fuera de Git.**
-- `scripts\llave_publica_clientes.pem` → copia su contenido a `_PUBLIC_KEY_PEM`
-  en `src/security/drm.py` (reemplazando el bloque actual).
 
-> ⚠️ **Acción de seguridad pre-release:** tras rotar, confirma que
-> `tu_llave_maestra_privada.pem` está en `.gitignore` y **no** se incluye en
-> `gui_app.spec` (no lo está). El `.exe` solo debe contener la llave **pública**.
-> Re-ejecuta `tests/test_drm_rsa_b2b.py` para confirmar que la privada nueva
-> firma licencias que la pública nueva valida.
-
-### 7.2.2 Para PRUEBAS internas
-Puedes usar las llaves de desarrollo ya presentes en `scripts/` sin regenerar.
+- `scripts\tu_llave_maestra_privada.pem` → guárdala en un cofre o USB cifrado y haz respaldo.
+  Git la ignora.
+- `scripts\llave_publica_clientes.pem` → copia su contenido a `_PUBLIC_KEY_PEM` en
+  `src/security/drm.py`, corre la suite y haz commit **solo** de la pública.
 
 ---
 
-## 7.3 Paso 2 — Modelo AI y su hash de integridad
+## 7.3 Paso 2 — Modelos de IA y su hash de integridad
 
-`yolov8n.pt` debe estar en la raíz del proyecto (ya lo está). El módulo
-`src/models/model_verifier.py` valida su SHA-256 en runtime (TASK-5.2).
+Los modelos viven en `models/` y se declaran en `models/manifest.json` (archivo, sha256,
+licencias y datasets):
 
-> **Si reemplazas el modelo** (`yolov8n.pt`) por otra versión, debes actualizar
-> `EXPECTED_MODEL_SHA256` en `src/models/model_verifier.py`, o el `CameraWorker`
-> abortará el tracking por "modelo manipulado". Para recalcular:
-> ```bat
-> python -c "import hashlib;print(hashlib.sha256(open('yolov8n.pt','rb').read()).hexdigest())"
-> ```
+| Archivo | Uso | Licencia de los pesos |
+|---|---|---|
+| `models/rfdetr/rfdetr-nano-coco-int8.onnx` | Personas y celulares | Apache-2.0 |
+| `models/rostros/face_detection_yunet_2023mar.onnx` | Detección de caras | MIT |
+| `models/rostros/face_recognition_sface_2021dec.onnx` | Reconocimiento de caras | Apache-2.0 |
+
+El ejecutable verifica el SHA-256 contra `src/models/manifiesto_aprobado.py` y no arranca la
+inferencia si no coincide. **Si cambias un modelo:** actualiza su entrada en el manifiesto y
+corre `python scripts/generar_manifiesto_embebido.py`.
 
 ---
 
-## 7.4 Paso 3 — Build (Ofuscación → Empaquetado → Instalador)
+## 7.4 Paso 3 — Build (Nuitka → instalador)
 
-Un solo comando ejecuta todo el pipeline SECOPS:
+Un solo comando:
 
 ```bat
 compilar_exe.bat
 ```
 
-Internamente hace, **en este orden estricto** (Anti-Vibe Hacking — no se puede saltar):
+En este orden:
 
-1. **`python obfuscate.py`** → limpia `build/` y `dist/obfuscated/`, y ofusca
-   `src/` + `config/` con `pyarmor gen -O dist/obfuscated --enable-jit --restrict 1`.
-2. **`pyinstaller gui_app.spec --clean -y`** → empaqueta el código **ofuscado**
-   (`gui_app.spec` apunta a `dist\obfuscated\src\main_ui.py`) en
-   `dist\OficinaEficiencia_VMS\`. Incluye `yolov8n.pt`, `VERSION`, runtime de
-   PyArmor, y los `hiddenimports` de `wmi`/`win32com`/`Crypto`/`ultralytics`/etc.
-3. **`ISCC.exe ... setup_oficina.iss`** → genera el instalador en
-   `installer_output\setup_oficina_eficiencia_v<VERSION>.exe`.
+1. Instala `requirements.txt` y `requirements-build.txt` (versiones fijadas).
+2. Genera `THIRD_PARTY_NOTICES.txt` con las licencias de terceros del entorno de build.
+3. `python scripts\compilar_ejecutable.py` → Nuitka en modo `--standalone` compila
+   `src/main_ui.py` y deja la carpeta `build\nuitka\main_ui.dist\` con
+   `OficinaEficiencia_VMS.exe`, las DLL, `models\` y `VERSION`. El informe de la compilación
+   queda en `build\nuitka\compilacion.xml`. La primera compilación tarda bastante (decenas de
+   minutos); las siguientes usan la caché de Nuitka.
+4. `ISCC.exe /DMyAppVersion=<VERSION> setup_oficina.iss` → instalador en
+   `installer_output\setup_oficina_eficiencia_v<VERSION>.exe`, con la carpeta compilada y los
+   avisos de terceros.
 
-El número de versión sale del archivo `VERSION` (actual: **1.3.0**) y se inyecta
-al `.iss` vía `/DMyAppVersion`.
-
-### Salidas esperadas
-```
-dist\obfuscated\           <- código ofuscado intermedio
-dist\OficinaEficiencia_VMS\OficinaEficiencia_VMS.exe   <- binario portable
-installer_output\setup_oficina_eficiencia_v1.3.0.exe   <- INSTALADOR a distribuir
-```
-
-### Build manual (si quieres correr pasos por separado para depurar)
-```bat
-.\venv\Scripts\python.exe obfuscate.py
-.\venv\Scripts\pyinstaller gui_app.spec --clean -y
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.3.0 setup_oficina.iss
-```
-
-> **Tip de depuración:** `gui_app.spec` tiene `console=True`. Déjalo así durante
-> las primeras pruebas para ver tracebacks; cámbialo a `console=False` solo para
-> el release final de producción.
+La versión sale del archivo `VERSION` (formato `X.Y.Z`; el build se detiene si no lo es).
 
 ---
 
 ## 7.5 Paso 4 — Validación de aceptación en una SEGUNDA PC limpia
 
-**Esto es lo que convierte "compiló" en "aprobado para distribuir".** Copia el
-instalador a una PC **sin Python ni el toolchain**, instálalo y completa el
-checklist de `5_REVIEW.md`. Mínimo imprescindible:
+**Esto es lo que convierte "compiló" en "aprobado para distribuir".** Instala en una PC **sin
+Python** y completa el checklist de `5_REVIEW.md`. Mínimo:
 
-- [ ] **Arranque sin Python:** el `.exe` instalado abre sin "ModuleNotFoundError"
-      ni faltas de DLL (libiomp5md, pysqlcipher, etc.).
-- [ ] **DRM/Activación (Auditoría 5.3.3):** la app muestra un Machine ID; al pegar
-      una licencia válida (§7.6) se desbloquea; una licencia forjada/expirada se
-      rechaza sin traceback.
-- [ ] **Aislamiento Multi-Tenant (Prueba 5.1.2):** crear 2 sucursales; un empleado
-      de "Norte" no existe ni es reconocido en "Sur".
-- [ ] **BD cifrada en reposo (Auditoría 5.3.2):** tras cerrar la app, en
-      `%APPDATA%\OficinaEficiencia\Tenants\<ID>\db\` existe `local_tracking.enc_db`
-      y DB Browser **no** puede abrirlo (aparece corrupto).
-- [ ] **Zero-Blocking (Prueba 5.1.1):** generar reporte Excel con 4 cámaras activas
-      sin que la UI muestre "No responde".
-- [ ] **Crash log cifrado (TASK-5.1):** ante un error, el usuario ve solo "Contacte
-      a Soporte B2B" y `Config\crash_logs.dat` es ilegible a simple vista.
-
-Marca estos ítems (y los de `5_REVIEW.md` §5.1–5.4) **sobre el binario**, no sobre
-el código.
+- [ ] **Arranque sin Python:** el `.exe` abre sin `ModuleNotFoundError` ni faltas de DLL.
+- [ ] **DRM/Activación:** muestra el Machine ID; una licencia válida desbloquea; una forjada o
+      vencida se rechaza sin traceback.
+- [ ] **Detección:** con una cámara real, detecta personas y escribe el tracking en la BD.
+- [ ] **Reconocimiento facial:** registrar a un empleado con fotos y que lo reconozca en cámara.
+- [ ] **Aislamiento multi-tenant:** un empleado de "Norte" no existe en "Sur".
+- [ ] **BD cifrada en reposo:** `local_tracking.enc_db` ilegible con DB Browser.
+- [ ] **Reportes Excel** con 4 cámaras activas sin que la UI se congele.
+- [ ] **Antivirus:** Windows Defender no marca el `.exe` (si lo hace, firma el binario, §7.7).
 
 ---
 
 ## 7.6 Paso 5 — Emisión de licencias (flujo comercial)
 
-Cuando un cliente compra:
-
-1. El cliente abre la app → copia su **Machine ID** (SHA-256) desde la ventana de
-   activación y te lo envía.
-2. Tú, en tu PC con la **llave privada**, emites la licencia:
-   ```bat
-   python scripts\keygen_b2b.py <MACHINE_ID_DEL_CLIENTE>
-   ```
-   (o sin argumento para modo interactivo: te pide días y máx. de cámaras).
-3. Copias el bloque Base64 generado y se lo envías al cliente.
-4. El cliente lo pega en "Activación de Software". La app valida la firma RSA
-   contra la llave pública embebida y guarda la licencia.
-
-> La llave privada **nunca** sale de tu máquina. El cliente solo recibe el Base64.
+1. El cliente abre la app y te envía su **Machine ID**.
+2. En tu PC, con la llave privada: `python scripts\keygen_b2b.py <MACHINE_ID_DEL_CLIENTE>`.
+3. Le envías el bloque Base64; lo pega en "Activación de Software".
 
 ---
 
-## 7.7 Troubleshooting (problemas frecuentes del pipeline B2B)
+## 7.7 Troubleshooting
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
-| `OMP: Error #15 ... libiomp5md.dll` | Conflicto OpenMP (Torch/Numpy/cv2) | Ya mitigado: `KMP_DUPLICATE_LIB_OK=TRUE` en `compilar_exe.bat`, `gui_app.spec` y `main_ui`. Verifica que no se haya borrado. |
-| `ModuleNotFoundError` en el `.exe` (face_recognition, shapely, ultralytics) | PyArmor enmascara imports del analizador de PyInstaller | Añade el módulo a `hiddenimports` en `gui_app.spec` (Riesgo 3, `2_PLANNING`). |
-| `FileNotFoundError: yolov8n.pt` | Path roto en binario congelado | El código usa `get_resource_path()` → `sys._MEIPASS`. No uses `os.path.abspath(__file__)` para recursos. |
-| Antivirus marca el `.exe` | UPX + bootloader PyInstaller | Pon `upx=False` en `gui_app.spec` o firma el binario con un cert de código. |
-| `pyarmor: command not found` en el `.bat` | venv no activado / mal ubicado | Confirma `.\venv\Scripts\pyarmor.exe`. Reinstala `pyarmor==8.4.6`. |
-| ISCC no encontrado | Inno Setup en otra ruta | Ajusta la ruta a `ISCC.exe` en `compilar_exe.bat` línea del `[3/3]`. |
-| Licencia válida rechazada en cliente | Public key en `drm.py` no corresponde a la privada usada | Re-embebe `llave_publica_clientes.pem` en `_PUBLIC_KEY_PEM` y recompila. |
-| WMI vacío en placas genéricas | Servicio WMI corrupto/placa china | Ya manejado: `drm.py` cae a MAC + BIOS UUID (Plan B, SPEC 1.6.1). |
+| Nuitka no encuentra compilador de C | Sin MSVC ni MinGW | Instala "Build Tools for Visual Studio 2022" (C++) o deja que Nuitka descargue MinGW64. |
+| `FileNotFoundError` de un `.onnx` | Falta `models\` junto al `.exe` | El build usa `--include-data-dir=models=models`; revisa `build\nuitka\main_ui.dist\models\`. |
+| "Modelo AI manipulado" | El `.onnx` no coincide con el manifiesto | Regenera el manifiesto embebido (§7.3) y recompila. |
+| `ModuleNotFoundError` en el `.exe` | Import dinámico que Nuitka no siguió | Agrega `--include-module=<módulo>` en `scripts/compilar_ejecutable.py` y una prueba. |
+| Antivirus marca el `.exe` | Binario sin firmar | Firma con un certificado de firma de código (`signtool sign /fd SHA256 ...`). |
+| Licencia válida rechazada | La pública de `drm.py` no es pareja de la privada | Re-embebe la pública (§7.2) y recompila. |
 
 ---
 
-## 7.8 Checklist de Release (firma final — "Golden Master")
+## 7.8 Checklist de Release ("Golden Master")
 
-Antes de entregar el instalador a un cliente:
-
-- [ ] Llaves de **producción** rotadas y privada fuera de Git (§7.2.1).
-- [ ] `VERSION` incrementado y reflejado en `setup_oficina.iss`.
-- [ ] `console=False` en `gui_app.spec` (release de producción).
-- [ ] `compilar_exe.bat` corrió completo sin errores (ofuscación + exe + instalador).
-- [ ] **Auditoría 5.3.1 (PyArmor):** `pyinstxtractor` sobre el `.exe` + decompilador
-      → `drm.pyc` ilegible ("Invalid Magic Number"), llave pública RSA no visible.
-- [ ] Checklist `5_REVIEW.md` §5.1–5.4 completado en una **segunda PC limpia** (§7.5).
-- [ ] Backlog consciente revisado: P2-2 (HMAC desde hostname), P2-3 (recovery de
-      hardware binding), gaps legales de biometría — decididos o aceptados.
-
-Solo cuando **todo** lo anterior esté marcado, el instalador
-`setup_oficina_eficiencia_v1.3.0.exe` se considera **Release Candidate** lista
-para distribución B2B.
+- [ ] Llaves de **producción** rotadas y privada fuera de git (§7.2).
+- [ ] Revisión legal D9 cerrada (`docs/legal/revision_d9.md`): datasets de entrenamiento de
+      los modelos y fotos de `data/faces/`.
+- [ ] `VERSION` incrementado.
+- [ ] `compilar_exe.bat` corrió completo sin errores.
+- [ ] Checklist de §7.5 y de `5_REVIEW.md` completado en una **segunda PC limpia**.
+- [ ] Ejecutable e instalador firmados con certificado de firma de código.

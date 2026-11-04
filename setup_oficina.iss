@@ -1,10 +1,12 @@
 ; ==========================================================
 ; Inno Setup Script - Oficina Eficiencia
-; Genera un instalador profesional a partir de dist\gui_app\
+; Genera el instalador a partir de la carpeta que compila Nuitka (build\nuitka\main_ui.dist)
 ; ==========================================================
 
 #define MyAppName "Oficina Eficiencia"
-#define MyAppVersion "1.3.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "0.0.0"
+#endif
 #define MyAppPublisher "Tu Empresa"
 #define MyAppExeName "OficinaEficiencia_VMS.exe"
 
@@ -34,8 +36,10 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Crear acceso directo en el Escritorio"; GroupDescription: "Accesos directos:"
 
 [Files]
-; Copy the entire PyInstaller output directory
-Source: "dist\OficinaEficiencia_VMS\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Carpeta completa compilada por Nuitka (ejecutable, DLL y models/)
+Source: "build\nuitka\main_ui.dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Avisos de licencia de terceros (los genera compilar_exe.bat)
+Source: "THIRD_PARTY_NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

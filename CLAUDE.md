@@ -531,11 +531,10 @@ distribuida como ejecutable Windows con protección DRM.
 
 ```
 src/acquisition/  → captura de video y enumeración de cámaras
-src/detection/    → detección de personas (YOLO)
 src/tracking/     → seguimiento, workers por cámara, pipeline
-src/recognition/  → reconocimiento facial
+src/recognition/  → reconocimiento facial (MotorFacialPort; YuNet + SFace de OpenCV)
 src/zones/        → geometría de zonas y pertenencia
-src/inference/    → puerto DetectorPort y adaptadores de motor (ONNX Runtime; Ultralytics temporal)
+src/inference/    → puerto DetectorPort y su adaptador ONNX Runtime (RF-DETR)
 src/ppe/          → EPP: dominio (elementos, asociación, reglas) y casos de uso
 src/alerts/       → alertas: dominio, outbox y adaptadores de canal (email, webhook)
 src/analysis/     → estado, eficiencia, generación de reportes
@@ -552,8 +551,8 @@ Un import prohibido es un fallo de PR: lo verifican `.importlinter` y `scripts/c
 
 ### Pruebas en este dominio
 
-- **Nada de cámaras, modelos ni pesos reales en tests.** `yolov8n.pt`, `dlib` y `face_recognition`
-  se sustituyen por dobles. Un test unitario jamás carga un modelo de 6 MB.
+- **Nada de cámaras, modelos ni pesos reales en tests.** Los `.onnx` de `models/` (RF-DETR, YuNet, SFace)
+  se sustituyen por dobles. Un test unitario jamás carga un modelo real.
 - La base de datos de prueba vive en `tmp_path`; jamás se toca `data/`.
 - La geometría de zonas se prueba con casos límite explícitos: punto en el vértice, punto en la
   arista, polígono cóncavo, polígono degenerado, coordenadas negativas.

@@ -21,15 +21,10 @@ class CaraLocalizada:
 class MotorFacialPort(Protocol):
     """Detecta caras, las convierte en vectores y compara vectores del mismo motor."""
 
-    @property
-    def identificador(self) -> str:
-        """Nombre y versión de los modelos: los vectores de motores distintos no se comparan."""
-        ...
-
-    @property
-    def umbral_de_coincidencia(self) -> float:
-        """Similitud mínima para considerar que dos vectores son de la misma persona."""
-        ...
+    # Nombre y versión de los modelos: los vectores de motores distintos no se comparan.
+    identificador: str
+    # Similitud mínima para considerar que dos vectores son de la misma persona.
+    umbral_de_coincidencia: float
 
     def localizar(self, imagen_bgr: np.ndarray) -> list[CaraLocalizada]: ...
 

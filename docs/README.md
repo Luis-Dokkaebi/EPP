@@ -14,6 +14,10 @@ calidad sin enlazar.
 
 - [Plan EPP y licencia](../SPEC/9_PLAN_EPP_Y_LICENCIA.md) — plan vigente (fases 0 a 9, §17 orden de
   entregas, §19 verificación).
+- [Demo con prueba de 14 días](../SPEC/10_DEMO_TRIAL.md) — lo que falta para la demo, licencias de
+  prueba, calendario hasta el cobro y legal en México.
+- [Modelo para venta](../SPEC/11_MODELO_PARA_VENTA.md) — comparación de modelos abiertos (pros y
+  contras), datos con licencia comercial, entrenamiento en GPU de 6 GB y checklist para vender.
 - [Hallazgos de revisión](../SPEC/0_REVIEW_FINDINGS.md),
   [especificaciones](../SPEC/1_SPECIFICATIONS.md), [planificación](../SPEC/2_PLANNING.md),
   [tareas](../SPEC/3_TASKS.md), [implementación](../SPEC/4_IMPLEMENTATION.md),

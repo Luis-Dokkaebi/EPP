@@ -90,7 +90,7 @@ del empleado y sin difuminar, D8 autorizado tocar el build, D10 módulo activabl
 | **P-1** | **Confirmada.** La prueba de 14 días empieza cuando el modelo funciona correctamente; antes corre una *licencia de aprendizaje* de 7 días sin módulo EPP | Calendario de la §5.2 y §5.3 tal como está. No requiere código nuevo: hoy la app ya funciona sin el módulo EPP |
 | Precios | Se acuerdan directamente con el comprador | La §9.3 queda solo como estructura de referencia |
 | Ultralytics | Pregunta: ¿se puede usar solo para entrenar y vender el modelo sin la librería? **No**: ver `SPEC/11` §2.3 | Se mantiene RF-DETR |
-| M-1 | **Sigue pendiente:** ¿se vende solo EPP o EPP + eficiencia (detección de celular)? | Ver `SPEC/11` §9: hay una salida sin entrenar nada |
+| **M-1** | **Se vende solo casco y chaleco** (sin el módulo de eficiencia ni detección de celular) | Taxonomía v1 sin cambios; no se etiquetan celulares; en la demo no se muestra el reporte de eficiencia; tarea T-18. Ver `SPEC/11` §9 |
 | Rostros | Pregunta: ¿cómo cargar los rostros de los empleados de una vez, sin "entrenar" uno por uno, y guardarlos en el repo? | Ver §14: no se entrena nada por persona; carga masiva en la PC del cliente; **nunca en el repo** |
 
 ---
@@ -133,9 +133,11 @@ Prioridades: **P0** sin esto no hay demo; **P1** sin esto la demo sale mal o no 
 - **Qué hacer:** entrenar RF-DETR (Apache-2.0) con datasets públicos de licencia comercial, más
   fotos propias tomadas por ustedes con casco y chaleco en distintos lugares y luces. Exportar a
   ONNX y pasar las puertas de promoción. Todo el detalle está en `SPEC/11` §4 a §7.
-- **Ojo con el celular:** la app de eficiencia usa la clase `celular` de COCO para detectar el uso
-  del teléfono. El modelo EPP no la tiene en la taxonomía v1. Para la demo de EPP no importa; si
-  el cliente también compra el módulo de eficiencia, ver `SPEC/11` §9.
+- **Celular (decisión M-1: solo casco y chaleco):** la app de eficiencia heredada usa la clase
+  `celular` de COCO para detectar el uso del teléfono. El modelo EPP no la aprende. Al retirar
+  Ultralytics, esa detección queda apagada y el reporte de eficiencia mostraría siempre cero uso
+  del celular: no se muestra en la demo y T-18 oculta esas vistas. Si un día se vende eficiencia,
+  ver `SPEC/11` §9.
 - **Listo cuando:** existe un `.onnx` en `models/` con entrada en el manifiesto, pasa
   `ml/promotion_gates.py` sobre un video de prueba y `modelo_detecta_epp` devuelve verdadero.
 
@@ -575,6 +577,7 @@ líneas o menos con la evidencia pegada. Las marcadas **(H)** necesitan una acci
 | T-15 | Carga masiva de rostros desde una carpeta, con constancia de consentimiento obligatoria (§14.4) | — | `lean-build`, `python-testing` | M |
 | T-16 | Fotos de rostros cifradas en disco o borradas tras calcular la huella (§14.5) | T-15 | `security-review`, `python-testing` | M |
 | T-17 | Revisar la tolerancia de 0,65 del reconocimiento con un set de prueba propio (§14.5) | — | `investigate-first` | S |
+| T-18 | Ocultar las vistas y reportes de eficiencia cuando la licencia no incluye el módulo `eficiencia` (M-1), igual que hoy se muestran las de EPP solo con el módulo `epp` | T-03 | `lean-build`, `python-testing` | S |
 
 Ruta crítica: **T-09 → T-10 → T-11 → T-12**. Las tareas T-01 a T-08 corren en paralelo.
 

@@ -402,23 +402,24 @@ Reglas que ya impone el repo y se mantienen:
 | **v0.1-cliente1** | Afinado con el primer cliente | Durante su prueba | Pasa las puertas en video del cliente |
 | **v1.0** | Base + datos de clientes con cláusula de mejora; ficha del modelo; set dorado por cliente | Tras 2-3 clientes | Sin regresión en ningún set dorado |
 | **v2.0** | Taxonomía v2: `manos`, `guantes`, `gafas`, `barbijo` (cubrebocas) | Cuando un cliente lo pague | Probablemente Medium o mayor resolución: son objetos chicos. Medir en CPU antes de prometer |
-| (opcional) `celular` | Agregar la clase al final de la taxonomía (no rompe IDs) | Si se vende el módulo de eficiencia con el motor nuevo | Hoy la eficiencia detecta el celular con YOLO de COCO; al retirar Ultralytics (A-16) esa función se pierde si el modelo nuevo no aprende `celular`. Decidir antes de A-16 |
+| (pospuesta) `celular` | Agregar la clase al final de la taxonomía (no rompe IDs) | Solo si algún día se vende el módulo de eficiencia (M-1) | Ver la tabla de abajo |
 
-**Decisión pendiente para ti (M-1):** ¿el producto que venden ahora es solo EPP, o EPP +
-eficiencia (detección de uso del celular)?
+**Decisión M-1 (2026-11-10): se vende solo casco y chaleco.** La taxonomía v1 queda como está
+(`persona`, `cabeza`, `casco`, `chaleco`) y **no se etiquetan celulares**. Efecto: al retirar
+Ultralytics (A-16), la detección de uso del celular del módulo de eficiencia heredado deja de
+funcionar. No rompe nada (simplemente no detecta celulares), pero el reporte de eficiencia
+mostraría siempre cero uso del celular. Por eso, en la demo no se muestra ese reporte, y la tarea
+T-18 de `SPEC/10` oculta las vistas de eficiencia cuando la licencia no incluye ese módulo.
 
-Por qué importa: hoy la detección del celular la hace `yolov8n.pt`, que es de Ultralytics (AGPL,
-§2.3). Al sacarlo del producto (A-16) hay que detectar el celular con otro modelo. Opciones, de
-menos a más trabajo:
+Si un cliente pide eficiencia más adelante, estas son las opciones para recuperar el celular sin
+Ultralytics, de menos a más trabajo:
 
 | Opción | Trabajo | Costo en la PC del cliente | Comentario |
 |--------|---------|----------------------------|------------|
-| **Solo EPP por ahora** | Ninguno | — | La función de celular queda apagada hasta que se venda eficiencia |
 | **RF-DETR preentrenado en COCO** como segundo modelo | Exportar a ONNX y registrar en el manifiesto; **sin entrenar** | Doble inferencia por frame (medir FPS) | Los tamaños Nano/Small/Medium/Large preentrenados son Apache-2.0 y COCO ya incluye "celular" y "persona". Licencia de las imágenes de COCO: anotarla para D9 |
-| Clase `celular` en el modelo EPP (taxonomía v2, al final) | Etiquetar celulares en el dataset | Un solo modelo | La más eficiente a largo plazo; más etiquetado ahora |
+| Clase `celular` en el modelo EPP (taxonomía v2, al final) | Etiquetar celulares en el dataset | Un solo modelo | La más eficiente a largo plazo; más etiquetado |
 
-Recomendación: **solo EPP para el primer cliente**; si piden eficiencia, la segunda opción sale en
-días porque no hay que entrenar.
+La primera opción sale en días porque no hay que entrenar.
 
 ---
 

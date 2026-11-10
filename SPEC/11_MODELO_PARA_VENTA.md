@@ -1,7 +1,7 @@
 # 11. MODELO PARA VENTA: qué modelos usar, cómo entrenarlos y cómo dejarlos listos para vender
 
 **Estado:** Plan para revisión del dueño del producto
-**Revisión:** 1
+**Revisión:** 2 (respuestas del dueño del producto, 2026-11-10)
 **Fecha:** 2026-11-10
 **Preparado para:** Luis (dueño del producto)
 **Documento hermano:** [`SPEC/10_DEMO_TRIAL.md`](10_DEMO_TRIAL.md) (la prueba de 14 días y el cobro).
@@ -87,7 +87,7 @@ Criterios en orden de importancia, derivados de las decisiones D2-D4 y de la urg
 | **RF-DETR N/S/M/L** | Apache-2.0 | Excelente | Buena (Nano/Small) | Sí (N/S) | Nativo | **Completa** | **Elegido** |
 | D-FINE N/S/M | Apache-2.0 | Muy buena | Muy buena | Sí | Sí | Parcial (salida tipo DETR) | Plan B |
 | DEIM (sobre D-FINE) | Apache-2.0 | Muy buena, converge en menos épocas | Muy buena | Sí | Sí | Parcial | Plan B alterno |
-| DEIMv2 | Verificar (usa backbones DINOv3 con licencia propia de Meta) | Muy buena | Buena | Sí | Sí | Ninguna | No sin revisión legal |
+| DEIMv2 | Verificar su código; backbones DINOv3 con licencia propia de Meta (comercial con condiciones, §2.5) | Muy buena | Buena | Sí | Sí | Ninguna | No sin revisión legal |
 | RT-DETRv2 | Apache-2.0 | Buena | Buena | Sí | Sí | Parcial | Superado por D-FINE |
 | YOLOX Nano/Tiny/S | Apache-2.0 | Media | **Excelente** | Sí | Sí, también OpenVINO | Ninguna (salida YOLO + NMS) | Solo si la CPU no da |
 | PP-YOLOE+ / PicoDet | Apache-2.0 | Media | Excelente | Sí | Vía `paddle2onnx` | Ninguna | Otro ecosistema; no |
@@ -149,12 +149,75 @@ Criterios en orden de importancia, derivados de las decisiones D2-D4 y de la urg
   quedan bajo AGPL. Vender un `.exe` cerrado exige la licencia Enterprise, de pago y con costo
   recurrente. Ya se invirtió la Fase 1 completa en salir de aquí: volver no tiene sentido.
 
-### 2.3 Por qué RF-DETR y no "el más rápido"
+### 2.3 Pregunta frecuente: ¿y si usamos Ultralytics solo para entrenar?
+
+**Pregunta (2026-11-10):** "Ultralytics solo se usa para aprender. ¿No podemos entrenar con
+Ultralytics y vender el EPP ya aprendido sin la librería?"
+
+**Respuesta: no.** Lo que se vende no es solo la librería: es **el modelo entrenado** (el archivo
+de pesos), y ese modelo nace de su código y, normalmente, de sus pesos preentrenados. Ultralytics
+lo dice en su propia página de licencias:
+
+- Usar su código, sus modelos, sus arquitecturas, su tubería de entrenamiento **o los modelos
+  entrenados o afinados con ella** obliga a publicar todo el proyecto bajo AGPL-3.0 o a comprar
+  su licencia Enterprise.
+- Según Ultralytics, aplica aunque el modelo se entrene desde cero o se use solo internamente.
+- Roboflow, que revende esas licencias, también afirma que los modelos entrenados a medida siguen
+  siendo AGPL-3.0.
+
+Exportar a ONNX no cambia nada: el `.onnx` es el mismo modelo en otro formato. Ultralytics no
+publica una regla aparte para los pesos exportados; la lectura prudente es que la licencia los
+sigue cubriendo. Hay abogados que discuten si unos pesos pueden protegerse por derechos de autor,
+pero eso **no se resuelve a nuestro favor sin un juicio**, y un juicio o un reclamo de Ultralytics
+en medio de la primera venta es justo lo que no podemos pagar.
+
+| Camino | ¿Se puede vender? | Costo | Comentario |
+|--------|-------------------|-------|------------|
+| Entrenar con Ultralytics y vender sin la librería | **No** (según Ultralytics) | Riesgo legal | Descartado |
+| Entrenar con Ultralytics y comprar la licencia Enterprise | Sí | Cotización a medida, recurrente | Válido si algún día conviene; pedir cotización como dato |
+| Entrenar con RF-DETR (Apache-2.0) | **Sí** | Cero en licencias | **Recomendado**: la tubería ya está construida y probada en el repo |
+
+¿Y usar un YOLO solo para **preetiquetar** imágenes (las etiquetas las revisa una persona)? En
+general la licencia de un programa no cubre lo que el programa produce, pero no ganamos nada: no
+existe un YOLO de EPP con licencia limpia para empezar, y Grounding DINO u OWLv2 (Apache-2.0)
+hacen lo mismo sin la duda. Se descarta.
+
+### 2.4 Por qué RF-DETR y no "el más rápido"
 
 La demo se gana o se pierde en **falsas alarmas y casos no detectados** con las cámaras reales del
 cliente, no en los FPS de un benchmark. RF-DETR es el que mejor transfiere con pocos datos, y la
 velocidad se compensa eligiendo Nano, procesando 1 de cada 2 frames (`cada_n_frames`) o bajando la
 resolución. Además, es el único que ya tiene toda la tubería construida y probada en el repo.
+
+### 2.5 ¿Cuál es el modelo libre más avanzado que podemos vender?
+
+**Pregunta (2026-11-10):** sin pagar a Ultralytics, ¿cuál es el modelo de código libre más
+avanzado que podemos usar?
+
+**Respuesta: RF-DETR**, de Roboflow. En noviembre de 2026 es el detector en tiempo real más
+avanzado con licencia que permite vender: su artículo se aceptó en ICLR 2026, su versión 2XL fue el
+primer detector en tiempo real por encima de 60 AP en COCO, y su versión Nano supera a D-FINE Nano
+por 5,3 AP con una latencia parecida. **Ojo:** las versiones más grandes (XL y 2XL) están bajo la
+licencia PML de Roboflow, no Apache. Para vender sin regalías, el techo es **RF-DETR Large**.
+
+| Modelo | Precisión (COCO, según sus autores) | Licencia para vender | Veredicto |
+|--------|-------------------------------------|----------------------|-----------|
+| RF-DETR 2XL / XL | La más alta (2XL: 60,1 AP) | PML 1.0 (Roboflow), **no Apache** | No sin contrato con Roboflow |
+| **RF-DETR Large** | Muy alta | **Apache-2.0** | El más avanzado 100 % libre; sirve como "maestro" en tu PC si un día se destila |
+| **RF-DETR Small / Medium** | Alta | **Apache-2.0** | **El que va en la PC del cliente** (velocidad en CPU) |
+| **RF-DETR Nano** | Buena; supera a D-FINE Nano por 5,3 AP | **Apache-2.0** | Si la PC del cliente es lenta |
+| DEIMv2 (X: 57,8 AP; S: 50,9 AP con menos de 10 M de parámetros) | Muy alta, muy eficiente | Su código: verificar. Usa backbones **DINOv3**, con licencia propia de Meta: permite uso comercial, pero es una licencia a medida (restringe usos militares, exige indemnizar a Meta y se puede revocar si se incumple) | Candidato serio **solo después de la revisión legal** (D9) |
+| D-FINE (L: 54,0 AP; X: 55,8 AP) | Alta | Apache-2.0 | Plan B |
+| Ultralytics YOLO11 / YOLO26 | Alta | AGPL-3.0 o Enterprise de pago | No (§2.3) |
+
+**"El más avanzado" no es lo mismo que "el mejor para nosotros".** El cliente tiene una CPU, no una
+GPU: un modelo Large o 2XL no daría 5 FPS por cámara. Lo que decide la venta es acertar con casco y
+chaleco en sus cámaras, y eso se logra afinando un modelo Small con sus imágenes. La recomendación
+de la §0 no cambia: **RF-DETR Small** (Nano si la CPU no alcanza), y RF-DETR Large solo en tu PC
+para experimentar o para etiquetar.
+
+La precisión en COCO la publica cada autor con su propio equipo y método; la velocidad real se mide
+siempre en la PC del cliente (`tools/bench_detectores.py`).
 
 ---
 
@@ -342,8 +405,20 @@ Reglas que ya impone el repo y se mantienen:
 | (opcional) `celular` | Agregar la clase al final de la taxonomía (no rompe IDs) | Si se vende el módulo de eficiencia con el motor nuevo | Hoy la eficiencia detecta el celular con YOLO de COCO; al retirar Ultralytics (A-16) esa función se pierde si el modelo nuevo no aprende `celular`. Decidir antes de A-16 |
 
 **Decisión pendiente para ti (M-1):** ¿el producto que venden ahora es solo EPP, o EPP +
-eficiencia? Si incluye eficiencia, la clase `celular` entra en v0.1 (más datos que etiquetar);
-si es solo EPP, se pospone.
+eficiencia (detección de uso del celular)?
+
+Por qué importa: hoy la detección del celular la hace `yolov8n.pt`, que es de Ultralytics (AGPL,
+§2.3). Al sacarlo del producto (A-16) hay que detectar el celular con otro modelo. Opciones, de
+menos a más trabajo:
+
+| Opción | Trabajo | Costo en la PC del cliente | Comentario |
+|--------|---------|----------------------------|------------|
+| **Solo EPP por ahora** | Ninguno | — | La función de celular queda apagada hasta que se venda eficiencia |
+| **RF-DETR preentrenado en COCO** como segundo modelo | Exportar a ONNX y registrar en el manifiesto; **sin entrenar** | Doble inferencia por frame (medir FPS) | Los tamaños Nano/Small/Medium/Large preentrenados son Apache-2.0 y COCO ya incluye "celular" y "persona". Licencia de las imágenes de COCO: anotarla para D9 |
+| Clase `celular` en el modelo EPP (taxonomía v2, al final) | Etiquetar celulares en el dataset | Un solo modelo | La más eficiente a largo plazo; más etiquetado ahora |
+
+Recomendación: **solo EPP para el primer cliente**; si piden eficiencia, la segunda opción sale en
+días porque no hay que entrenar.
 
 ---
 
@@ -414,5 +489,12 @@ repositorio original antes del release.
 - Datasets: [vest hat (Roboflow Universe)](https://universe.roboflow.com/v110/vest-hat);
   [Hard Hat Sample (Roboflow Universe)](https://universe.roboflow.com/khdaksdhkasd/hard-hat-sample-10vfl);
   [Safety Vest Detection (espejo)](https://vercel.hyper.ai/en/datasets/41965).
+- Ultralytics y modelos entrenados: [licencia de Ultralytics](https://ultralytics.com/license);
+  [Roboflow como licenciatario de Ultralytics](https://roboflow.com/ultralytics).
+- Estado del arte: [artículo de RF-DETR (ICLR 2026)](https://arxiv.org/html/2511.09554v2);
+  [DEIMv2, "Real-Time Object Detection Meets DINOv3"](https://arxiv.org/html/2509.20787v3);
+  [D-FINE vs RF-DETR](https://playground.roboflow.com/models/compare/d-fine-vs-rf-detr) (secundaria).
+- DINOv3: [licencia de DINOv3](https://ai.meta.com/resources/models-and-libraries/dinov3-license);
+  [anuncio de Meta](https://ai.meta.com/blog/dinov3-self-supervised-vision-model/).
 - Ultralytics AGPL, SH17, YOLOX y licencias verificadas antes: `SPEC/9_PLAN_EPP_Y_LICENCIA.md` §3.1
   y §20, `docs/adr/001-motor-ia.md`, `docs/legal/revision_d9.md`.

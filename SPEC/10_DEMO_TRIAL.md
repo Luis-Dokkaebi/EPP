@@ -1,7 +1,7 @@
 # 10. DEMO: prueba gratis de 14 días que se cobra cuando el modelo ya aprendió
 
 **Estado:** Plan para revisión del dueño del producto
-**Revisión:** 1
+**Revisión:** 2 (respuestas del dueño del producto, 2026-11-10)
 **Fecha:** 2026-11-10
 **Preparado para:** Luis (dueño del producto)
 **Base:** análisis del código en `main` (versión `1.3.0`), `SPEC/9_PLAN_EPP_Y_LICENCIA.md` y
@@ -30,6 +30,7 @@ modelos de IA usar, con pros y contras, y cómo dejar el modelo listo para vende
 11. [Tareas para los agentes, en orden](#11-tareas-para-los-agentes-en-orden)
 12. [Riesgos](#12-riesgos)
 13. [Checklists imprimibles](#13-checklists-imprimibles)
+14. [Rostros: carga masiva sin entrenar y dónde se guardan](#14-rostros-carga-masiva-sin-entrenar-y-dónde-se-guardan)
 
 ---
 
@@ -82,15 +83,15 @@ D1 email + webhook, D2 CPU Intel, D3 casco y chaleco, D4 confirmar 4 s y enfriam
 recall por evento ≥ 90 % y ≤ 1 falsa alarma por cámara y hora, D5 evidencias 30 días con el nombre
 del empleado y sin difuminar, D8 autorizado tocar el build, D10 módulo activable por licencia.
 
-### 1.1 Decisión que propongo y necesito que confirmes
+### 1.1 Decisiones de la revisión 2 (respuestas del 2026-11-10)
 
-**P-1. La prueba de 14 días empieza cuando el modelo ya funciona, no el día de la instalación.**
-Para eso se usa una *licencia de aprendizaje* (gratis, unos 7 días, sin módulo EPP) mientras se
-capturan imágenes, se registran rostros y se afina el modelo; después se emite la licencia de
-prueba de 14 días con el EPP encendido. Es lo que pediste ("se cobra después de que el modelo
-aprenda") y **no requiere código nuevo**: hoy la app ya funciona sin el módulo EPP. Si prefieres
-14 días contados desde la instalación, el calendario de la §5.3 comprime el aprendizaje a los días
-1-4 y el cliente ve el EPP funcionando solo 10 días.
+| ID | Decisión | Efecto |
+|----|----------|--------|
+| **P-1** | **Confirmada.** La prueba de 14 días empieza cuando el modelo funciona correctamente; antes corre una *licencia de aprendizaje* de 7 días sin módulo EPP | Calendario de la §5.2 y §5.3 tal como está. No requiere código nuevo: hoy la app ya funciona sin el módulo EPP |
+| Precios | Se acuerdan directamente con el comprador | La §9.3 queda solo como estructura de referencia |
+| Ultralytics | Pregunta: ¿se puede usar solo para entrenar y vender el modelo sin la librería? **No**: ver `SPEC/11` §2.3 | Se mantiene RF-DETR |
+| M-1 | **Sigue pendiente:** ¿se vende solo EPP o EPP + eficiencia (detección de celular)? | Ver `SPEC/11` §9: hay una salida sin entrenar nada |
+| Rostros | Pregunta: ¿cómo cargar los rostros de los empleados de una vez, sin "entrenar" uno por uno, y guardarlos en el repo? | Ver §14: no se entrena nada por persona; carga masiva en la PC del cliente; **nunca en el repo** |
 
 ---
 
@@ -464,7 +465,8 @@ Se arma con el Excel de cumplimiento y el panel de alertas. Una página:
 
 ### 9.3 Estructura de precio sugerida
 
-**Supuesto, sin estudio de mercado verificado:** validar con el prospecto. Estructura recomendada:
+**Los precios se acuerdan con el comprador (decisión del 2026-11-10).** Esta tabla es solo una
+estructura de referencia, sin estudio de mercado verificado:
 
 | Concepto | Cuándo se cobra | Rango inicial a probar |
 |----------|-----------------|------------------------|
@@ -570,6 +572,9 @@ líneas o menos con la evidencia pegada. Las marcadas **(H)** necesitan una acci
 | T-12 | **(H)** A-16: contraer el motor, build del `.exe` y prueba de humo | T-11 | `verify-and-stop` | M |
 | T-13 | `.bat` de arranque con la configuración de avisos del cliente | — | `lean-build` | S |
 | T-14 | Quitar la demo de 68 puntos faciales (F-12) | — | `surgical-patch` | S |
+| T-15 | Carga masiva de rostros desde una carpeta, con constancia de consentimiento obligatoria (§14.4) | — | `lean-build`, `python-testing` | M |
+| T-16 | Fotos de rostros cifradas en disco o borradas tras calcular la huella (§14.5) | T-15 | `security-review`, `python-testing` | M |
+| T-17 | Revisar la tolerancia de 0,65 del reconocimiento con un set de prueba propio (§14.5) | — | `investigate-first` | S |
 
 Ruta crítica: **T-09 → T-10 → T-11 → T-12**. Las tareas T-01 a T-08 corren en paralelo.
 
@@ -623,6 +628,87 @@ Ruta crítica: **T-09 → T-10 → T-11 → T-12**. Las tareas T-01 a T-08 corre
 - [ ] Reunión de cierre el día 13 con quien decide.
 - [ ] Propuesta y factura listas.
 - [ ] Licencia comercial lista para emitir el mismo día de la firma.
+
+---
+
+## 14. Rostros: carga masiva sin entrenar y dónde se guardan
+
+### 14.1 No se entrena nada por persona
+
+El reconocimiento facial **ya viene entrenado** (modelo de dlib dentro de `face_recognition`).
+"Registrar" a un empleado no es entrenar: la app calcula, en menos de un segundo por foto y sin
+GPU, una *huella* de 128 números a partir de su foto y la guarda junto a su nombre. Al ver una
+cara, compara su huella con las guardadas (`src/recognition/face_recognizer.py`). Por eso se
+pueden cargar 100 empleados de una vez, el mismo día de la instalación.
+
+### 14.2 Cómo se integran todos de una vez (hoy, sin código nuevo)
+
+La app ya hace la carga masiva al arrancar: si no encuentra un archivo de huellas válido, recorre
+la carpeta de rostros y calcula la huella de cada foto (`load_known_faces`). El procedimiento en
+la PC del cliente es:
+
+1. Recibir las fotos por un canal seguro acordado con el cliente (memoria USB cifrada o carpeta
+   compartida de su red), **solo de empleados con consentimiento firmado**.
+2. Ordenarlas así, una carpeta por empleado con el nombre que debe aparecer en las alertas:
+
+   ```
+   rostros_acme/
+     Ana Lopez/        foto1.jpg  foto2.jpg  foto3.jpg
+     Juan Perez/       foto1.jpg  foto2.jpg
+   ```
+
+3. Con la app cerrada, copiar esas carpetas a la carpeta de rostros de la app en esa PC
+   (por omisión `%APPDATA%\OficinaEficiencia\data\faces\`; confirmar la ruta del tenant activo
+   antes de copiar) y borrar `encodings.npz` si existe.
+4. Abrir la app: calcula las huellas de todos y las firma para esa PC. Revisar en la pantalla de
+   empleados que aparecen todos.
+
+Alternativa desde la interfaz: "Subir archivo y registrar" (`src/gui/views.py`) acepta varias
+fotos por persona, pero va de una persona a la vez.
+
+### 14.3 Cómo tomar las fotos
+
+| Regla | Por qué |
+|-------|---------|
+| 3 a 5 fotos por persona: de frente, y girando un poco a izquierda y derecha | La cámara de la planta casi nunca los ve de frente |
+| Al menos una foto **con casco puesto** | El casco tapa la frente y cambia la huella; sin esa foto, con casco no lo reconoce |
+| Luz pareja, sin contraluz, sin lentes oscuros ni cubrebocas | La huella sale de los rasgos de la cara |
+| Cara de al menos ~150 px de ancho en la foto | Con menos, la huella sale mala |
+| Fotos recientes (no la del gafete de hace 5 años) | Barba, peso y edad cambian la huella |
+| Mejor aún: ráfaga con la cámara de la app ("Capturar y registrar") el día 0, en la entrada | Mismas condiciones de luz y cámara que la operación |
+
+Las fotos del gafete del área de Recursos Humanos sirven como punto de partida si son recientes;
+completar con una foto con casco.
+
+### 14.4 Lo que no se puede hacer: guardarlos en el repositorio
+
+**Las fotos y huellas de los empleados del cliente nunca van al repositorio.** Motivos:
+
+1. **Ley mexicana de datos personales:** son datos de los empleados del cliente, que los trata por
+   un fin concreto (seguridad en su planta). Subirlos a GitHub los copia a un tercero, a otros
+   equipos y al historial para siempre. Es justo el tipo de incidente que la ley sanciona.
+2. **`CLAUDE.md` §9 y §14.8** prohíben commitear datos personales reales; el gate y la revisión
+   rechazan el PR.
+3. **No funcionaría igual:** las huellas se firman con una llave derivada del hardware de cada PC
+   (`_get_integrity_key`). Un archivo de huellas hecho en otra PC no pasa la verificación en la del
+   cliente (la app vuelve a calcularlas desde las fotos). Lo que viaja son las fotos, no las
+   huellas.
+4. **Riesgo comercial:** si un cliente se entera de que sus empleados están en el repo de un
+   proveedor, se cae la venta y la reputación.
+
+Por eso hay que sacar también lo que ya está: `data/faces/` tiene hoy 32 archivos versionados de
+personas reales (carpetas de dos personas y un `encodings.pkl`), ver F-06 y T-08.
+
+Para las **demos de vitrina** (mostrar el producto a nuevos prospectos) usar solo rostros del
+equipo propio, con consentimiento firmado, guardados en la PC de demo, no en el repo.
+
+### 14.5 Lo que falta mejorar (tareas T-15 a T-17)
+
+| Hallazgo en el código | Riesgo | Tarea |
+|-----------------------|--------|-------|
+| La carga masiva de §14.2 no pide constancia de consentimiento | Registrar a alguien que no firmó | T-15: herramienta de importación que lee la carpeta y un CSV `nombre, id_consentimiento`; sin consentimiento, esa persona no se carga, y se registra en un log quién cargó qué |
+| Las fotos quedan en claro en `%APPDATA%` (`register_face_burst` las copia como `burst_N.jpg`) y las huellas solo van firmadas, no cifradas | Cualquiera con acceso a la PC copia las fotos | T-16: cifrar las fotos con la llave de la PC (como la base de datos) o borrarlas tras calcular la huella, guardando solo las huellas cifradas |
+| `recognize_face` usa una tolerancia de 0,65; el valor por omisión de `face_recognition` es 0,6 (más estricto) | Culpar a la persona equivocada en una alerta (riesgo M-R7) | T-17: medir con fotos propias de ~20 personas y fijar el valor; si hay duda, la alerta no nombra a nadie |
 
 ---
 

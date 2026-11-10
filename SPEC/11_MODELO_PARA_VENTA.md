@@ -421,6 +421,56 @@ Ultralytics, de menos a más trabajo:
 
 La primera opción sale en días porque no hay que entrenar.
 
+### 9.1 Si mañana se agrega eficiencia: qué modelo y cómo
+
+**Pregunta (2026-11-10):** si mañana se vende eficiencia, ¿qué modelo se usa sin Ultralytics y
+cómo se integra?
+
+**Qué necesita un modelo.** De todo lo que mide eficiencia (tiempo en la zona de trabajo, salidas,
+almuerzo, uso del celular), solo el **celular** necesita un detector nuevo. El resto sale de
+`persona` + zonas + seguimiento, que ya da el modelo EPP.
+
+**Modelo: RF-DETR**, la misma familia que el EPP, por tres motivos: licencia Apache-2.0 en
+Nano/Small/Medium/Large, el adaptador ONNX ya existe, y un solo motor es más fácil de mantener.
+Plan B: D-FINE preentrenado en COCO (Apache-2.0), con el mismo adaptador tipo DETR.
+
+**Cómo, en dos etapas:**
+
+| Etapa | Qué es | Trabajo | Costo en la PC del cliente | Cuándo |
+|-------|--------|---------|----------------------------|--------|
+| **1. Rápida** | **RF-DETR Small preentrenado en COCO** como segundo detector. COCO ya trae `persona` y `celular`: **no se entrena nada** | ~1 semana de código (abajo) | Una segunda inferencia; se compensa corriéndola cada 3-5 frames | El primer cliente que pague eficiencia |
+| **2. Definitiva** | Agregar `celular` **al final** de la taxonomía del modelo EPP (los IDs anteriores no cambian) y reentrenar con celulares etiquetados | Etiquetado + una afinación | Ninguno: un solo modelo | Cuando 2 o más clientes paguen eficiencia |
+
+**Pasos de la etapa 1** (cada uno con TDD y su PR, como manda `CLAUDE.md`):
+
+1. **Exportar el preentrenado a ONNX.** `ml/export_onnx.py` hoy exige el `registro.json` de un
+   entrenamiento propio. Agregar un modo para un preentrenado oficial: tamaño, resolución,
+   versión de `rfdetr` y sha256 de los pesos descargados.
+2. **Entrada en `models/manifest.json`:** licencia de los pesos Apache-2.0, dataset COCO 2017
+   (anotaciones CC BY 4.0; las imágenes vienen de Flickr con licencias variadas: anotarlo para
+   D9) y `clases` solo con los IDs de `persona` y `celular`, tomados del catálogo de esa versión
+   de RF-DETR. **Verificar los IDs:** RF-DETR puede numerar con los IDs originales de COCO y no
+   con los 80 consecutivos de YOLO. El adaptador ignora cualquier ID que no esté en el catálogo,
+   así que las otras 78 clases de COCO no hacen falta.
+3. **Raíz de composición con dos detectores**, solo si la licencia incluye el módulo
+   `eficiencia`: el detector EPP entrega personas, cabezas y EPP; el de COCO entrega solo
+   celulares, cada N frames. `separar_personas_y_celulares` (`src/tracking/person_tracker.py`)
+   ya recibe una lista de detecciones neutrales: se le pasan las dos listas unidas. El dominio
+   no cambia.
+4. **Licencia:** `--modulos epp,eficiencia` en el keygen (T-03) y la tarea T-18 al revés: las
+   vistas de eficiencia aparecen solo con ese módulo.
+5. **Medir antes de vender:** `tools/bench_detectores.py` con los dos modelos (puerta ≥ 5 FPS por
+   cámara) y recall de celular con un video del cliente.
+
+**Riesgos propios del celular, y cómo se manejan:**
+
+| Riesgo | Mitigación |
+|--------|------------|
+| A distancia de cámara, el celular mide pocos píxeles y COCO lo detecta mal | Resolución mayor o tamaño Medium solo para ese detector; o un segundo paso que recorte la mitad superior de cada persona dentro de su zona de trabajo y la analice a mayor resolución |
+| En planta, radios, escáneres y tabletas parecen celulares | En la etapa 2, etiquetarlos como negativos (o como clase propia); exigir que el celular se vea varios segundos, igual que la ventana de 4 s del EPP |
+| Uso legítimo del celular (supervisores, llamadas de trabajo) | Regla de negocio por zona o por puesto, no del modelo |
+| Datos de entrenamiento de celulares con licencia comercial (etapa 2) | Fotos propias y de clientes con autorización; verificar la licencia de cualquier dataset público antes de usarlo |
+
 ---
 
 ## 10. Checklist para poder vender (licencias y calidad)

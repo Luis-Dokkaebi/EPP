@@ -14,7 +14,22 @@ import hashlib
 import time
 
 # Setup path for project imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+import pytest
+
+import src.security
+import src.security.drm
+
+
+@pytest.fixture(autouse=True)
+def _modulo_drm_restaurado(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Estas pruebas borran src.security.drm de sys.modules para reimportarlo; al terminar,
+    sys.modules y el paquete vuelven a apuntar al mismo módulo original. Si no, un monkeypatch
+    posterior parcha un módulo y el código importa otro (tests/test_aislamiento_pruebas_drm.py).
+    """
+    monkeypatch.setitem(sys.modules, "src.security.drm", src.security.drm)
+    monkeypatch.setattr(src.security, "drm", src.security.drm)
 
 
 class TestHardwareFingerprint(unittest.TestCase):
@@ -23,6 +38,7 @@ class TestHardwareFingerprint(unittest.TestCase):
     def test_fingerprint_deterministic(self):
         """El hash debe ser identico en 10 iteraciones consecutivas (DoD 4.1)."""
         from src.security.drm import DRMValidator
+
         drm = DRMValidator()
 
         hashes = []
@@ -32,23 +48,27 @@ class TestHardwareFingerprint(unittest.TestCase):
             hashes.append(fresh_hash)
 
         # Todas las iteraciones deben producir el mismo hash
-        self.assertTrue(len(set(hashes)) == 1, 
-                        f"Fingerprint NO es determinista: {len(set(hashes))} hashes distintos generados")
+        self.assertTrue(
+            len(set(hashes)) == 1,
+            f"Fingerprint NO es determinista: {len(set(hashes))} hashes distintos generados",
+        )
         print(f"[PASS] Fingerprint determinista: {hashes[0][:20]}...")
 
     def test_fingerprint_is_sha256(self):
         """El hash debe ser un SHA-256 valido (64 caracteres hexadecimales)."""
         from src.security.drm import DRMValidator
+
         drm = DRMValidator()
         mid = drm.machine_id
 
         self.assertEqual(len(mid), 64, f"Longitud incorrecta: {len(mid)} (esperado 64)")
-        self.assertTrue(all(c in '0123456789abcdef' for c in mid), "No es hexadecimal valido")
+        self.assertTrue(all(c in "0123456789abcdef" for c in mid), "No es hexadecimal valido")
         print(f"[PASS] Machine ID SHA-256 valido: {mid[:20]}...")
 
     def test_fingerprint_not_empty(self):
         """El hash nunca debe ser vacio o None."""
         from src.security.drm import DRMValidator
+
         drm = DRMValidator()
         self.assertIsNotNone(drm.machine_id)
         self.assertTrue(len(drm.machine_id) > 0)
@@ -66,37 +86,38 @@ class TestWMIFallback(unittest.TestCase):
         import importlib
 
         # Guardar el modulo wmi real si existe
-        original_wmi = sys.modules.get('wmi')
+        original_wmi = sys.modules.get("wmi")
 
         try:
             # SIMULAR CRASH: Forzar que "import wmi" lance ImportError
-            sys.modules['wmi'] = None  # Esto causa ImportError al intentar import
+            sys.modules["wmi"] = None  # Esto causa ImportError al intentar import
 
             # Reimportar drm para que use el modulo "roto"
-            if 'src.security.drm' in sys.modules:
-                del sys.modules['src.security.drm']
+            if "src.security.drm" in sys.modules:
+                del sys.modules["src.security.drm"]
 
             from src.security.drm import DRMValidator
+
             drm = DRMValidator()
 
             # El Fallback debe generar un hash valido (no crashear)
             fallback_hash = drm.machine_id
             self.assertIsNotNone(fallback_hash)
             self.assertEqual(len(fallback_hash), 64)
-            self.assertTrue(all(c in '0123456789abcdef' for c in fallback_hash))
-            
+            self.assertTrue(all(c in "0123456789abcdef" for c in fallback_hash))
+
             print(f"[PASS] WMI Fallback exitoso. Hash generado: {fallback_hash[:20]}...")
 
         finally:
             # Restaurar el modulo wmi original
             if original_wmi is not None:
-                sys.modules['wmi'] = original_wmi
-            elif 'wmi' in sys.modules:
-                del sys.modules['wmi']
+                sys.modules["wmi"] = original_wmi
+            elif "wmi" in sys.modules:
+                del sys.modules["wmi"]
 
             # Limpiar cache del modulo drm para proximos tests
-            if 'src.security.drm' in sys.modules:
-                del sys.modules['src.security.drm']
+            if "src.security.drm" in sys.modules:
+                del sys.modules["src.security.drm"]
 
     def test_fallback_hash_is_different_from_normal(self):
         """
@@ -104,21 +125,23 @@ class TestWMIFallback(unittest.TestCase):
         (porque usan componentes distintos), pero ambos deben ser validos.
         """
         # Obtener hash normal
-        if 'src.security.drm' in sys.modules:
-            del sys.modules['src.security.drm']
+        if "src.security.drm" in sys.modules:
+            del sys.modules["src.security.drm"]
 
         from src.security.drm import DRMValidator
+
         drm_normal = DRMValidator()
         normal_hash = drm_normal.machine_id
 
         # Obtener hash con fallback (simulando WMI crash)
-        original_wmi = sys.modules.get('wmi')
+        original_wmi = sys.modules.get("wmi")
         try:
-            sys.modules['wmi'] = None
-            if 'src.security.drm' in sys.modules:
-                del sys.modules['src.security.drm']
+            sys.modules["wmi"] = None
+            if "src.security.drm" in sys.modules:
+                del sys.modules["src.security.drm"]
 
             from src.security.drm import DRMValidator as DRMFallback
+
             drm_fallback = DRMFallback()
             fallback_hash = drm_fallback.machine_id
 
@@ -132,11 +155,11 @@ class TestWMIFallback(unittest.TestCase):
 
         finally:
             if original_wmi is not None:
-                sys.modules['wmi'] = original_wmi
-            elif 'wmi' in sys.modules:
-                del sys.modules['wmi']
-            if 'src.security.drm' in sys.modules:
-                del sys.modules['src.security.drm']
+                sys.modules["wmi"] = original_wmi
+            elif "wmi" in sys.modules:
+                del sys.modules["wmi"]
+            if "src.security.drm" in sys.modules:
+                del sys.modules["src.security.drm"]
 
 
 class TestRSALicenseValidation(unittest.TestCase):
@@ -153,24 +176,27 @@ class TestRSALicenseValidation(unittest.TestCase):
         cls.pkcs1_15 = pkcs1_15
 
         # Cargar llave privada del proveedor
-        key_path = os.path.join(os.path.dirname(__file__), '..', 'scripts', 'tu_llave_maestra_privada.pem')
-        with open(key_path, 'rb') as f:
+        key_path = os.path.join(
+            os.path.dirname(__file__), "..", "scripts", "tu_llave_maestra_privada.pem"
+        )
+        with open(key_path, "rb") as f:
             cls.private_key = RSA.import_key(f.read())
 
     def _sign_license(self, payload_dict):
         """Helper: Firma un payload con la llave privada real."""
-        payload_str = json.dumps(payload_dict, separators=(',', ':'))
-        hash_obj = self.SHA256.new(payload_str.encode('utf-8'))
+        payload_str = json.dumps(payload_dict, separators=(",", ":"))
+        hash_obj = self.SHA256.new(payload_str.encode("utf-8"))
         firma = self.pkcs1_15.new(self.private_key).sign(hash_obj)
-        raw = payload_str.encode('utf-8') + b"||SIGNATURE||" + firma
-        return base64.b64encode(raw).decode('utf-8')
+        raw = payload_str.encode("utf-8") + b"||SIGNATURE||" + firma
+        return base64.b64encode(raw).decode("utf-8")
 
     def test_valid_license_accepted(self):
         """Una licencia firmada correctamente con hardware ID valido se acepta."""
-        if 'src.security.drm' in sys.modules:
-            del sys.modules['src.security.drm']
+        if "src.security.drm" in sys.modules:
+            del sys.modules["src.security.drm"]
 
         from src.security.drm import DRMValidator
+
         drm = DRMValidator()
 
         # Emitir licencia valida para ESTE hardware
@@ -178,7 +204,7 @@ class TestRSALicenseValidation(unittest.TestCase):
             "hw_id": drm.machine_id,
             "exp": int(time.time()) + 86400 * 365,  # 1 anio
             "tier": "enterprise",
-            "max_cams": 16
+            "max_cams": 16,
         }
         license_b64 = self._sign_license(payload)
 
@@ -187,7 +213,9 @@ class TestRSALicenseValidation(unittest.TestCase):
         self.assertTrue(result, "Licencia valida fue RECHAZADA incorrectamente")
         self.assertEqual(drm.get_max_cameras(), 16)
         self.assertEqual(drm.get_tier(), "enterprise")
-        print(f"[PASS] Licencia RSA-2048 valida aceptada. Tier: {drm.get_tier()}, Cams: {drm.get_max_cameras()}")
+        print(
+            f"[PASS] Licencia RSA-2048 valida aceptada. Tier: {drm.get_tier()}, Cams: {drm.get_max_cameras()}"
+        )
 
         # Limpiar archivo de licencia creado por el test
         if os.path.exists(drm.license_path):
@@ -195,18 +223,24 @@ class TestRSALicenseValidation(unittest.TestCase):
 
     def test_forged_license_rejected(self):
         """Una licencia con firma aleatoria (forjada) es rechazada."""
-        if 'src.security.drm' in sys.modules:
-            del sys.modules['src.security.drm']
+        if "src.security.drm" in sys.modules:
+            del sys.modules["src.security.drm"]
 
         from src.security.drm import DRMValidator
+
         drm = DRMValidator()
 
         # Crear una licencia FALSA con firma inventada
-        payload = {"hw_id": drm.machine_id, "exp": int(time.time()) + 86400, "tier": "pirata", "max_cams": 999}
-        payload_str = json.dumps(payload, separators=(',', ':'))
+        payload = {
+            "hw_id": drm.machine_id,
+            "exp": int(time.time()) + 86400,
+            "tier": "pirata",
+            "max_cams": 999,
+        }
+        payload_str = json.dumps(payload, separators=(",", ":"))
         fake_signature = os.urandom(256)  # Firma aleatoria de 256 bytes
-        raw = payload_str.encode('utf-8') + b"||SIGNATURE||" + fake_signature
-        forged_b64 = base64.b64encode(raw).decode('utf-8')
+        raw = payload_str.encode("utf-8") + b"||SIGNATURE||" + fake_signature
+        forged_b64 = base64.b64encode(raw).decode("utf-8")
 
         result = drm.activate_license(forged_b64)
         self.assertFalse(result, "Licencia FORJADA fue aceptada (VULNERABILIDAD CRITICA)")
@@ -214,10 +248,11 @@ class TestRSALicenseValidation(unittest.TestCase):
 
     def test_expired_license_rejected(self):
         """Una licencia firmada correctamente PERO expirada es rechazada."""
-        if 'src.security.drm' in sys.modules:
-            del sys.modules['src.security.drm']
+        if "src.security.drm" in sys.modules:
+            del sys.modules["src.security.drm"]
 
         from src.security.drm import DRMValidator
+
         drm = DRMValidator()
 
         # Emitir licencia que ya expiro (fecha en el pasado)
@@ -225,7 +260,7 @@ class TestRSALicenseValidation(unittest.TestCase):
             "hw_id": drm.machine_id,
             "exp": int(time.time()) - 86400,  # Expiro ayer
             "tier": "enterprise",
-            "max_cams": 4
+            "max_cams": 4,
         }
         license_b64 = self._sign_license(payload)
 
@@ -235,10 +270,11 @@ class TestRSALicenseValidation(unittest.TestCase):
 
     def test_wrong_hardware_rejected(self):
         """Una licencia valida para OTRO hardware es rechazada en ESTE hardware."""
-        if 'src.security.drm' in sys.modules:
-            del sys.modules['src.security.drm']
+        if "src.security.drm" in sys.modules:
+            del sys.modules["src.security.drm"]
 
         from src.security.drm import DRMValidator
+
         drm = DRMValidator()
 
         # Emitir licencia para un Machine ID totalmente diferente
@@ -246,7 +282,7 @@ class TestRSALicenseValidation(unittest.TestCase):
             "hw_id": "aaaa" * 16,  # 64 chars falso
             "exp": int(time.time()) + 86400 * 365,
             "tier": "enterprise",
-            "max_cams": 4
+            "max_cams": 4,
         }
         license_b64 = self._sign_license(payload)
 
@@ -256,10 +292,11 @@ class TestRSALicenseValidation(unittest.TestCase):
 
     def test_tampered_payload_rejected(self):
         """Si alguien modifica el exp (Epoch) del payload para hackear la fecha, la firma colapsa."""
-        if 'src.security.drm' in sys.modules:
-            del sys.modules['src.security.drm']
+        if "src.security.drm" in sys.modules:
+            del sys.modules["src.security.drm"]
 
         from src.security.drm import DRMValidator
+
         drm = DRMValidator()
 
         # Emitir licencia valida real
@@ -267,29 +304,32 @@ class TestRSALicenseValidation(unittest.TestCase):
             "hw_id": drm.machine_id,
             "exp": int(time.time()) + 86400 * 30,  # 30 dias
             "tier": "enterprise",
-            "max_cams": 4
+            "max_cams": 4,
         }
         license_b64 = self._sign_license(payload)
 
         # AHORA: Tamper — cambiar exp a 2099 (intento de hackeo de fecha)
         raw = base64.b64decode(license_b64)
         parts = raw.split(b"||SIGNATURE||", 1)
-        original_payload = json.loads(parts[0].decode('utf-8'))
+        original_payload = json.loads(parts[0].decode("utf-8"))
         original_payload["exp"] = int(time.time()) + 86400 * 365 * 73  # "Hack" a 2099
-        tampered_payload = json.dumps(original_payload, separators=(',', ':')).encode('utf-8')
+        tampered_payload = json.dumps(original_payload, separators=(",", ":")).encode("utf-8")
         tampered_raw = tampered_payload + b"||SIGNATURE||" + parts[1]
-        tampered_b64 = base64.b64encode(tampered_raw).decode('utf-8')
+        tampered_b64 = base64.b64encode(tampered_raw).decode("utf-8")
 
         result = drm.activate_license(tampered_b64)
-        self.assertFalse(result, "Licencia TAMPERED (fecha hackeada) fue aceptada (VULNERABILIDAD CRITICA)")
+        self.assertFalse(
+            result, "Licencia TAMPERED (fecha hackeada) fue aceptada (VULNERABILIDAD CRITICA)"
+        )
         print("[PASS] Licencia con payload alterado rechazada — firma RSA colapso correctamente")
 
     def test_garbage_input_rejected(self):
         """Texto aleatorio no-Base64 es rechazado sin crash."""
-        if 'src.security.drm' in sys.modules:
-            del sys.modules['src.security.drm']
+        if "src.security.drm" in sys.modules:
+            del sys.modules["src.security.drm"]
 
         from src.security.drm import DRMValidator
+
         drm = DRMValidator()
 
         garbage_inputs = [
@@ -308,4 +348,4 @@ class TestRSALicenseValidation(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2) 
+    unittest.main(verbosity=2)

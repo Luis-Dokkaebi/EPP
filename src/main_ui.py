@@ -310,80 +310,6 @@ import os
 from config.path_utils import ConfigManager
 from src.security.drm import DRMValidator
 
-class LicenseWindow(ctk.CTkToplevel):
-    def __init__(self, master, drm_validator):
-        super().__init__(master)
-        self.title("Activación Corporativa B2B (DRM RSA-2048)")
-        self.geometry("620x520")
-        self.configure(fg_color="#1E1E1E")
-        self.attributes("-topmost", True)
-        self.grab_set()
-        self.focus_force()
-        self.protocol("WM_DELETE_WINDOW", self.on_close)
-        
-        self.drm = drm_validator
-        self.activated = False
-        
-        ctk.CTkLabel(self, text="🔐 Licencia Requerida", font=("Roboto", 22, "bold"), text_color="#E74C3C").pack(pady=(15, 5))
-        ctk.CTkLabel(self, text="Envíe el siguiente Machine ID a su proveedor para recibir la llave:", 
-                     font=("Roboto", 12), text_color="#A0A0A0").pack(pady=5)
-        
-        mid_frame = ctk.CTkFrame(self, fg_color="#2B2B2B", corner_radius=8)
-        mid_frame.pack(fill="x", padx=20, pady=5)
-        ctk.CTkLabel(mid_frame, text="Machine ID (SHA-256 Hardware Fingerprint):", 
-                     font=("Roboto", 11), text_color="#A0A0A0").pack(pady=(8, 2), padx=10, anchor="w")
-        
-        self.mid_entry = ctk.CTkEntry(mid_frame, justify="center", font=("Consolas", 11), height=32)
-        self.mid_entry.insert(0, self.drm.machine_id)
-        self.mid_entry.configure(state="readonly")
-        self.mid_entry.pack(pady=(0, 10), fill="x", padx=10)
-        
-        ctk.CTkButton(mid_frame, text="📋 Copiar Machine ID", height=28, width=160,
-                      fg_color="#1f6aa5", hover_color="#144870",
-                      command=lambda: (self.clipboard_clear(), self.clipboard_append(self.drm.machine_id))
-                      ).pack(pady=(0, 10))
-        
-        key_frame = ctk.CTkFrame(self, fg_color="#2B2B2B", corner_radius=8)
-        key_frame.pack(fill="x", padx=20, pady=10)
-        ctk.CTkLabel(key_frame, text="Pegue la Llave de Activación RSA-2048 (Base64):", 
-                     font=("Roboto", 11), text_color="#A0A0A0").pack(pady=(8, 2), padx=10, anchor="w")
-        
-        self.key_textbox = ctk.CTkTextbox(key_frame, height=80, font=("Consolas", 10), fg_color="#1E1E1E")
-        self.key_textbox.pack(fill="x", padx=10, pady=(0, 10))
-        
-        ctk.CTkButton(self, text="🔓 Activar VMS Localmente", fg_color="#2ECC71", 
-                      hover_color="#27AE60", height=40, font=("Roboto", 14, "bold"),
-                      command=self.activate).pack(pady=10)
-        
-        self.status_label = ctk.CTkLabel(self, text="", font=("Roboto", 13), text_color="#A0A0A0")
-        self.status_label.pack(pady=5)
-        
-    def activate(self):
-        val = self.key_textbox.get("1.0", "end").strip()
-        if not val:
-            self.status_label.configure(text="⚠️ Pegue la llave Base64 en el campo de texto.", text_color="#E74C3C")
-            return
-            
-        if self.drm.activate_license(val):
-            self.activated = True
-            exp = self.drm.get_expiration_date() or "N/A"
-            cams = self.drm.get_max_cameras()
-            tier = self.drm.get_tier().upper()
-            self.status_label.configure(
-                text=f"✅ Activado | Tier: {tier} | Cámaras: {cams} | Expira: {exp}",
-                text_color="#2ECC71"
-            )
-            self.after(1500, self.destroy)
-        else:
-            self.status_label.configure(
-                text="❌ Llave RSA inválida, expirada, o no coincide con este hardware.",
-                text_color="#E74C3C"
-            )
-
-    def on_close(self):
-        import sys
-        sys.exit(0)
-
 class Bootloader(ctk.CTkToplevel):
     def __init__(self, master=None):
         super().__init__(master)
@@ -456,16 +382,12 @@ if __name__ == "__main__":
     root.withdraw()
     
     drm = DRMValidator()
-    if not drm.validate_license():
-        lic_win = LicenseWindow(root, drm)
-        root.wait_window(lic_win)
-        # CR-06: no confiar en que `wait_window` implique activación. Si la ventana
-        # se cerró/destruyó sin activar (excepción interna, cierre programático),
-        # abortar. Se re-valida contra disco (fuente de verdad), no solo el flag.
-        if not getattr(lic_win, "activated", False) and not drm.validate_license():
-            import sys
-            print("[VMS] Activación no completada. Cerrando.")
-            sys.exit(0)
+    from src.gui.ventana_licencia import pedir_licencia
+    # CR-06: sin una licencia validada y guardada (cierre de la ventana incluido), no se abre.
+    if not drm.validate_license() and not pedir_licencia(root, drm):
+        import sys
+        print("[VMS] Activación no completada. Cerrando.")
+        sys.exit(0)
 
     bootloader = Bootloader(root)
     root.wait_window(bootloader)

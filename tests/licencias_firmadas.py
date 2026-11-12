@@ -6,6 +6,7 @@ inyecta en `DRMValidator`.
 
 import base64
 import json
+from datetime import datetime
 from typing import Any
 
 from Crypto.Hash import SHA256
@@ -29,3 +30,17 @@ def firmar(llave: RSA.RsaKey, carga: dict[str, Any]) -> str:
     texto = json.dumps(carga).encode("utf-8")
     firma = pkcs1_15.new(llave).sign(SHA256.new(texto))
     return base64.b64encode(texto + SEPARADOR + firma).decode("ascii")
+
+
+class RelojEn:
+    """Reemplaza `datetime` en drm: `now()` devuelve siempre el mismo instante."""
+
+    def __init__(self, instante: float) -> None:
+        self._instante = instante
+
+    def now(self) -> datetime:
+        return datetime.fromtimestamp(self._instante)
+
+    @staticmethod
+    def fromtimestamp(instante: float) -> datetime:
+        return datetime.fromtimestamp(instante)

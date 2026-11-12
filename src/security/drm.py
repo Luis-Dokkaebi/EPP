@@ -12,7 +12,17 @@ import logging
 import os
 import platform
 from datetime import datetime
+from pathlib import Path
 from typing import Any
+
+from src.security.vigencia_licencia import (
+    MotivoDeRechazo,
+    RegistroDeRelojAlteradoError,
+    UltimaHoraVista,
+    dias_restantes,
+    es_de_prueba,
+    motivo_de_rechazo_por_fecha,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -31,6 +41,7 @@ SQIDAQAB
 # Salt ofuscado para derivar el Machine Hash (SPEC 1.6.1)
 # En produccion PyArmor lo convertira en bytecode C irreversible.
 _HARDWARE_SALT = b"0f1c1n4_3f1c13nc14_V1"
+_SEPARADOR = b"||SIGNATURE||"
 
 
 class DRMValidator:
@@ -45,16 +56,20 @@ class DRMValidator:
     5. Extrae el tier de la licencia (max_cams, etc.).
     """
 
-    def __init__(self, llave_publica: bytes = _PUBLIC_KEY_PEM):
+    def __init__(self, llave_publica: bytes = _PUBLIC_KEY_PEM) -> None:
         # SPEC/10 T-01: la llave embebida rige en producción; las pruebas inyectan la suya.
         self._llave_publica = llave_publica
         self.machine_id = self._generate_machine_id()
         # Licencia en APPDATA raiz (abarca todos los Tenants)
         from config.path_utils import ConfigManager
 
-        self.license_path = os.path.join(ConfigManager.get_appdata_path(), "license.key")
+        appdata = ConfigManager.get_appdata_path()
+        self.license_path = os.path.join(appdata, "license.key")
         # Datos extraidos de la ultima licencia validada
         self.license_data: dict[str, Any] | None = None
+        # Por que no rige la licencia tras la ultima validacion o activacion (SPEC/10 §4.2)
+        self.motivo_de_rechazo: MotivoDeRechazo | None = None
+        self._ultima_hora_vista = UltimaHoraVista(Path(appdata) / "reloj.sig", self.machine_id)
 
     # ==================================================================
     # TASK-4.1: Hardware Fingerprint Inmutable (WMI + SHA-256 + Salt)
@@ -130,36 +145,30 @@ class DRMValidator:
         """
         Lee la licencia almacenada en disco y la valida criptograficamente.
         Retorna True si la licencia es valida, no ha expirado, y coincide con este hardware.
+        Si deja de regir (SPEC/10 §4.2), ya no habilita modulos y `motivo_de_rechazo` dice por que.
         """
         if not os.path.exists(self.license_path):
+            self.license_data = None
+            self.motivo_de_rechazo = MotivoDeRechazo.SIN_LICENCIA
             return False
 
         try:
             with open(self.license_path, encoding="utf-8") as f:
-                license_b64 = f.read().strip()
-
-            payload, data = self._verify_and_extract(license_b64)
-            if payload is None:
-                return False
-
-            self.license_data = data
-            return True
-
-        except Exception as exc:
+                self.license_data = self._vigente(f.read().strip())
+        except (OSError, ValueError) as exc:
             _logger.warning("[DRM] License validation failed: %s", type(exc).__name__)
-            return False
+            self.license_data = None
+            self.motivo_de_rechazo = MotivoDeRechazo.INVALIDA
+        return self.license_data is not None
 
     def activate_license(self, key_input: str) -> bool:
         """
         Valida una licencia Base64 ingresada por el usuario y la persiste en disco.
-        Retorna True si la activacion fue exitosa.
+        Retorna True si la activacion fue exitosa; si no, la licencia que ya regia se conserva.
         """
         key_input = key_input.strip()
-        if not key_input:
-            return False
-
-        payload, data = self._verify_and_extract(key_input)
-        if payload is None:
+        data = self._vigente(key_input)
+        if data is None:
             return False
 
         # Persistir licencia validada en disco
@@ -170,62 +179,62 @@ class DRMValidator:
         self.license_data = data
         return True
 
-    def _verify_and_extract(self, license_b64: str) -> tuple:
-        """
-        Nucleo criptografico: Decodifica Base64, separa payload de firma,
-        verifica la firma RSA-2048 con la llave publica embebida,
-        y valida que Machine ID + Fecha de Expiracion sean correctos.
+    def _vigente(self, license_b64: str) -> dict[str, Any] | None:
+        """Datos de la licencia si rige ahora; si no, None y el motivo en `motivo_de_rechazo`."""
+        data = self._contenido_firmado(license_b64)
+        if data is None:
+            self.motivo_de_rechazo = MotivoDeRechazo.INVALIDA
+            return None
+        ahora = datetime.now().timestamp()
+        self.motivo_de_rechazo = self._motivo_por_fecha(data, ahora)
+        if self.motivo_de_rechazo is not None:
+            return None
+        self._ultima_hora_vista.anotar(ahora)
+        return data
 
-        Retorna (payload_str, data_dict) si es valida, o (None, None) si falla.
+    def _motivo_por_fecha(self, data: dict[str, Any], ahora: float) -> MotivoDeRechazo | None:
+        try:
+            ultima_vista = self._ultima_hora_vista.leer()
+        except RegistroDeRelojAlteradoError:
+            return MotivoDeRechazo.FECHA_INCORRECTA
+        return motivo_de_rechazo_por_fecha(data, ahora, ultima_vista)
+
+    def _contenido_firmado(self, license_b64: str) -> dict[str, Any] | None:
+        """
+        Nucleo criptografico: decodifica Base64, separa payload de firma (||SIGNATURE||) y
+        verifica la firma RSA-2048 con la llave publica.
+
+        Retorna el contenido solo si la firma es valida y el Machine ID es el de este hardware.
         """
         from Crypto.Hash import SHA256  # nosec B413  # WAIVER-#6: es pycryptodome
         from Crypto.PublicKey import RSA  # nosec B413  # WAIVER-#6: es pycryptodome
         from Crypto.Signature import pkcs1_15  # nosec B413  # WAIVER-#6: es pycryptodome
 
         try:
-            # 1. Decodificar Base64
-            raw_bytes = base64.b64decode(license_b64)
-
-            # 2. Separar payload de firma (delimitador: ||SIGNATURE||)
-            separator = b"||SIGNATURE||"
-            if separator not in raw_bytes:
-                return None, None
-
-            parts = raw_bytes.split(separator, 1)
-            if len(parts) != 2:
-                return None, None
-
-            payload_bytes = parts[0]
-            signature_bytes = parts[1]
-
-            # 3. Verificar firma RSA-2048 con la llave publica
-            public_key = RSA.import_key(self._llave_publica)
-            hash_obj = SHA256.new(payload_bytes)
-
+            payload, separador, firma = base64.b64decode(license_b64).partition(_SEPARADOR)
+            if not separador:
+                return None
             try:
-                pkcs1_15.new(public_key).verify(hash_obj, signature_bytes)
+                llave = RSA.import_key(self._llave_publica)
+                pkcs1_15.new(llave).verify(SHA256.new(payload), firma)
             except (ValueError, TypeError):
                 # Firma invalida — licencia falsificada o corrompida
-                return None, None
-
-            # 4. Parsear payload JSON
-            payload_str = payload_bytes.decode("utf-8")
-            data = json.loads(payload_str)
-
-            # 5. Validar Machine ID (hw_id debe coincidir con este hardware)
-            if data.get("hw_id") != self.machine_id:
-                return None, None
-
-            # 6. Validar fecha de expiracion (Epoch)
-            exp_epoch = data.get("exp", 0)
-            if datetime.now().timestamp() > exp_epoch:
-                return None, None
-
-            return payload_str, data
-
+                return None
+            data: dict[str, Any] = json.loads(payload.decode("utf-8"))
+            return data if data.get("hw_id") == self.machine_id else None
         except Exception as exc:
             _logger.warning("[DRM] Cryptographic verification failed: %s", type(exc).__name__)
-            return None, None
+            return None
+
+    def dias_restantes(self) -> int | None:
+        """Dias que le quedan a la licencia activa (el dia empezado cuenta); None sin licencia."""
+        if not self.license_data:
+            return None
+        return dias_restantes(self.license_data, datetime.now().timestamp())
+
+    def es_prueba(self) -> bool:
+        """Si la licencia activa es la prueba gratuita (SPEC/10 §4.1)."""
+        return es_de_prueba(self.license_data or {})
 
     def incluye_modulo(self, modulo: str) -> bool:
         """Si la licencia activa habilita el módulo opcional (D10); sin licencia, ninguno."""

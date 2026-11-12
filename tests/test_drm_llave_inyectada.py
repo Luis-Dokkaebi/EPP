@@ -9,10 +9,12 @@ from pathlib import Path
 import pytest
 from Crypto.PublicKey import RSA
 
+from src.security import drm
 from src.security.drm import DRMValidator
 from tests.licencias_firmadas import firmar, generar_llave, publica_de
 from tests.utilidades_scripts import RAIZ
 
+BITS_DE_LA_LLAVE = 2048
 VENCE = 1907755200  # 15/06/2030 12:00 UTC
 NOMBRE_DE_LA_LLAVE_PRIVADA = "tu_llave_maestra" + "_privada"
 
@@ -54,6 +56,16 @@ def test_la_licencia_guardada_se_valida_con_la_llave_inyectada(
 
     assert DRMValidator(publica_de(llave)).validate_license() is True
     assert DRMValidator().validate_license() is False
+
+
+def test_la_llave_embebida_es_la_publica_rsa_2048_que_se_entrega_a_los_clientes() -> None:
+    publicada = (RAIZ / "scripts" / "llave_publica_clientes.pem").read_bytes()
+
+    embebida = RSA.import_key(drm._PUBLIC_KEY_PEM)
+
+    assert embebida.size_in_bits() == BITS_DE_LA_LLAVE
+    assert embebida.has_private() is False
+    assert embebida == RSA.import_key(publicada)
 
 
 def test_ninguna_prueba_nombra_la_llave_privada_del_repositorio() -> None:

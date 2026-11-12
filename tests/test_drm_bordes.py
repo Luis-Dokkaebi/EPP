@@ -10,7 +10,6 @@ import hashlib
 import json
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -22,6 +21,7 @@ from Crypto.Signature import pkcs1_15
 
 from src.security import drm
 from src.security.drm import DRMValidator
+from tests.licencias_firmadas import RelojEn
 
 SAL = b"0f1c1n4_3f1c13nc14_V1"
 NODO_DE_RED = 42
@@ -97,20 +97,6 @@ def _firmar(llave: RSA.RsaKey, carga: dict[str, Any]) -> str:
 
 def _carga(validador: DRMValidator, **extra: Any) -> dict[str, Any]:
     return {"hw_id": validador.machine_id, "exp": VENCE, **extra}
-
-
-class RelojEn:
-    """Reemplaza `datetime` en drm: `now()` devuelve siempre el mismo instante."""
-
-    def __init__(self, instante: float) -> None:
-        self._instante = instante
-
-    def now(self) -> datetime:
-        return datetime.fromtimestamp(self._instante)
-
-    @staticmethod
-    def fromtimestamp(instante: float) -> datetime:
-        return datetime.fromtimestamp(instante)
 
 
 # --- Huella de hardware ---------------------------------------------------------------------

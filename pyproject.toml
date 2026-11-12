@@ -49,7 +49,6 @@ exclude = [
     "tests/test_database_manager.py",
     "tests/test_db_encryption.py",
     "tests/test_db_migration.py",
-    "tests/test_drm_rsa_b2b.py",
     "tests/test_efficiency.py",
     "tests/test_face_recognition.py",
     "tests/test_model_verifier.py",

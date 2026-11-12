@@ -5,15 +5,14 @@
 # PyArmor ofuscara este archivo en produccion (Sprint 4, TASK-4.4).
 # ===================================================================
 
-import hashlib
-import platform
-import os
-import json
-import time
 import base64
+import hashlib
+import json
 import logging
+import os
+import platform
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -50,9 +49,10 @@ class DRMValidator:
         self.machine_id = self._generate_machine_id()
         # Licencia en APPDATA raiz (abarca todos los Tenants)
         from config.path_utils import ConfigManager
+
         self.license_path = os.path.join(ConfigManager.get_appdata_path(), "license.key")
         # Datos extraidos de la ultima licencia validada
-        self.license_data: Optional[Dict[str, Any]] = None
+        self.license_data: dict[str, Any] | None = None
 
     # ==================================================================
     # TASK-4.1: Hardware Fingerprint Inmutable (WMI + SHA-256 + Salt)
@@ -70,38 +70,55 @@ class DRMValidator:
         """
         try:
             import wmi
+
             c = wmi.WMI()
 
             # Componente 1: Tarjeta Madre
             boards = c.Win32_BaseBoard()
-            board_sn = boards[0].SerialNumber.strip() if boards and boards[0].SerialNumber else "UNKNOWN_BOARD"
+            board_sn = (
+                boards[0].SerialNumber.strip()
+                if boards and boards[0].SerialNumber
+                else "UNKNOWN_BOARD"
+            )
 
             # Componente 2: CPU
             processors = c.Win32_Processor()
-            cpu_id = processors[0].ProcessorId.strip() if processors and processors[0].ProcessorId else "UNKNOWN_CPU"
+            cpu_id = (
+                processors[0].ProcessorId.strip()
+                if processors and processors[0].ProcessorId
+                else "UNKNOWN_CPU"
+            )
 
             # Componente 3: Disco de Arranque Principal
             disks = c.Win32_DiskDrive()
-            disk_sn = disks[0].SerialNumber.strip() if disks and disks[0].SerialNumber else "UNKNOWN_DISK"
+            disk_sn = (
+                disks[0].SerialNumber.strip() if disks and disks[0].SerialNumber else "UNKNOWN_DISK"
+            )
 
             raw = f"B2B_{cpu_id}_{board_sn}_{disk_sn}"
 
         except Exception:
             # Fallback: MAC Address + BIOS UUID (SPEC 1.6.1 - Plan B)
             import uuid
+
             mac = uuid.getnode()
             try:
                 import wmi as wmi_fallback
+
                 c2 = wmi_fallback.WMI()
                 bios_entries = c2.Win32_ComputerSystemProduct()
-                bios_uuid = bios_entries[0].UUID.strip() if bios_entries and bios_entries[0].UUID else "NO_BIOS"
+                bios_uuid = (
+                    bios_entries[0].UUID.strip()
+                    if bios_entries and bios_entries[0].UUID
+                    else "NO_BIOS"
+                )
             except Exception:
                 bios_uuid = platform.node()
 
             raw = f"B2B_FALLBACK_{mac}_{bios_uuid}"
 
         # Derivacion criptografica con Salt ofuscado (SPEC 1.6.1)
-        hw_hash = hashlib.sha256(raw.encode('utf-8') + _HARDWARE_SALT).hexdigest()
+        hw_hash = hashlib.sha256(raw.encode("utf-8") + _HARDWARE_SALT).hexdigest()
         return hw_hash
 
     # ==================================================================
@@ -116,7 +133,7 @@ class DRMValidator:
             return False
 
         try:
-            with open(self.license_path, "r", encoding="utf-8") as f:
+            with open(self.license_path, encoding="utf-8") as f:
                 license_b64 = f.read().strip()
 
             payload, data = self._verify_and_extract(license_b64)
@@ -159,9 +176,9 @@ class DRMValidator:
 
         Retorna (payload_str, data_dict) si es valida, o (None, None) si falla.
         """
+        from Crypto.Hash import SHA256  # nosec B413  # WAIVER-#6: es pycryptodome
         from Crypto.PublicKey import RSA  # nosec B413  # WAIVER-#6: es pycryptodome
         from Crypto.Signature import pkcs1_15  # nosec B413  # WAIVER-#6: es pycryptodome
-        from Crypto.Hash import SHA256  # nosec B413  # WAIVER-#6: es pycryptodome
 
         try:
             # 1. Decodificar Base64
@@ -190,7 +207,7 @@ class DRMValidator:
                 return None, None
 
             # 4. Parsear payload JSON
-            payload_str = payload_bytes.decode('utf-8')
+            payload_str = payload_bytes.decode("utf-8")
             data = json.loads(payload_str)
 
             # 5. Validar Machine ID (hw_id debe coincidir con este hardware)
@@ -226,7 +243,7 @@ class DRMValidator:
             return self.license_data.get("tier", "basic")
         return "basic"
 
-    def get_expiration_date(self) -> Optional[str]:
+    def get_expiration_date(self) -> str | None:
         """Retorna la fecha de expiracion formateada de la licencia activa."""
         if self.license_data:
             exp = self.license_data.get("exp", 0)

@@ -14,11 +14,9 @@ max-complexity = 10
 exclude = [
     "config/config.py",
     "config/path_utils.py",
-    "generate_license.py",
     "migrate_data.py",
     "obfuscate.py",
     "scripts/generar_llaves_maestras.py",
-    "scripts/keygen_b2b.py",
     "src/acquisition/camera_enumerator.py",
     "src/acquisition/video_stream.py",
     "src/analysis/efficiency_calculator.py",
@@ -74,11 +72,9 @@ exclude = [
 # incumple cada archivo. Al tocar un archivo se corrigen y se borra su entrada.
 "config/config.py" = ["E501", "I001", "S110", "UP015", "W291"]
 "config/path_utils.py" = ["E501", "W293"]
-"generate_license.py" = ["I001", "T201", "W293"]
 "migrate_data.py" = ["E501", "T201"]
 "obfuscate.py" = ["E501", "F401", "T201"]
 "scripts/generar_llaves_maestras.py" = ["I001", "T201"]
-"scripts/keygen_b2b.py" = ["E501", "F541", "I001", "N801", "RUF013", "T201"]
 "src/acquisition/camera_enumerator.py" = ["C901", "I001", "PLR0912", "S110", "W293"]
 "src/acquisition/video_stream.py" = ["I001"]
 "src/analysis/efficiency_calculator.py" = ["B007", "C901", "E501", "E701", "I001", "PLR2004", "T201"]
@@ -155,6 +151,7 @@ files = [
     "tools",
     "scripts/check_*.py",
     "scripts/ejecutar_pruebas_mutacion.py",
+    "scripts/keygen_b2b.py",
     "ml",
     ".claude/hooks/guardian.py",
 ]

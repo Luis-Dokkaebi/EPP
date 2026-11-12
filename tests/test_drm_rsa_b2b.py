@@ -16,6 +16,21 @@ import time
 # Setup path for project imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+import pytest
+
+import src.security
+import src.security.drm
+
+
+@pytest.fixture(autouse=True)
+def _modulo_drm_restaurado(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Estas pruebas borran src.security.drm de sys.modules para reimportarlo; al terminar,
+    sys.modules y el paquete vuelven a apuntar al mismo módulo original. Si no, un monkeypatch
+    posterior parcha un módulo y el código importa otro (tests/test_aislamiento_pruebas_drm.py).
+    """
+    monkeypatch.setitem(sys.modules, "src.security.drm", src.security.drm)
+    monkeypatch.setattr(src.security, "drm", src.security.drm)
+
 
 class TestHardwareFingerprint(unittest.TestCase):
     """TASK-4.1: Validar que el fingerprint WMI sea determinista e inmutable."""

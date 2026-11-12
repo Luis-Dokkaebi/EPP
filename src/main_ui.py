@@ -11,8 +11,10 @@ INTERVALO_SONDEO_ESCANEO_MS = 100
 # Sin filtro extra: Ultralytics ya aplica su umbral interno (0.25), como antes de usar el puerto.
 CONFIANZA_MINIMA_GUI = 0.0
 
+
 class ViewManager:
     """Clase singleton-like para manejar el renderizado condicional de vistas (caching de frames)."""
+
     def __init__(self, main_workspace: ctk.CTkFrame):
         self.workspace = main_workspace
         self.current_view = None
@@ -24,13 +26,14 @@ class ViewManager:
     def switch_to(self, name: str):
         if self.current_view is not None:
             self.current_view.pack_forget()
-        
+
         if name not in self.views:
             return
-            
+
         view_instance = self.views[name]
         view_instance.pack(fill="both", expand=True, padx=20, pady=20)
         self.current_view = view_instance
+
 
 class AppMain(ctk.CTk):
     def __init__(self, licencia=None):
@@ -39,57 +42,72 @@ class AppMain(ctk.CTk):
         # SPEC/9 §5.4 y D10: la licencia validada decide si las cámaras suman el módulo de EPP;
         # el publicador lleva sus infracciones a la interfaz.
         from src.composicion_epp import PublicadorEnMemoria
+
         self.licencia = licencia
         self.publicador_epp = PublicadorEnMemoria()
         self._despachador_epp = self._iniciar_avisos_epp()
-        
+
         self.title("Oficina Eficiencia B2B")
         self.geometry("1400x800")
         self.configure(fg_color="#1E1E1E")
         self.minsize(1024, 768)
-        
+
         # Estado de cámaras detectadas
         self._detected_cameras = []
         self._active_camera_index = None
-        
+
         # Grid System for Root (1 Row, 2 Columns)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=0)
-        
+
         # --- SIDEBAR ---
-        self.sidebar_frame = ctk.CTkFrame(self, width=250, corner_radius=0, fg_color="#2B2B2B", border_width=1, border_color="#333333")
+        self.sidebar_frame = ctk.CTkFrame(
+            self,
+            width=250,
+            corner_radius=0,
+            fg_color="#2B2B2B",
+            border_width=1,
+            border_color="#333333",
+        )
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
         self.sidebar_frame.grid_propagate(False)
-        
-        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="VMS Panel", font=("Roboto", 24, "bold"), text_color="#FFFFFF")
+
+        self.logo_label = ctk.CTkLabel(
+            self.sidebar_frame, text="VMS Panel", font=("Roboto", 24, "bold"), text_color="#FFFFFF"
+        )
         self.logo_label.pack(pady=(30, 15), padx=20, anchor="w")
-        
+
         # --- MAIN WORKSPACE ---
         self.main_workspace = ctk.CTkFrame(self, corner_radius=0, fg_color="#1E1E1E")
         self.main_workspace.grid(row=0, column=1, sticky="nsew")
-        
+
         # --- VIEW MANAGER ---
         self.view_manager = ViewManager(self.main_workspace)
         self.setup_views()
         self.setup_sidebar_buttons()
         self._build_camera_selector()
-        
+
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.view_manager.switch_to("Dashboard")
-        
+
         # Escanear cámaras de forma asíncrona al iniciar
         self._scan_cameras()
-        
+
     def setup_views(self):
         """Inicializa las vistas con lógica de negocio REAL."""
         import queue
         from src.gui.dashboard import DashboardFrame
-        from src.gui.views import create_employees_view, create_zones_view, create_reports_view, create_tenant_view
-        
+        from src.gui.views import (
+            create_employees_view,
+            create_zones_view,
+            create_reports_view,
+            create_tenant_view,
+        )
+
         self.camera_workers = []
         self.camera_queues = {}
-        
+
         # CR-05: el parche de torch.load vive confinado en la raíz de composición (A-15).
         try:
             from src.composition import crear_detector_configurado
@@ -99,35 +117,41 @@ class AppMain(ctk.CTk):
         except Exception as e:
             print(f"[VMS] No se pudo cargar YOLO: {e}")
             import tkinter.messagebox
-            tkinter.messagebox.showerror("Error Crítico de IA", f"No se pudo cargar el motor YOLO B2B:\n\n{e}\n\nFavor de reportar este problema.")
+
+            tkinter.messagebox.showerror(
+                "Error Crítico de IA",
+                f"No se pudo cargar el motor YOLO B2B:\n\n{e}\n\nFavor de reportar este problema.",
+            )
             detector = None
-        
+
         self.detector = detector
         self.view_dashboard = DashboardFrame(self.main_workspace, self.camera_queues)
         self.view_manager.register_view("Dashboard", self.view_dashboard)
-        
+
         self.view_empleados = create_employees_view(self, self.main_workspace)
         self.view_manager.register_view("Empleados", self.view_empleados)
-        
+
         self.view_zonas = create_zones_view(self.main_workspace)
         self.view_manager.register_view("Zonas", self.view_zonas)
-        
+
         self._registrar_vistas_epp()
 
         self.view_reportes = create_reports_view(self.main_workspace)
         self.view_manager.register_view("Reportes", self.view_reportes)
-        
+
         self.view_manager.register_view("Tenant", create_tenant_view(self.main_workspace))
 
     def _start_local_camera(self, camera_index=None):
         import queue
         from config.config import LOCAL_CAMERA_INDEX
         from src.tracking.camera_worker import CameraWorker
-        if self.detector is None: return
-        
+
+        if self.detector is None:
+            return
+
         idx = camera_index if camera_index is not None else LOCAL_CAMERA_INDEX
         self._active_camera_index = idx
-        
+
         cam_name = "Cámara Local"
         if cam_name not in self.camera_queues:
             self.camera_queues[cam_name] = queue.Queue(maxsize=10)
@@ -138,20 +162,19 @@ class AppMain(ctk.CTk):
         self._conectar_epp(worker)
         worker.start()
         self.camera_workers.append(worker)
-        
-        if hasattr(self, '_cam_status_label'):
-            self._cam_status_label.configure(
-                text=f"✅ Activa: índice {idx}",
-                text_color="#2ECC71"
-            )
+
+        if hasattr(self, "_cam_status_label"):
+            self._cam_status_label.configure(text=f"✅ Activa: índice {idx}", text_color="#2ECC71")
 
     def _conectar_epp(self, worker):
         """Cada cámara lleva su propio módulo de EPP (estado por track), si la licencia lo habilita."""
         if self.licencia is None:
             return
         from src import composicion_epp
+
         worker.conectar_epp(
-            composicion_epp.crear_integracion_epp_de_la_app(self.publicador_epp, self.licencia))
+            composicion_epp.crear_integracion_epp_de_la_app(self.publicador_epp, self.licencia)
+        )
 
     def _stop_local_camera(self):
         # CR-09: NO dormir en el hilo de UI. Los workers son daemon y sueltan el
@@ -164,12 +187,14 @@ class AppMain(ctk.CTk):
 
     def _modulo_epp_habilitado(self):
         from src.composicion_epp import modulo_habilitado
+
         return modulo_habilitado(self.licencia)
 
     def _registrar_vistas_epp(self):
         """SPEC/9 §8.2 y §8.4: alertas y reporte de cumplimiento, solo con el módulo de EPP."""
         if self._modulo_epp_habilitado():
             from src.gui import epp_en_la_app
+
             epp_en_la_app.registrar_vistas(self.view_manager, self.main_workspace)
 
     def _iniciar_avisos_epp(self):
@@ -177,6 +202,7 @@ class AppMain(ctk.CTk):
         if not self._modulo_epp_habilitado():
             return None
         from src.composicion_avisos import iniciar_avisos_de_la_sucursal
+
         return iniciar_avisos_de_la_sucursal()
 
     def on_closing(self):
@@ -185,6 +211,7 @@ class AppMain(ctk.CTk):
         if self._despachador_epp is not None:
             # Antes de destruir la ventana: main() cifra la base al volver de mainloop.
             from datetime import timedelta
+
             self._despachador_epp.detener(timedelta(seconds=10))
         self.destroy()
 
@@ -194,27 +221,34 @@ class AppMain(ctk.CTk):
             ("Gestión de Empleados", "Empleados"),
             ("Configuración de Zonas", "Zonas"),
             ("Reportes Históricos", "Reportes"),
-            ("Cambiar Sucursal", "Tenant")
+            ("Cambiar Sucursal", "Tenant"),
         ]
         if self._modulo_epp_habilitado():
             buttons[3:3] = [("Alertas EPP", "AlertasEPP"), ("Cumplimiento EPP", "CumplimientoEPP")]
-        
+
         for text, view_name in buttons:
             btn = ctk.CTkButton(
-                self.sidebar_frame, text=text, font=("Roboto", 14),
-                fg_color="#1f6aa5", hover_color="#144870",
-                text_color="#FFFFFF", corner_radius=8, height=40, anchor="w",
-                command=lambda name=view_name: self.view_manager.switch_to(name)
+                self.sidebar_frame,
+                text=text,
+                font=("Roboto", 14),
+                fg_color="#1f6aa5",
+                hover_color="#144870",
+                text_color="#FFFFFF",
+                corner_radius=8,
+                height=40,
+                anchor="w",
+                command=lambda name=view_name: self.view_manager.switch_to(name),
             )
             btn.pack(pady=5, padx=20, fill="x")
 
     def _build_camera_selector(self):
         from src.gui.views import build_camera_selector
+
         build_camera_selector(self, self.sidebar_frame)
-    
+
     def _scan_cameras(self) -> None:
         from src.acquisition.camera_enumerator import enumerate_cameras_async
-        
+
         self._cam_status_label.configure(text="⏳ Escaneando...", text_color="#F39C12")
         self._cam_combo.configure(values=["Escaneando..."])
         self._cam_combo.set("Escaneando...")
@@ -241,8 +275,7 @@ class AppMain(ctk.CTk):
             self._cam_combo.configure(values=labels)
             self._cam_combo.set(labels[0])
             self._cam_status_label.configure(
-                text=f"🔍 {len(cameras)} cámara(s) detectada(s)",
-                text_color="#2ECC71"
+                text=f"🔍 {len(cameras)} cámara(s) detectada(s)", text_color="#2ECC71"
             )
             if self._active_camera_index is None:
                 self._on_camera_selected()
@@ -250,32 +283,31 @@ class AppMain(ctk.CTk):
             self._cam_combo.configure(values=["Sin cámaras detectadas"])
             self._cam_combo.set("Sin cámaras detectadas")
             self._cam_status_label.configure(
-                text="❌ No se detectaron cámaras",
-                text_color="#E74C3C"
+                text="❌ No se detectaron cámaras", text_color="#E74C3C"
             )
-    
+
     def _on_camera_selected(self):
         selected = self._cam_combo.get()
         if selected in ("Escaneando...", "Sin cámaras detectadas"):
             return
-        
+
         cam_index = None
         for cam in self._detected_cameras:
             if cam["label"] == selected:
                 cam_index = cam["index"]
                 break
-        
+
         if cam_index is None:
             return
-        
+
         self._switch_camera(cam_index)
-    
+
     def _on_manual_camera(self):
         val = self._cam_manual_entry.get().strip()
         if not val:
             self._cam_status_label.configure(text="⚠️ Ingrese un índice", text_color="#E74C3C")
             return
-        
+
         if val.startswith("rtsp://") or val.startswith("http://"):
             cam_id = val
         else:
@@ -284,14 +316,14 @@ class AppMain(ctk.CTk):
             except ValueError:
                 self._cam_status_label.configure(text="⚠️ Índice inválido", text_color="#E74C3C")
                 return
-        
+
         self._switch_camera(cam_id)
-    
+
     def _switch_camera(self, camera_id):
         self._cam_status_label.configure(text="⏳ Conectando...", text_color="#F39C12")
         # CR-09: deshabilitar "Conectar" mientras hay un cambio en curso evita el
         # doble-clic que crea CameraWorkers duplicados compitiendo por la cámara.
-        if hasattr(self, '_cam_connect_btn'):
+        if hasattr(self, "_cam_connect_btn"):
             self._cam_connect_btn.configure(state="disabled")
         self.update_idletasks()
 
@@ -303,12 +335,14 @@ class AppMain(ctk.CTk):
 
     def _finish_switch_camera(self, camera_id):
         self._start_local_camera(camera_index=camera_id)
-        if hasattr(self, '_cam_connect_btn'):
+        if hasattr(self, "_cam_connect_btn"):
             self._cam_connect_btn.configure(state="normal")
+
 
 import os
 from config.path_utils import ConfigManager
 from src.security.drm import DRMValidator
+
 
 class Bootloader(ctk.CTkToplevel):
     def __init__(self, master=None):
@@ -316,32 +350,46 @@ class Bootloader(ctk.CTkToplevel):
         self.title("Selección de Sucursal (B2B Tenant)")
         self.geometry("450x350")
         self.protocol("WM_DELETE_WINDOW", self.on_close)
-        
+
         self.attributes("-topmost", True)
-        self.grab_set() 
+        self.grab_set()
         self.focus_force()
-        
+
         self.selected_tenant = None
-        
-        ctk.CTkLabel(self, text="B2B - Gestor Inquilinos", font=("Roboto", 20, "bold"), text_color="#1f6aa5").pack(pady=(20, 10))
-        
+
+        ctk.CTkLabel(
+            self, text="B2B - Gestor Inquilinos", font=("Roboto", 20, "bold"), text_color="#1f6aa5"
+        ).pack(pady=(20, 10))
+
         self.tenants_dir = ConfigManager.get_appdata_path("Tenants")
-        
+
         self.combo = ctk.CTkComboBox(self, values=self.get_tenant_list())
         self.combo.pack(pady=10, fill="x", padx=50)
-        
+
         ctk.CTkButton(self, text="Ingresar al VMS", command=self.login).pack(pady=5)
-        
-        ctk.CTkLabel(self, text="--- O CREAR NUEVA ---", font=("Roboto", 12), text_color="#A0A0A0").pack(pady=(15, 5))
-        
+
+        ctk.CTkLabel(
+            self, text="--- O CREAR NUEVA ---", font=("Roboto", 12), text_color="#A0A0A0"
+        ).pack(pady=(15, 5))
+
         self.new_tenant_entry = ctk.CTkEntry(self, placeholder_text="Nuevo_ID_Sucursal")
         self.new_tenant_entry.pack(pady=5, fill="x", padx=50)
-        
-        ctk.CTkButton(self, text="Crear Nueva Sucursal", fg_color="#2ECC71", hover_color="#27AE60", command=self.create_tenant).pack(pady=5)
-        
+
+        ctk.CTkButton(
+            self,
+            text="Crear Nueva Sucursal",
+            fg_color="#2ECC71",
+            hover_color="#27AE60",
+            command=self.create_tenant,
+        ).pack(pady=5)
+
     def get_tenant_list(self):
         try:
-            dirs = [d for d in os.listdir(self.tenants_dir) if os.path.isdir(os.path.join(self.tenants_dir, d))]
+            dirs = [
+                d
+                for d in os.listdir(self.tenants_dir)
+                if os.path.isdir(os.path.join(self.tenants_dir, d))
+            ]
             return dirs if dirs else ["Sin sucursales"]
         except Exception:
             return ["Sin sucursales"]
@@ -356,6 +404,7 @@ class Bootloader(ctk.CTkToplevel):
     def create_tenant(self):
         val = self.new_tenant_entry.get().strip()
         import re
+
         if re.match(r"^[a-zA-Z0-9_\-\s]+$", val):
             os.makedirs(os.path.join(self.tenants_dir, val), exist_ok=True)
             self.combo.configure(values=self.get_tenant_list())
@@ -365,10 +414,13 @@ class Bootloader(ctk.CTkToplevel):
 
     def on_close(self):
         import sys
+
         sys.exit(0)
+
 
 if __name__ == "__main__":
     import multiprocessing
+
     multiprocessing.freeze_support()
 
     # --- Riesgo 1 (2_PLANNING): evitar crash OpenMP (KMP_DUPLICATE_LIB_OK) ---
@@ -376,34 +428,40 @@ if __name__ == "__main__":
 
     # --- TASK-5.1: excepthook global + crash log cifrado (AES-256) ---
     from src.security.crash_logger import install_global_excepthook
+
     install_global_excepthook()
 
     root = ctk.CTk()
     root.withdraw()
-    
+
     drm = DRMValidator()
     from src.gui.ventana_licencia import pedir_licencia
+
     # CR-06: sin una licencia validada y guardada (cierre de la ventana incluido), no se abre.
     if not drm.validate_license() and not pedir_licencia(root, drm):
         import sys
+
         print("[VMS] Activación no completada. Cerrando.")
         sys.exit(0)
 
     bootloader = Bootloader(root)
     root.wait_window(bootloader)
-    
+
     try:
         current = ConfigManager.get_active_tenant()
 
         # --- TASK-4.3: descifrar la BD del Tenant al montarlo (At-Rest Vault) ---
         from src.security.db_crypto import EncryptedDBVault
         from config.config import get_db_path
+
         db_vault = EncryptedDBVault(get_db_path())
         try:
             db_vault.unlock()
         except Exception as exc:
-            print(f"[VMS][DBVault] No se pudo descifrar la BD ({type(exc).__name__}). "
-                  f"Se iniciara una BD nueva.")
+            print(
+                f"[VMS][DBVault] No se pudo descifrar la BD ({type(exc).__name__}). "
+                f"Se iniciara una BD nueva."
+            )
 
         root.destroy()
         app = AppMain(licencia=drm)

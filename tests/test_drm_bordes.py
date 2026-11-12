@@ -85,9 +85,8 @@ def llave_ajena() -> RSA.RsaKey:
 
 
 @pytest.fixture
-def validador(llave: RSA.RsaKey, appdata: Path, monkeypatch: pytest.MonkeyPatch) -> DRMValidator:
-    monkeypatch.setattr(drm, "_PUBLIC_KEY_PEM", llave.public_key().export_key())
-    return DRMValidator()
+def validador(llave: RSA.RsaKey, appdata: Path) -> DRMValidator:
+    return DRMValidator(llave.public_key().export_key())
 
 
 def _firmar(llave: RSA.RsaKey, carga: dict[str, Any]) -> str:
@@ -199,7 +198,7 @@ def test_activar_guarda_la_licencia_en_appdata_y_validar_la_vuelve_a_leer(
     licencia = _firmar(llave, carga)
 
     assert validador.activate_license(f"  {licencia}\n") is True
-    otro = DRMValidator()
+    otro = DRMValidator(llave.public_key().export_key())
 
     assert (appdata / "license.key").read_text(encoding="utf-8") == licencia
     assert otro.validate_license() is True

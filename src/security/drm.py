@@ -45,7 +45,9 @@ class DRMValidator:
     5. Extrae el tier de la licencia (max_cams, etc.).
     """
 
-    def __init__(self):
+    def __init__(self, llave_publica: bytes = _PUBLIC_KEY_PEM):
+        # SPEC/10 T-01: la llave embebida rige en producción; las pruebas inyectan la suya.
+        self._llave_publica = llave_publica
         self.machine_id = self._generate_machine_id()
         # Licencia en APPDATA raiz (abarca todos los Tenants)
         from config.path_utils import ConfigManager
@@ -197,7 +199,7 @@ class DRMValidator:
             signature_bytes = parts[1]
 
             # 3. Verificar firma RSA-2048 con la llave publica
-            public_key = RSA.import_key(_PUBLIC_KEY_PEM)
+            public_key = RSA.import_key(self._llave_publica)
             hash_obj = SHA256.new(payload_bytes)
 
             try:

@@ -51,7 +51,6 @@ class VentanaDeLicencia(ctk.CTkToplevel):
         self.title("Activación de la licencia")
         self.geometry("620x520")
         self.configure(fg_color=COLOR_FONDO)
-        self.attributes("-topmost", True)
         self.protocol("WM_DELETE_WINDOW", self.cerrar)
         self.grab_set()
         self.focus_force()

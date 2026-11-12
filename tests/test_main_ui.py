@@ -27,6 +27,7 @@ Camaras = list[dict[str, object]]
 
 INDICES_DE_CAMARA_A_REVISAR = 10
 FPS_DE_LA_GUI = 15
+DIAS_DE_PRUEBA_RESTANTES = 9
 CONFIANZA_BAJA = 0.125
 # Solo se agota si la condición esperada nunca se cumple, es decir, si la prueba va a fallar.
 PLAZO_BUCLE_TK_MS = 5000
@@ -142,8 +143,19 @@ def motor() -> Callable[[str], ModeloFalso]:
 
 
 class LicenciaConEPP:
+    """Doble de la licencia DRM: una prueba vigente con el módulo de EPP."""
+
     def incluye_modulo(self, modulo: str) -> bool:
         return modulo == "epp"
+
+    def es_prueba(self) -> bool:
+        return True
+
+    def dias_restantes(self) -> int | None:
+        return DIAS_DE_PRUEBA_RESTANTES
+
+    def validate_license(self) -> bool:
+        return True
 
 
 class DespachadorFalso:
@@ -384,3 +396,86 @@ def test_cada_boton_del_modulo_abre_su_vista(app: AppMain, boton: str, vista: st
 def test_sin_licencia_de_epp_el_menu_no_muestra_el_modulo(app: AppMain) -> None:
     assert {"Alertas EPP", "Cumplimiento EPP"}.isdisjoint(_botones_del_menu(app))
     assert {"AlertasEPP", "CumplimientoEPP"}.isdisjoint(app.view_manager.views)
+
+
+# --- Licencia con la app abierta (SPEC/10 T-05) -----------------------------------------------
+
+
+def _avisos_de_la_barra(app: AppMain) -> list[str]:
+    return [
+        str(hijo.cget("text"))
+        for hijo in app.sidebar_frame.winfo_children()
+        if isinstance(hijo, ctk.CTkLabel) and str(hijo.cget("text")).startswith("Prueba")
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("licencia", [LicenciaConEPP()], ids=["prueba"])
+def test_con_licencia_de_prueba_la_barra_avisa_los_dias_restantes_bajo_el_titulo(
+    despachador: tuple[DespachadorFalso, list[object]], app: AppMain
+) -> None:
+    hijos = app.sidebar_frame.pack_slaves()
+
+    assert _avisos_de_la_barra(app) == ["Prueba: quedan 9 días"]
+    assert [str(hijo.cget("text")) for hijo in hijos[:2]] == ["VMS Panel", "Prueba: quedan 9 días"]
+
+
+@pytest.mark.integration
+def test_sin_licencia_la_barra_no_muestra_aviso_de_prueba(app: AppMain) -> None:
+    assert _avisos_de_la_barra(app) == []
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("licencia", [LicenciaConEPP()], ids=["prueba"])
+@pytest.mark.parametrize("camaras_detectadas", [[CAMARA_3]], ids=["una_camara"])
+def test_suspender_por_licencia_detiene_camaras_y_avisos_y_reanudar_los_devuelve(
+    despachador: tuple[DespachadorFalso, list[object]],
+    app: AppMain,
+    escaneo: EscaneoEnHiloFalso,
+    trabajadores: FabricaDeTrabajadoresFalsa,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    falso, _pedidos = despachador
+    monkeypatch.setattr("src.composicion_epp.crear_integracion_epp_de_la_app", lambda *_: None)
+    escaneo.terminar()
+    correr_bucle_de_tk_hasta(app, lambda: trabajadores.camaras_iniciadas() == [3])
+
+    app.suspender_por_licencia()
+    suspendida = (trabajadores.camaras_iniciadas(), list(falso.eventos))
+    app.reanudar_con_licencia()
+
+    assert suspendida == ([], ["iniciar", "detener 10 s"])
+    assert trabajadores.camaras_iniciadas() == [3]
+    assert falso.eventos == ["iniciar", "detener 10 s", "iniciar"]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("licencia", [LicenciaConEPP()], ids=["prueba"])
+def test_cerrar_tras_suspender_no_detiene_los_avisos_dos_veces_ni_arranca_camaras(
+    despachador: tuple[DespachadorFalso, list[object]],
+    app: AppMain,
+    trabajadores: FabricaDeTrabajadoresFalsa,
+) -> None:
+    falso, _pedidos = despachador
+
+    app.suspender_por_licencia()
+    app.on_closing()
+
+    assert falso.eventos == ["iniciar", "detener 10 s"]
+    assert trabajadores.camaras_iniciadas() == []
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("licencia", [LicenciaConEPP()], ids=["prueba"])
+def test_reanudar_sin_camara_elegida_solo_devuelve_los_avisos(
+    despachador: tuple[DespachadorFalso, list[object]],
+    app: AppMain,
+    trabajadores: FabricaDeTrabajadoresFalsa,
+) -> None:
+    falso, _pedidos = despachador
+    app.suspender_por_licencia()
+
+    app.reanudar_con_licencia()
+
+    assert trabajadores.creados == []
+    assert falso.eventos == ["iniciar", "detener 10 s", "iniciar"]

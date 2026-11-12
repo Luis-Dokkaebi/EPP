@@ -77,6 +77,7 @@ class AppMain(ctk.CTk):
             self.sidebar_frame, text="VMS Panel", font=("Roboto", 24, "bold"), text_color="#FFFFFF"
         )
         self.logo_label.pack(pady=(30, 15), padx=20, anchor="w")
+        self._licencia_en_la_app = self._vigilar_licencia()
 
         # --- MAIN WORKSPACE ---
         self.main_workspace = ctk.CTkFrame(self, corner_radius=0, fg_color="#1E1E1E")
@@ -205,14 +206,35 @@ class AppMain(ctk.CTk):
 
         return iniciar_avisos_de_la_sucursal()
 
-    def on_closing(self):
-        for w in self.camera_workers:
-            w.stop()
+    def _vigilar_licencia(self):
+        """SPEC/10 T-05: aviso de la prueba y revalidación cada hora, si se abrió con licencia."""
+        if self.licencia is None:
+            return None
+        from src.gui.licencia_en_la_app import LicenciaEnLaApp
+
+        return LicenciaEnLaApp(self, self.licencia, self.sidebar_frame)
+
+    def suspender_por_licencia(self):
+        """La licencia dejó de regir: paran cámaras y avisos; rostros, zonas e historial quedan."""
+        self._stop_local_camera()
+        self._detener_avisos_epp()
+
+    def reanudar_con_licencia(self):
+        self._despachador_epp = self._iniciar_avisos_epp()
+        if self._active_camera_index is not None:
+            self._start_local_camera(camera_index=self._active_camera_index)
+
+    def _detener_avisos_epp(self):
         if self._despachador_epp is not None:
             # Antes de destruir la ventana: main() cifra la base al volver de mainloop.
             from datetime import timedelta
 
             self._despachador_epp.detener(timedelta(seconds=10))
+            self._despachador_epp = None
+
+    def on_closing(self):
+        self._stop_local_camera()
+        self._detener_avisos_epp()
         self.destroy()
 
     def setup_sidebar_buttons(self):

@@ -14,15 +14,23 @@ from src.tracking.person_tracker import separar_personas_y_celulares
 
 def dibujar_epp(frame, track_data):
     """Overlay de cumplimiento (SPEC/9 §8.1) de las personas que tienen estado de EPP."""
-    personas = [(Caja(*dato['bbox']), vista_de(dato['epp']))
-                for dato in track_data if dato.get('epp') is not None]
+    personas = [
+        (Caja(*dato["bbox"]), vista_de(dato["epp"]))
+        for dato in track_data
+        if dato.get("epp") is not None
+    ]
     return dibujar_cumplimiento(frame, personas) if personas else frame
 
 
 class CameraWorker(threading.Thread):
-    def __init__(self, camera_id: int | str, frame_queue: queue.Queue, detector: DetectorPort,
-                 fps_limit: int = 15):
-        super().__init__(daemon=True) # El hilo muere al cerrar la app
+    def __init__(
+        self,
+        camera_id: int | str,
+        frame_queue: queue.Queue,
+        detector: DetectorPort,
+        fps_limit: int = 15,
+    ):
+        super().__init__(daemon=True)  # El hilo muere al cerrar la app
         self.camera_id = camera_id
         self.frame_queue = frame_queue
         # SPEC/9 §1.3.5: el worker no conoce el motor de IA, solo el puerto de detección.
@@ -31,9 +39,10 @@ class CameraWorker(threading.Thread):
         self.fps_limit = fps_limit
         self.running = False
         self._delay = 1.0 / self.fps_limit
-        
+
         # FIX: Usar get_faces_dir() para garantizar la MISMA ruta que usa la UI de registro
         from config.config import get_faces_dir
+
         faces_dir = get_faces_dir()
 
         self.face_rec = FaceRecognizer(faces_dir=faces_dir)
@@ -62,14 +71,20 @@ class CameraWorker(threading.Thread):
             self.tracker = PersonTracker()
             self.state_manager = StateManager(self.db)
             self.pipeline = TrackingPipeline(
-                db=self.db, zone_checker=self.zone_checker, tracker=self.tracker,
-                state_manager=self.state_manager, face_recognizer=self.face_rec,
+                db=self.db,
+                zone_checker=self.zone_checker,
+                tracker=self.tracker,
+                state_manager=self.state_manager,
+                face_recognizer=self.face_rec,
                 snapshots_dir=get_snapshots_dir(),
-                db_write_interval=15, face_check_interval=10,
+                db_write_interval=15,
+                face_check_interval=10,
             )
         except Exception as exc:
-            print(f"[CameraWorker][CR-04] Persistencia deshabilitada "
-                  f"({type(exc).__name__}: {exc}). El video seguirá mostrándose.")
+            print(
+                f"[CameraWorker][CR-04] Persistencia deshabilitada "
+                f"({type(exc).__name__}: {exc}). El video seguirá mostrándose."
+            )
 
         # --- TASK-5.2: Verificacion de integridad del modelo AI (Anti-Tamper) ---
         # Si el yolov8n.pt en disco fue reemplazado por un modelo falso/backdoor,
@@ -78,21 +93,28 @@ class CameraWorker(threading.Thread):
         try:
             from config.config import MODEL_PATH
             from src.models.model_verifier import verify_model
+
             self.model_verified = verify_model(MODEL_PATH)
             if not self.model_verified:
-                print(f"[VMS][SECURITY] Modelo AI manipulado en {MODEL_PATH}. "
-                      f"Inferencia DESHABILITADA para cámara {self.camera_id}.")
+                print(
+                    f"[VMS][SECURITY] Modelo AI manipulado en {MODEL_PATH}. "
+                    f"Inferencia DESHABILITADA para cámara {self.camera_id}."
+                )
         except FileNotFoundError as exc:
             # Modelo ausente: no podemos verificar -> deshabilitar por seguridad
             self.model_verified = False
             print(f"[VMS][SECURITY] No se pudo verificar el modelo AI: {exc}")
-        print(f"[CameraWorker] FaceRecognizer cargado. faces_dir={faces_dir}, "
-              f"encodings={len(self.face_rec.known_face_names)} rostro(s): {self.face_rec.known_face_names}")
+        print(
+            f"[CameraWorker] FaceRecognizer cargado. faces_dir={faces_dir}, "
+            f"encodings={len(self.face_rec.known_face_names)} rostro(s): {self.face_rec.known_face_names}"
+        )
 
     def run(self):
         # TASK-5.2 DoD: si el modelo fue manipulado, abortar el tracking de inmediato.
         if not self.model_verified:
-            print(f"[VMS][SECURITY] Cámara {self.camera_id} no inicia: integridad del modelo AI inválida.")
+            print(
+                f"[VMS][SECURITY] Cámara {self.camera_id} no inicia: integridad del modelo AI inválida."
+            )
             return
         self.running = True
         if isinstance(self.camera_id, int):
@@ -101,7 +123,7 @@ class CameraWorker(threading.Thread):
                 cap = cv2.VideoCapture(self.camera_id)
         else:
             cap = cv2.VideoCapture(self.camera_id)
-        
+
         # Fallback de autodescubrimiento B2B
         if not cap.isOpened():
             print(f"[VMS] Cámara {self.camera_id} falló. Intentando autodescubrimiento...")
@@ -113,7 +135,7 @@ class CameraWorker(threading.Thread):
                     print(f"[VMS] Cámara {idx} de respaldo conectada exitosamente.")
                     self.camera_id = idx
                     break
-                    
+
         # Optimizacion OpenCV B2B: Forzar resolucion (opcional)
         # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -121,7 +143,7 @@ class CameraWorker(threading.Thread):
         while self.running:
             start_time = time.time()
             ret, frame = cap.read()
-            
+
             if not ret or frame is None or frame.size == 0:
                 # Log de reconexion en entorno Enterprise (ej. RTSP perdido)
                 time.sleep(2.0)
@@ -150,24 +172,28 @@ class CameraWorker(threading.Thread):
                 try:
                     person_detections, phones_data = separar_personas_y_celulares(detecciones)
                     track_data = self.pipeline.process(
-                        frame, person_detections, phones_data, time.time(),
-                        detecciones=detecciones)
+                        frame, person_detections, phones_data, time.time(), detecciones=detecciones
+                    )
                     annotated_frame = dibujar_epp(annotated_frame, track_data)
 
                     # Banner biométrico en pantalla con el nombre reconocido
-                    known = [td['name'] for td in track_data if td['name'] != "Unknown"]
+                    known = [td["name"] for td in track_data if td["name"] != "Unknown"]
                     if known:
                         self.last_name = known[0]
                         self.last_name_time = time.time()
                 except Exception as exc:
-                    print(f"[CameraWorker][CR-04] Error de persistencia "
-                          f"({type(exc).__name__}). Video intacto.")
+                    print(
+                        f"[CameraWorker][CR-04] Error de persistencia "
+                        f"({type(exc).__name__}). Video intacto."
+                    )
 
             # Dejar el nombre visible en la pantalla por un momento
             if self.last_name != "Unknown" and (time.time() - self.last_name_time) < 3.0:
                 label = f"BIOMETRIA VMS: {self.last_name}"
                 cv2.rectangle(annotated_frame, (10, 10), (500, 60), (0, 0, 0), -1)
-                cv2.putText(annotated_frame, label, (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 3)
+                cv2.putText(
+                    annotated_frame, label, (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 3
+                )
 
             # --- DROP FRAME PROTOCOL (Anti-Memory Leak) ---
             try:
@@ -175,14 +201,14 @@ class CameraWorker(threading.Thread):
                 self.frame_queue.put_nowait((self.camera_id, annotated_frame))
             except queue.Full:
                 # Se descarta este frame para que la memoria no colapse
-                pass 
-                
+                pass
+
             # Limitar FPS para ahorrar CPU (Artificial Throttle)
             elapsed_time = time.time() - start_time
             time_to_wait = self._delay - elapsed_time
             if time_to_wait > 0:
                 time.sleep(time_to_wait)
-                
+
         cap.release()
 
     def conectar_epp(self, modulo_epp):

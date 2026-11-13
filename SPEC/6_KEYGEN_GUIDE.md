@@ -1,5 +1,11 @@
 # 6. KEYGEN_GUIDE: Sistema Proveedor de Licencias DRM (Offline B2B)
 
+> **Actualización 2026-11-13 (SPEC/10 T-01 a T-07):** el código de este documento es el diseño
+> original. Las herramientas vigentes son `scripts/generar_llaves_maestras.py` (llave privada
+> cifrada y fuera del repositorio), `scripts/keygen_b2b.py` (tiers `aprendizaje`, `prueba` y
+> `comercial`, módulos y registro de emisiones) y `scripts/firmar_manifiesto_modelo.py`. El uso
+> paso a paso está en [`docs/runbooks/prueba_14_dias.md`](../docs/runbooks/prueba_14_dias.md).
+
 Este documento es **ESTRICTAMENTE CONFIDENCIAL** para el dueño del negocio (Propietario de "Oficina Eficiencia") y su Agente Inteligente constructor. Detalla cómo desarrollar el **Software Generador de Claves (Keygen B2B)**.
 
 Este programa es *independiente* de "Oficina Eficiencia" y NUNCA se entrega a los clientes. Es tu herramienta interna para emitir licencias cifradas y vender el software.

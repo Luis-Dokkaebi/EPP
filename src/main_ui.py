@@ -102,7 +102,6 @@ class AppMain(ctk.CTk):
         from src.gui.views import (
             create_employees_view,
             create_zones_view,
-            create_reports_view,
             create_tenant_view,
         )
 
@@ -137,8 +136,7 @@ class AppMain(ctk.CTk):
 
         self._registrar_vistas_epp()
 
-        self.view_reportes = create_reports_view(self.main_workspace)
-        self.view_manager.register_view("Reportes", self.view_reportes)
+        self._registrar_vista_de_eficiencia()
 
         self.view_manager.register_view("Tenant", create_tenant_view(self.main_workspace))
 
@@ -198,6 +196,15 @@ class AppMain(ctk.CTk):
 
             epp_en_la_app.registrar_vistas(self.view_manager, self.main_workspace)
 
+    def _registrar_vista_de_eficiencia(self):
+        """SPEC/10 T-18 (M-1): los reportes de eficiencia, solo con el módulo `eficiencia`."""
+        from src.gui.menu_principal import incluye_eficiencia
+        from src.gui.views import create_reports_view
+
+        if incluye_eficiencia(self.licencia):
+            self.view_reportes = create_reports_view(self.main_workspace)
+            self.view_manager.register_view("Reportes", self.view_reportes)
+
     def _iniciar_avisos_epp(self):
         """SPEC/9 §5.4: los avisos de EPP arrancan solo si la licencia incluye el módulo."""
         if not self._modulo_epp_habilitado():
@@ -238,17 +245,9 @@ class AppMain(ctk.CTk):
         self.destroy()
 
     def setup_sidebar_buttons(self):
-        buttons = [
-            ("Monitoreo en Vivo", "Dashboard"),
-            ("Gestión de Empleados", "Empleados"),
-            ("Configuración de Zonas", "Zonas"),
-            ("Reportes Históricos", "Reportes"),
-            ("Cambiar Sucursal", "Tenant"),
-        ]
-        if self._modulo_epp_habilitado():
-            buttons[3:3] = [("Alertas EPP", "AlertasEPP"), ("Cumplimiento EPP", "CumplimientoEPP")]
+        from src.gui.menu_principal import botones_del_menu
 
-        for text, view_name in buttons:
+        for text, view_name in botones_del_menu(self.licencia):
             btn = ctk.CTkButton(
                 self.sidebar_frame,
                 text=text,

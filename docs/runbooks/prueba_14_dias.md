@@ -70,6 +70,24 @@ correo o el webhook y abra la app siempre con ese archivo. Viene con el modo som
 (`EPP_MODO_SOMBRA=1`): los días 1 y 2 de la prueba se registra sin avisar. Para salir de la
 sombra, vacíe esa variable y escriba la fecha de salida en `EPP_FIN_MODO_SOMBRA`.
 
+## 3.1 Cargar los rostros de todos los empleados de una vez (T-15)
+
+Arme una carpeta con una subcarpeta por empleado (el nombre de la subcarpeta es el que saldrá en
+las alertas) y un `consentimientos.csv`:
+
+```
+rostros_acme/
+  consentimientos.csv        nombre,id_consentimiento
+  Ana Lopez/   foto1.jpg foto2.jpg
+  Juan Perez/  foto1.jpg
+```
+
+En la app: Gestión de Empleados → "Importar carpeta con consentimientos". Solo se carga a quien
+figura en el CSV con un identificador de consentimiento; del resto la pantalla dice por qué no
+(sin consentimiento, sin fotos, ya registrado, sin rostro detectable). Cada carga queda en
+`importaciones_rostros.csv` dentro de la carpeta de la sucursal, con fecha, usuario de Windows,
+nombre, constancia y número de fotos. Las fotos y huellas nunca van al repositorio (SPEC/10 §14.4).
+
 ## 4. Qué ve el cliente durante la prueba
 
 - Bajo el título de la barra lateral: "Prueba: quedan N días" (en rojo los últimos tres).

@@ -90,10 +90,10 @@ Rama `claude/plan-10-buyer-demo-3qflrr`, sin PR todavía. Estado por tarea en
 
 | Entrega | Nota |
 |---------|------|
-| T-01, T-03 a T-07, T-09, T-13, T-14, T-18 | Terminadas con TDD y mutación por archivo |
+| T-01, T-03 a T-07, T-09, T-13 a T-15, T-18 | Terminadas con TDD y mutación por archivo |
 | T-02 | Herramienta de rotación lista; la rotación la hace el dueño (W-010 sigue abierto) |
 | T-08, T-10, T-12 | Humanas: `data/faces/`, modelo EPP base en la GPU, build en Windows |
-| T-15, T-16, T-17 | Sin empezar |
+| T-16, T-17 | Sin empezar (T-17 necesita un set propio de fotos) |
 
 Deuda y hallazgos de esta tanda:
 

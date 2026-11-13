@@ -602,7 +602,7 @@ Rama `claude/plan-10-buyer-demo-3qflrr`. Uso paso a paso:
 | T-12 | Pendiente **(H)** | Build en Windows y prueba de humo |
 | T-13 | **Hecha** | `scripts/arranque_cliente.bat` |
 | T-14 | **Hecha** | Sin `face_landmarks` en el producto. El archivo del modelo de 68 puntos sigue dentro del paquete `face_recognition_models`: excluirlo del `.exe` es parte de T-12 |
-| T-15 | Pendiente | Carga masiva de rostros con constancia de consentimiento |
+| T-15 | **Hecha** | Botón "Importar carpeta con consentimientos" en Gestión de Empleados: carga solo a quien figura en `consentimientos.csv` y deja la bitácora `importaciones_rostros.csv` en la sucursal |
 | T-16 | Pendiente | Fotos de rostros cifradas o borradas tras calcular la huella |
 | T-17 | Pendiente | Necesita un set propio de fotos de ~20 personas |
 | T-18 | **Hecha** | "Reportes Históricos" solo con el módulo `eficiencia` |

@@ -87,21 +87,24 @@ class CameraWorker(threading.Thread):
             )
 
         # --- TASK-5.2: Verificacion de integridad del modelo AI (Anti-Tamper) ---
-        # Si el yolov8n.pt en disco fue reemplazado por un modelo falso/backdoor,
-        # el hash SHA-256 no coincide y el tracking se deshabilita (SPEC 5.2 DoD).
+        # Si el modelo en disco fue reemplazado por uno falso/backdoor, el hash SHA-256 no
+        # coincide y el tracking se deshabilita (SPEC 5.2 DoD). SPEC/10 F-05: el modelo puede
+        # ser el instalado para el cliente; su manifiesto debe llevar la firma del proveedor.
         self.model_verified = True
         try:
-            from config.config import MODEL_PATH
+            from src.models.manifiesto_firmado import ManifiestoFirmadoInvalidoError
             from src.models.model_verifier import verify_model
+            from src.models.modelo_de_la_app import modelo_de_la_app
 
-            self.model_verified = verify_model(MODEL_PATH)
+            modelo = modelo_de_la_app()
+            self.model_verified = verify_model(modelo.ruta, modelo.aprobados)
             if not self.model_verified:
                 print(
-                    f"[VMS][SECURITY] Modelo AI manipulado en {MODEL_PATH}. "
+                    f"[VMS][SECURITY] Modelo AI manipulado en {modelo.ruta}. "
                     f"Inferencia DESHABILITADA para cámara {self.camera_id}."
                 )
-        except FileNotFoundError as exc:
-            # Modelo ausente: no podemos verificar -> deshabilitar por seguridad
+        except (FileNotFoundError, ManifiestoFirmadoInvalidoError) as exc:
+            # Modelo ausente o manifiesto sin firma: no se puede verificar -> deshabilitar
             self.model_verified = False
             print(f"[VMS][SECURITY] No se pudo verificar el modelo AI: {exc}")
         print(

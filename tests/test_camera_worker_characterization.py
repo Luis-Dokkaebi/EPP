@@ -119,7 +119,7 @@ def crear_worker(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> Callable[...
         frames: list[np.ndarray | None],
         detecciones: list[DeteccionCruda] | None = None,
         camara: int | str = 0,
-        verificacion: Callable[[str], bool] = lambda _ruta: True,
+        verificacion: Callable[..., bool] = lambda _ruta, _aprobados: True,
         tamano_cola: int = 0,
         camaras_caidas: frozenset[Any] = frozenset(),
     ) -> Escenario:
@@ -204,11 +204,14 @@ def test_camera_worker_descarta_frames_cuando_la_cola_esta_llena(
 
 @pytest.mark.parametrize(
     "verificacion",
-    [lambda _ruta: False, lambda ruta: (_ for _ in ()).throw(FileNotFoundError(ruta))],
+    [
+        lambda _ruta, _aprobados: False,
+        lambda ruta, _aprobados: (_ for _ in ()).throw(FileNotFoundError(ruta)),
+    ],
     ids=["modelo-manipulado", "modelo-ausente"],
 )
 def test_camera_worker_no_inicia_si_el_modelo_no_paso_la_verificacion(
-    crear_worker: Callable[..., Escenario], verificacion: Callable[[str], bool]
+    crear_worker: Callable[..., Escenario], verificacion: Callable[..., bool]
 ) -> None:
     escenario = crear_worker(frames=[frame_blanco()], verificacion=verificacion)
 

@@ -38,6 +38,9 @@ LUehSTLkk2Kwx5s7LXxkG/hPzZvzJlhV4yOamL1JnNX/PAoQ1xGlILTjshjN/aWl
 SQIDAQAB
 -----END PUBLIC KEY-----"""
 
+# La misma llave verifica los manifiestos de modelo firmados (SPEC/10 F-05).
+LLAVE_PUBLICA_DEL_PROVEEDOR = _PUBLIC_KEY_PEM
+
 # Salt ofuscado para derivar el Machine Hash (SPEC 1.6.1)
 # En produccion PyArmor lo convertira en bytecode C irreversible.
 _HARDWARE_SALT = b"0f1c1n4_3f1c13nc14_V1"

@@ -149,6 +149,7 @@ files = [
     "scripts/check_*.py",
     "scripts/ejecutar_pruebas_mutacion.py",
     "scripts/keygen_b2b.py",
+    "scripts/firmar_manifiesto_modelo.py",
     "ml",
     ".claude/hooks/guardian.py",
 ]

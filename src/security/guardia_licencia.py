@@ -39,3 +39,20 @@ class GuardiaDeLicencia:
             return True
         self._app.cerrar()
         return False
+
+
+class RevalidacionPeriodica:
+    """Para un bucle sin temporizadores (modo sin interfaz): revalida una vez por intervalo."""
+
+    def __init__(self, licencia: LicenciaRevalidable, intervalo_s: float, ahora: float) -> None:
+        self._licencia = licencia
+        self._intervalo_s = intervalo_s
+        self._proxima = ahora + intervalo_s
+        self._regia = licencia.validate_license()
+
+    def dejo_de_regir(self, ahora: float) -> bool:
+        """True cuando la licencia que regía al empezar ya no rige en la revalidación."""
+        if not self._regia or ahora < self._proxima:
+            return False
+        self._proxima = ahora + self._intervalo_s
+        return not self._licencia.validate_license()

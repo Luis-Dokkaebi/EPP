@@ -14,11 +14,8 @@ max-complexity = 10
 exclude = [
     "config/config.py",
     "config/path_utils.py",
-    "generate_license.py",
     "migrate_data.py",
     "obfuscate.py",
-    "scripts/generar_llaves_maestras.py",
-    "scripts/keygen_b2b.py",
     "src/acquisition/camera_enumerator.py",
     "src/acquisition/video_stream.py",
     "src/analysis/efficiency_calculator.py",
@@ -31,13 +28,10 @@ exclude = [
     "src/gui/dashboard.py",
     "src/gui/views.py",
     "src/gui_app.py",
-    "src/main_ui.py",
     "src/recognition/face_recognizer.py",
     "src/security/crash_logger.py",
     "src/security/db_crypto.py",
-    "src/security/drm.py",
     "src/storage/database_manager.py",
-    "src/tracking/camera_worker.py",
     "src/tracking/person_tracker.py",
     "src/tracking/tracking_pipeline.py",
     "src/zones/zone_editor.py",
@@ -75,11 +69,8 @@ exclude = [
 # incumple cada archivo. Al tocar un archivo se corrigen y se borra su entrada.
 "config/config.py" = ["E501", "I001", "S110", "UP015", "W291"]
 "config/path_utils.py" = ["E501", "W293"]
-"generate_license.py" = ["I001", "T201", "W293"]
 "migrate_data.py" = ["E501", "T201"]
 "obfuscate.py" = ["E501", "F401", "T201"]
-"scripts/generar_llaves_maestras.py" = ["I001", "T201"]
-"scripts/keygen_b2b.py" = ["E501", "F541", "I001", "N801", "RUF013", "T201"]
 "src/acquisition/camera_enumerator.py" = ["C901", "I001", "PLR0912", "S110", "W293"]
 "src/acquisition/video_stream.py" = ["I001"]
 "src/analysis/efficiency_calculator.py" = ["B007", "C901", "E501", "E701", "I001", "PLR2004", "T201"]
@@ -93,13 +84,12 @@ exclude = [
 "src/gui/views.py" = ["C901", "E501", "E701", "I001", "N806", "PLR0915", "PLR2004", "W293"]
 "src/gui_app.py" = ["C901", "E402", "E501", "E722", "F401", "F811", "F841", "I001", "PLR0912", "PLR0915", "PLR2004", "RUF005", "S110", "T201", "UP012", "W291", "W293"]
 "src/main.py" = ["C901", "E402", "E501", "F401", "I001", "PLR0912", "PLR0915", "PLR2004", "T201", "W292", "W293"]
-"src/main_ui.py" = ["E402", "E501", "E701", "F401", "I001", "S110", "T201", "W291", "W293"]
+"src/main_ui.py" = ["E402", "E501", "F401", "I001", "T201"]
 "src/recognition/face_recognizer.py" = ["C901", "E501", "F401", "I001", "N806", "PLR0912", "RUF100"]
 "src/security/crash_logger.py" = ["E702", "S110", "T201", "UP007"]
 "src/security/db_crypto.py" = ["UP007"]
-"src/security/drm.py" = ["E501", "F401", "I001", "PLR0911", "PLR2004", "UP006", "UP007", "UP015", "UP035"]
 "src/storage/database_manager.py" = ["C901", "E501", "I001", "PLR0912", "PLR0913", "PLR0915", "PLR2004", "S608", "T201", "UP012", "W291", "W293"]
-"src/tracking/camera_worker.py" = ["C901", "E501", "F401", "I001", "PLR0912", "PLR0915", "PLR2004", "T201", "UP035", "W291", "W293"]
+"src/tracking/camera_worker.py" = ["C901", "E501", "F401", "I001", "PLR0912", "PLR0915", "PLR2004", "T201"]
 "src/tracking/person_tracker.py" = ["I001"]
 "src/tracking/tracking_pipeline.py" = ["B905", "C901", "PLR0912", "PLR0913", "PLW2901", "RUF003", "T201"]
 "src/zones/zone_editor.py" = ["I001", "PLR0913", "T201"]
@@ -156,6 +146,9 @@ files = [
     "tools",
     "scripts/check_*.py",
     "scripts/ejecutar_pruebas_mutacion.py",
+    "scripts/keygen_b2b.py",
+    "scripts/firmar_manifiesto_modelo.py",
+    "scripts/generar_llaves_maestras.py",
     "ml",
     ".claude/hooks/guardian.py",
 ]
@@ -254,10 +247,6 @@ disable_error_code = ["no-untyped-def"]
 
 [[tool.mypy.overrides]]
 module = "src.security.crash_logger"
-disable_error_code = ["no-untyped-def"]
-
-[[tool.mypy.overrides]]
-module = "src.security.drm"
 disable_error_code = ["no-untyped-def"]
 
 [[tool.mypy.overrides]]

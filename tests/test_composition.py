@@ -22,6 +22,7 @@ from src.composition import (
 from src.inference.adapters.onnx_detector import DetectorOnnx
 from src.inference.adapters.ultralytics_detector import DetectorUltralytics
 from src.inference.types import Caja, ClaseObjeto, Deteccion
+from src.models.modelo_de_la_app import ModeloDeLaApp
 from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
 
 ID_PERSONA = 0
@@ -244,3 +245,28 @@ def test_las_clases_declaradas_salen_de_la_entrada_del_manifiesto() -> None:
     entrada = {"archivo": "m.onnx", "clases": {"0": "persona", "5": "casco"}}
 
     assert clases_declaradas(entrada) == frozenset({ClaseObjeto.PERSONA, ClaseObjeto.CASCO})
+
+
+def test_detector_configurado_usa_el_modelo_instalado_y_firmado_para_el_cliente(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SPEC/10 F-05: un modelo afinado se instala sin recompilar y corre con el motor ONNX."""
+    entrada = types.SimpleNamespace(name="x", shape=(1, 3, 4, 4))
+    rutas: list[str] = []
+    monkeypatch.setattr(
+        composicion,
+        "crear_sesion",
+        lambda ruta: rutas.append(ruta) or types.SimpleNamespace(get_inputs=lambda: [entrada]),
+    )
+    instalado = ModeloDeLaApp(
+        "/datos/modelo/epp_acme.onnx",
+        MOTOR_ONNX,
+        {"epp_acme.onnx": "ab" * 32},
+        lambda: _manifiesto_onnx("epp_acme.onnx"),
+    )
+    monkeypatch.setattr(composicion, "modelo_de_la_app", lambda: instalado)
+
+    detector = crear_detector_configurado(0.5)
+
+    assert isinstance(detector, DetectorOnnx)
+    assert rutas == ["/datos/modelo/epp_acme.onnx"]

@@ -77,6 +77,8 @@ calidad sin enlazar.
 
 ## Operación (`docs/runbooks/`)
 
+- [Licencias de prueba, modelo firmado y demo](runbooks/prueba_14_dias.md) — rotar la llave,
+  emitir licencias, instalar un modelo afinado sin recompilar y arrancar con avisos (SPEC/10).
 - [Build 2.0.0 y piloto en modo sombra](runbooks/piloto_sombra.md) — pasos humanos de C-14;
   **no ejecutado**, bloqueado por D8 y D9.
 

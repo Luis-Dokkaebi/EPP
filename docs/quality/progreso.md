@@ -82,6 +82,36 @@ Fuente de verdad del alcance: `SPEC/9_PLAN_EPP_Y_LICENCIA.md` (§17 para el orde
 | Escenarios del modo sombra y esta bitácora | #128 | `features/modo_sombra_epp.feature`; SPEC/9 §19 al día |
 | EPP en el modo sin interfaz | (este PR) | `main.py` valida la licencia y arma el mismo módulo, overlay y avisos que la GUI (§11, 5.4) |
 
+## Plan SPEC/10 (demo con prueba de 14 días), 2026-11-13
+
+Rama `claude/plan-10-buyer-demo-3qflrr`, sin PR todavía. Estado por tarea en
+[`SPEC/10` §11.1](../../SPEC/10_DEMO_TRIAL.md); uso en el
+[runbook de la prueba](../runbooks/prueba_14_dias.md).
+
+| Entrega | Nota |
+|---------|------|
+| T-01, T-03 a T-07, T-09, T-13 a T-15, T-18 | Terminadas con TDD y mutación por archivo |
+| T-02 | Herramienta de rotación lista; la rotación la hace el dueño (W-010 sigue abierto) |
+| T-08, T-10, T-12 | Humanas: `data/faces/`, modelo EPP base en la GPU, build en Windows |
+| T-16, T-17 | Sin empezar (T-17 necesita un set propio de fotos) |
+
+Deuda y hallazgos de esta tanda:
+
+- `mypy` reporta un error en `src/inference/adapters/onnx_detector.py:75` en el entorno de la
+  nube: `opencv-python 4.11.0.86` quedó instalado junto a `opencv-python-headless 4.9.0.80` (lo
+  arrastra `ultralytics`) y sus tipos son distintos. El archivo no se tocó. Se va con A-16.
+- `src/gui_app.py` se tocó en T-14 sin formatear (WAIVER-#2): formatearlo cambia cientos de líneas
+  sin pruebas y rompe la cobertura del diff.
+- `drm.py`, `main_ui.py`, `camera_worker.py`, `keygen_b2b.py` y `generar_llaves_maestras.py`
+  salieron de las exclusiones de formato; `drm.py` y los dos scripts, también de las de lint y mypy.
+- `src/main_ui.py` quedó en 499 líneas: el próximo cambio ahí saca `Bootloader` a su módulo.
+- El Machine ID de respaldo (sin WMI) usa `uuid.getnode()`, que en un contenedor sin interfaz de
+  red estable cambia en cada proceso. En Windows rige WMI; no se cambió la huella porque las
+  licencias emitidas dependen de ella.
+- Las pruebas de `tests/` ya no escriben en el `APPDATA` ni el `HOME` reales (fixture global).
+- Un modelo firmado no queda atado a un equipo: cualquier cliente con licencia podría cargar el
+  modelo de otro. Si importa, agregar `hw_id` al manifiesto firmado.
+
 ## Integración en `main`
 
 Todos los PRs del plan (#1 … #108) se mergearon en `main` el 2026-10-23, en este orden y con

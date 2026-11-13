@@ -6,16 +6,15 @@ con `config.DETECTION_ENGINE`; el interruptor existe solo durante la migración 
 contraer (A-16, decisión D8).
 """
 
-import json
 from collections.abc import Mapping
-from pathlib import Path, PurePath
+from pathlib import PurePath
 from typing import Any
 
-from config import config
 from src.inference.adapters.onnx_detector import ConfiguracionOnnx, DetectorOnnx, crear_sesion
 from src.inference.adapters.ultralytics_detector import DetectorUltralytics
 from src.inference.ports import DetectorPort
 from src.inference.types import CATALOGO_COCO, CatalogoDeClases, ClaseObjeto
+from src.models.modelo_de_la_app import modelo_de_la_app
 
 MOTOR_ULTRALYTICS = "ultralytics"
 MOTOR_ONNX = "onnx"
@@ -45,15 +44,10 @@ def crear_detector(
 
 
 def crear_detector_configurado(confianza_minima: float) -> DetectorPort:
-    """Detector de la app: motor, modelo y manifiesto salen de `config/config.py`."""
-    motor = config.DETECTION_ENGINE
-    manifiesto = leer_manifiesto(config.MANIFEST_PATH) if motor == MOTOR_ONNX else None
-    return crear_detector(config.MODEL_PATH, confianza_minima, motor, manifiesto)
-
-
-def leer_manifiesto(ruta: str) -> dict[str, Any]:
-    contenido: dict[str, Any] = json.loads(Path(ruta).read_text(encoding="utf-8"))
-    return contenido
+    """Detector de la app: el modelo instalado para el cliente o el de `config/config.py`."""
+    modelo = modelo_de_la_app()
+    manifiesto = modelo.leer_manifiesto() if modelo.motor == MOTOR_ONNX else None
+    return crear_detector(modelo.ruta, confianza_minima, modelo.motor, manifiesto)
 
 
 def _cargar_yolo(ruta_modelo: str) -> Any:

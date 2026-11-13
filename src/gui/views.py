@@ -73,6 +73,19 @@ def create_employees_view(app_instance, workspace):
 
     ctk.CTkButton(reg_frame, text="📁 Subir Archivo y Registrar", fg_color="#1f6aa5", command=register_employee, height=38).pack(pady=(10, 5), padx=15, fill="x")
 
+    def importar_carpeta():
+        """SPEC/10 T-15: todos los empleados de una vez, solo quienes tienen consentimiento."""
+        import tkinter.filedialog as fd
+        from pathlib import Path
+        from src.gui.importacion_rostros_gui import importar_carpeta_de_rostros
+        carpeta = fd.askdirectory(title="Carpeta de rostros con consentimientos.csv")
+        if carpeta:
+            mensaje = importar_carpeta_de_rostros(Path(carpeta), face_rec, db)
+            status_label.configure(text=mensaje, text_color="#A0A0A0")
+            refresh_employee_list()
+
+    ctk.CTkButton(reg_frame, text="Importar carpeta con consentimientos", fg_color="#1f6aa5", command=importar_carpeta, height=38).pack(pady=5, padx=15, fill="x")
+
     def capture_webcam():
         name = name_entry.get().strip()
         dept = dept_entry.get().strip()

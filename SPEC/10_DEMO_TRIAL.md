@@ -1,6 +1,6 @@
 # 10. DEMO: prueba gratis de 14 días que se cobra cuando el modelo ya aprendió
 
-**Estado:** Plan para revisión del dueño del producto
+**Estado:** En implementación: ver §11.1 (2026-11-13)
 **Revisión:** 2 (respuestas del dueño del producto, 2026-11-10)
 **Fecha:** 2026-11-10
 **Preparado para:** Luis (dueño del producto)
@@ -580,6 +580,39 @@ líneas o menos con la evidencia pegada. Las marcadas **(H)** necesitan una acci
 | T-18 | Ocultar las vistas y reportes de eficiencia cuando la licencia no incluye el módulo `eficiencia` (M-1), igual que hoy se muestran las de EPP solo con el módulo `epp` | T-03 | `lean-build`, `python-testing` | S |
 
 Ruta crítica: **T-09 → T-10 → T-11 → T-12**. Las tareas T-01 a T-08 corren en paralelo.
+
+### 11.1 Estado de implementación (2026-11-13)
+
+Rama `claude/plan-10-buyer-demo-3qflrr`. Uso paso a paso:
+[`docs/runbooks/prueba_14_dias.md`](../docs/runbooks/prueba_14_dias.md).
+
+| # | Estado | Qué quedó |
+|---|--------|-----------|
+| T-01 | **Hecha** | `DRMValidator(llave_publica)`; ninguna prueba lee la llave privada (AC-T04) |
+| T-02 | **Herramienta hecha; rotación pendiente (H)** | `scripts/generar_llaves_maestras.py --salida <fuera del repo>` cifra la privada y embebe la pública. Falta que el dueño la corra, borre la privada vieja y reconstruya. AC-T03 se cumple al rotar |
+| T-03 | **Hecha** | `scripts/keygen_b2b.py` con tiers, módulos, `emitida`, `id`, `cliente` y registro CSV fuera del repo (AC-T01, AC-T02) |
+| T-04 | **Hecha** | `dias_restantes`, `es_prueba`, `motivo_de_rechazo`; reloj atrasado con `reloj.sig` firmado. Tolerancia de 1 hora también respecto de `emitida` (relojes del proveedor y del cliente desfasados) |
+| T-05 | **Hecha** | Revalidación cada hora en la GUI y en `main.py`; bloqueo en caliente; banner de días |
+| T-06 | **Hecha** | `features/licencia_de_prueba.feature` (10 escenarios) |
+| T-07 | **Hecha** | `modelo.manifest` firmado en `%APPDATA%\OficinaEficiencia\modelo\`; `scripts/firmar_manifiesto_modelo.py` (AC-T05) |
+| T-08 | Pendiente **(H)** | `data/faces/` sigue versionada |
+| T-09 | **Hecha** | `--acumulacion` (pasa `grad_accum_steps` a RF-DETR 1.11.2) |
+| T-10 | **Pendiente: bloquea la demo de EPP** | Necesita la GPU, los datasets verificados y la revisión humana de etiquetas |
+| T-11 | **Resuelta por T-07 para el modelo instalado** | Un modelo firmado e instalado corre con el motor ONNX sin tocar `config.DETECTION_ENGINE`. El valor por omisión del ejecutable sigue en `ultralytics` hasta A-16 |
+| T-12 | Pendiente **(H)** | Build en Windows y prueba de humo |
+| T-13 | **Hecha** | `scripts/arranque_cliente.bat` |
+| T-14 | **Hecha** | Sin `face_landmarks` en el producto. El archivo del modelo de 68 puntos sigue dentro del paquete `face_recognition_models`: excluirlo del `.exe` es parte de T-12 |
+| T-15 | **Hecha** | Botón "Importar carpeta con consentimientos" en Gestión de Empleados: carga solo a quien figura en `consentimientos.csv` y deja la bitácora `importaciones_rostros.csv` en la sucursal |
+| T-16 | Pendiente | Fotos de rostros cifradas o borradas tras calcular la huella |
+| T-17 | Pendiente | Necesita un set propio de fotos de ~20 personas |
+| T-18 | **Hecha** | "Reportes Históricos" solo con el módulo `eficiencia` |
+
+Verificación de punta a punta del 2026-11-13 (Linux, Xvfb): licencia `prueba` emitida con el
+emisor real y activada por el DRM con la llave embebida; modelo ONNX **sintético** (cajas fijas,
+no detecta EPP real) instalado con manifiesto firmado; la ventana principal mostró el aviso
+"Prueba: quedan 14 días", el menú con "Alertas EPP" y "Cumplimiento EPP" y sin "Reportes
+Históricos", y registró dos infracciones (sin casco, sin chaleco) con su evidencia. No se probó
+el ejecutable de Windows ni una cámara real.
 
 ---
 

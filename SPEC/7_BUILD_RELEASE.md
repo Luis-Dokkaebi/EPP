@@ -73,12 +73,14 @@ El repo incluye un par de llaves de **desarrollo** en `scripts/`. Para un releas
 comercial **debes rotarlas** (las dev son públicas en el historial de Git):
 
 ```bat
-python scripts\generar_llaves_maestras.py
+python scripts\generar_llaves_maestras.py --salida D:\boveda
 ```
-Esto genera:
-- `scripts\tu_llave_maestra_privada.pem` → **guárdala en USB/cofre, fuera de Git.**
-- `scripts\llave_publica_clientes.pem` → copia su contenido a `_PUBLIC_KEY_PEM`
-  en `src/security/drm.py` (reemplazando el bloque actual).
+Esto genera, **fuera del repositorio**:
+- `D:\boveda\llave_maestra_privada.pem` → cifrada con la contraseña que pide el script.
+- `D:\boveda\llave_publica_clientes.pem`.
+
+Y deja la llave pública nueva embebida en `src/security/drm.py` y en
+`scripts\llave_publica_clientes.pem` (ver `docs/runbooks/prueba_14_dias.md` §0).
 
 > ⚠️ **Acción de seguridad pre-release:** tras rotar, confirma que
 > `tu_llave_maestra_privada.pem` está en `.gitignore` y **no** se incluye en
@@ -124,21 +126,21 @@ Internamente hace, **en este orden estricto** (Anti-Vibe Hacking — no se puede
 3. **`ISCC.exe ... setup_oficina.iss`** → genera el instalador en
    `installer_output\setup_oficina_eficiencia_v<VERSION>.exe`.
 
-El número de versión sale del archivo `VERSION` (actual: **1.3.0**) y se inyecta
+El número de versión sale del archivo `VERSION` (actual: **1.4.0**) y se inyecta
 al `.iss` vía `/DMyAppVersion`.
 
 ### Salidas esperadas
 ```
 dist\obfuscated\           <- código ofuscado intermedio
 dist\OficinaEficiencia_VMS\OficinaEficiencia_VMS.exe   <- binario portable
-installer_output\setup_oficina_eficiencia_v1.3.0.exe   <- INSTALADOR a distribuir
+installer_output\setup_oficina_eficiencia_v1.4.0.exe   <- INSTALADOR a distribuir
 ```
 
 ### Build manual (si quieres correr pasos por separado para depurar)
 ```bat
 .\venv\Scripts\python.exe obfuscate.py
 .\venv\Scripts\pyinstaller gui_app.spec --clean -y
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.3.0 setup_oficina.iss
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.4.0 setup_oficina.iss
 ```
 
 > **Tip de depuración:** `gui_app.spec` tiene `console=True`. Déjalo así durante
@@ -181,9 +183,10 @@ Cuando un cliente compra:
    activación y te lo envía.
 2. Tú, en tu PC con la **llave privada**, emites la licencia:
    ```bat
-   python scripts\keygen_b2b.py <MACHINE_ID_DEL_CLIENTE>
+   python scripts\keygen_b2b.py --hw-id <MACHINE_ID_DEL_CLIENTE> --cliente acme-planta1 ^
+       --tier prueba --llave D:\boveda\llave_maestra_privada.pem --registro D:\boveda\emisiones.csv
    ```
-   (o sin argumento para modo interactivo: te pide días y máx. de cámaras).
+   (tiers `aprendizaje`, `prueba` y `comercial`: `docs/runbooks/prueba_14_dias.md` §1).
 3. Copias el bloque Base64 generado y se lo envías al cliente.
 4. El cliente lo pega en "Activación de Software". La app valida la firma RSA
    contra la llave pública embebida y guarda la licencia.
@@ -222,5 +225,5 @@ Antes de entregar el instalador a un cliente:
       hardware binding), gaps legales de biometría — decididos o aceptados.
 
 Solo cuando **todo** lo anterior esté marcado, el instalador
-`setup_oficina_eficiencia_v1.3.0.exe` se considera **Release Candidate** lista
+`setup_oficina_eficiencia_v1.4.0.exe` se considera **Release Candidate** lista
 para distribución B2B.

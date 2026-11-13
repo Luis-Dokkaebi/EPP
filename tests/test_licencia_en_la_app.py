@@ -14,6 +14,9 @@ from src.gui.licencia_en_la_app import (
     LicenciaEnLaApp,
 )
 
+# Crea ventanas de Tk: necesita pantalla, fuera del hook rápido (como tests/test_vistas_epp.py).
+pytestmark = pytest.mark.integration
+
 UNA_HORA_MS = 3_600_000
 DIAS_SIN_URGENCIA = 10
 DIAS_URGENTES = 2

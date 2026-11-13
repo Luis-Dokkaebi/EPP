@@ -10,6 +10,9 @@ from src.gui.ventana_licencia import ESPERA_AL_ACTIVAR_MS, VentanaDeLicencia, pe
 from src.security.vigencia_licencia import MotivoDeRechazo
 from tests.ficha_tk import ficha_visual
 
+# Crea ventanas de Tk: necesita pantalla, fuera del hook rápido (como tests/test_vistas_epp.py).
+pytestmark = pytest.mark.integration
+
 MACHINE_ID = "ab" * 32
 LLAVE_BUENA = "llave-buena"
 CAMARAS = 4

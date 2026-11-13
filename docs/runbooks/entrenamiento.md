@@ -38,12 +38,17 @@ python3.11 -m venv ~/venv-epp-ml
 ```bash
 ~/venv-epp-ml/bin/python -m ml.entrenador_rfdetr --dataset /ruta/cifrada/dataset/v0.1 \
     --manifiesto ml/datasets/v0.1/manifest.json --tamano small --resolucion 512 \
-    --epocas <E> --lote <L> --tasa <T> --semilla 7 --salidas /ruta/cifrada/artefactos
+    --epocas <E> --lote <L> --acumulacion <A> --tasa <T> --semilla 7 \
+    --salidas /ruta/cifrada/artefactos
 ```
 
 - **Baseline:** RF-DETR Small, resolución 512. Variantes, una hipótesis por corrida: Nano (más
   rápido), Medium (objetos chicos), mayor resolución (múltiplo de 32).
 - Épocas, lote y tasa: elegirlos con el conjunto `valid`; **nunca** mirar `test` para decidir.
+- Con una GPU de 6 GB (SPEC/10 §6.4): `--lote 4 --acumulacion 4` actualiza los pesos como un
+  lote de 16 sin ocupar más memoria. `--acumulacion` es opcional (por omisión 1) y queda en el
+  `registro.json`. Si aparece "CUDA out of memory": lote 2 con acumulación 8, luego resolución
+  384, luego tamaño nano.
 - Cada corrida crea `epp-<sha>-<huella>/` con `registro.json` (código, configuración, dataset,
   sha256 de los pesos) y no sobrescribe corridas anteriores. Los pesos **no** van a git.
 - Las métricas por caja (AP50, recall por clase) quedan en los registros de RF-DETR dentro de la

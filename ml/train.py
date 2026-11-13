@@ -41,6 +41,8 @@ class ConfigEntrenamiento:
     lote: int
     tasa_de_aprendizaje: float
     semilla: int
+    # Lotes que se acumulan antes de actualizar: simula un lote grande en una GPU chica.
+    acumulacion: int = 1
 
     def __post_init__(self) -> None:
         if self.tamano not in TAMANOS_APACHE:
@@ -56,6 +58,7 @@ class ConfigEntrenamiento:
         for campo, valido in (
             ("epocas", self.epocas >= 1),
             ("lote", self.lote >= 1),
+            ("acumulacion", self.acumulacion >= 1),
             ("tasa_de_aprendizaje", math.isfinite(self.tasa_de_aprendizaje)),
             ("tasa_de_aprendizaje", self.tasa_de_aprendizaje > 0),
             ("semilla", self.semilla >= 0),
@@ -80,6 +83,7 @@ def campos_de_config(config: ConfigEntrenamiento) -> dict[str, Any]:
         "resolucion": config.resolucion,
         "epocas": config.epocas,
         "lote": config.lote,
+        "acumulacion": config.acumulacion,
         "tasa_de_aprendizaje": config.tasa_de_aprendizaje,
         "semilla": config.semilla,
     }

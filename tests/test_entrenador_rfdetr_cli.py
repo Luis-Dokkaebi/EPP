@@ -17,7 +17,9 @@ from tests.utilidades_scripts import RAIZ, SEGUNDOS_MAXIMOS, textos_ausentes
 
 INVALIDO = 2
 TASA = 1e-4
+ACUMULACION = 4
 AYUDA = (
+    "lotes que se acumulan antes de actualizar (por omisión 1)",
     "nano, small, medium o large (Apache-2.0)",
     "múltiplo de 32",
     "carpeta de artefactos, fuera de git",
@@ -79,6 +81,7 @@ def test_main_entrena_y_muestra_el_registro(
     registro = json.loads((artefacto / "registro.json").read_text(encoding="utf-8"))
     assert codigo == 0
     assert registro["config"]["tasa_de_aprendizaje"] == TASA
+    assert registro["config"]["acumulacion"] == 1
     assert capsys.readouterr().out == f"Artefacto {artefacto.name}: {artefacto / 'registro.json'}\n"
 
 
@@ -117,6 +120,17 @@ def test_main_exige_cada_parametro(tmp_path: Path, falta: str) -> None:
         main(argumentos)
 
     assert salida.value.code == INVALIDO
+
+
+def test_main_registra_la_acumulacion_de_gradientes_pedida(tmp_path: Path) -> None:
+    _dataset_versionado(tmp_path)
+    argumentos = [*_argumentos(tmp_path), "--acumulacion", "4"]
+
+    main(argumentos, crear_entrenador=EntrenadorFalso, sha=lambda: SHA_CODIGO)
+
+    [artefacto] = (tmp_path / "artefactos").iterdir()
+    registro = json.loads((artefacto / "registro.json").read_text(encoding="utf-8"))
+    assert registro["config"]["acumulacion"] == ACUMULACION
 
 
 def test_main_explica_los_parametros_en_la_ayuda(capsys: pytest.CaptureFixture[str]) -> None:

@@ -28,6 +28,8 @@ from tests.test_manifiesto_dataset import FUENTES, LADO_MINIMO, REGLA, _dataset
 SHA_CODIGO = "0123456789abcdef0123456789abcdef01234567"  # pragma: allowlist secret
 TAXONOMIA = ("persona", "cabeza", "casco", "chaleco")
 
+ACUMULACION_PEDIDA = 8
+
 
 class EntrenadorFalso:
     """Doble del entrenador: escribe unos pesos falsos y devuelve métricas fijas."""
@@ -102,6 +104,7 @@ def test_config_rechaza_resoluciones_que_no_son_multiplo_de_32(
     [
         ("epocas", 0),
         ("lote", 0),
+        ("acumulacion", 0),
         ("tasa_de_aprendizaje", 0.0),
         ("tasa_de_aprendizaje", float("nan")),
         ("semilla", -1),
@@ -134,13 +137,15 @@ def test_huella_de_config_depende_de_hiperparametros_y_dataset_pero_no_de_las_ru
 
     assert huella_de_config(_config(tmp_path / "otra"), "v0.1", "a" * 64) == base
     assert huella_de_config(_config(tmp_path, semilla=8), "v0.1", "a" * 64) != base
+    assert huella_de_config(_config(tmp_path, acumulacion=4), "v0.1", "a" * 64) != base
     assert huella_de_config(_config(tmp_path), "v0.2", "a" * 64) != base
     assert huella_de_config(_config(tmp_path), "v0.1", "b" * 64) != base
 
 
 def test_huella_de_config_es_el_sha256_de_su_json_canonico(tmp_path: Path) -> None:
     canonico = (
-        '{"dataset_huella":"h","dataset_version":"v0.1","epocas":2,"lote":4,"resolucion":512,'
+        '{"acumulacion":1,"dataset_huella":"h","dataset_version":"v0.1","epocas":2,"lote":4,'
+        '"resolucion":512,'
         '"semilla":7,"tamano":"small","tasa_de_aprendizaje":0.0001}'
     )
 
@@ -247,3 +252,9 @@ def test_entrenar_guarda_un_registro_legible_con_acentos_sin_escapar(tmp_path: P
     texto = (tmp_path / "salidas" / registro["artefacto"] / "registro.json").read_text("utf-8")
     assert texto.startswith('{\n  "artefacto"')
     assert '"precisión": 0.5' in texto
+
+
+def test_sin_pedirla_no_hay_acumulacion_de_gradientes_y_el_minimo_es_uno(tmp_path: Path) -> None:
+    """SPEC/10 T-09: la acumulación simula un lote grande en una GPU de 6 GB."""
+    assert _config(tmp_path).acumulacion == 1
+    assert _config(tmp_path, acumulacion=8).acumulacion == ACUMULACION_PEDIDA

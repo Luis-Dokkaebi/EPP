@@ -3,6 +3,7 @@
 Ninguna prueba importa rfdetr, entrena ni descarga pesos: el paquete se inyecta como un doble.
 """
 
+import dataclasses
 import importlib
 import json
 from pathlib import Path
@@ -17,6 +18,7 @@ from ml.train import EntrenamientoInvalidoError
 from tests.test_train import _config, _dataset_versionado
 
 ANOTACIONES_RFDETR = "_annotations.coco.json"
+ACUMULACION = 4
 
 
 class ModeloFalso:
@@ -137,8 +139,19 @@ def test_entrenador_pasa_los_hiperparametros_y_el_dataset_preparado(tmp_path: Pa
         "lr": 1e-4,
         "resolution": 512,
         "seed": 7,
+        "grad_accum_steps": 1,
     }
     assert (artefacto / "dataset" / "train" / ANOTACIONES_RFDETR).is_file()
+
+
+def test_entrenador_pasa_la_acumulacion_de_gradientes_pedida(tmp_path: Path) -> None:
+    """SPEC/10 T-09: con lote 4 y acumulación 4, RF-DETR actualiza como con un lote de 16."""
+    paquete = PaqueteFalso("RFDETRSmall")
+    config = dataclasses.replace(_config(tmp_path), acumulacion=4)
+
+    EntrenadorRfDetr(paquete.importar).entrenar(config, _artefacto(tmp_path))
+
+    assert paquete.modelos[0].argumentos["grad_accum_steps"] == ACUMULACION
 
 
 def test_entrenador_falla_si_rfdetr_no_deja_los_pesos(tmp_path: Path) -> None:

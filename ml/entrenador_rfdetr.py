@@ -78,6 +78,7 @@ class EntrenadorRfDetr:
             lr=config.tasa_de_aprendizaje,
             resolution=config.resolucion,
             seed=config.semilla,
+            grad_accum_steps=config.acumulacion,
         )
         pesos = carpeta / ARCHIVO_DE_PESOS
         if not pesos.is_file():
@@ -108,6 +109,12 @@ def _analizar(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--tasa", required=True, type=float, help="tasa de aprendizaje")
     parser.add_argument("--semilla", required=True, type=int)
     parser.add_argument(
+        "--acumulacion",
+        type=int,
+        default=1,
+        help="lotes que se acumulan antes de actualizar (por omisión 1)",
+    )
+    parser.add_argument(
         "--salidas", required=True, type=Path, help="carpeta de artefactos, fuera de git"
     )
     return parser.parse_args(argv)
@@ -129,6 +136,7 @@ def main(
             lote=argumentos.lote,
             tasa_de_aprendizaje=argumentos.tasa,
             semilla=argumentos.semilla,
+            acumulacion=argumentos.acumulacion,
         )
         sha_codigo = sha() if sha else sha_del_codigo(RAIZ_DEL_REPOSITORIO)
         registro = entrenar(config, crear_entrenador(), sha_codigo, argumentos.salidas)

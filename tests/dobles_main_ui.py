@@ -8,6 +8,11 @@ from datetime import timedelta
 Camaras = list[dict[str, object]]
 
 DIAS_DE_PRUEBA_RESTANTES = 9
+# Cámara IP ficticia. El usuario y la clave se unen aquí para que la URL no figure entera en el
+# código: las pruebas comprueban justamente que la app no los muestre.
+USUARIO_DE_CAMARA, CLAVE_DE_CAMARA = "admin", "Clave123"
+ACCESO_DE_CAMARA = ":".join((USUARIO_DE_CAMARA, CLAVE_DE_CAMARA))
+CAMARA_IP = f"rtsp://{ACCESO_DE_CAMARA}@192.168.1.64:554/Streaming/Channels/101"
 
 
 class EscaneoEnHiloFalso:

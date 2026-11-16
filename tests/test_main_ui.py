@@ -19,6 +19,7 @@ from config.path_utils import ConfigManager
 from src.composicion_epp import PublicadorEnMemoria
 from src.main_ui import AppMain
 from tests.dobles_main_ui import (
+    CAMARA_IP,
     Camaras,
     DespachadorFalso,
     EscaneoEnHiloFalso,
@@ -413,11 +414,9 @@ def test_una_camara_ip_se_muestra_sin_credenciales_y_sin_ensanchar_la_barra(
     app.update()
     ancho = app.sidebar_frame.winfo_width()
 
-    app._start_local_camera("rtsp://admin:Clave123@192.168.1.64:554/Streaming/Channels/101")
+    app._start_local_camera(CAMARA_IP)
     app.update()
 
     assert texto_de_estado(app) == "✅ Activa: cámara IP 192.168.1.64"
     assert app.sidebar_frame.winfo_width() == ancho
-    assert [t.camara for t in trabajadores.creados] == [
-        "rtsp://admin:Clave123@192.168.1.64:554/Streaming/Channels/101"
-    ]
+    assert [t.camara for t in trabajadores.creados] == [CAMARA_IP]

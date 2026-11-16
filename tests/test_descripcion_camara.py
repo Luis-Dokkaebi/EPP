@@ -7,6 +7,7 @@ con usuario y contraseña a la vista, y ensanchaba la barra lateral al doble.
 import pytest
 
 from src.gui.descripcion_camara import LARGO_MAXIMO, describir_camara
+from tests.dobles_main_ui import CAMARA_IP, CLAVE_DE_CAMARA, USUARIO_DE_CAMARA
 
 
 @pytest.mark.parametrize(
@@ -14,7 +15,7 @@ from src.gui.descripcion_camara import LARGO_MAXIMO, describir_camara
     [
         (0, "índice 0"),
         (3, "índice 3"),
-        ("rtsp://admin:Clave123@192.168.1.64:554/Streaming/Channels/101", "cámara IP 192.168.1.64"),
+        (CAMARA_IP, "cámara IP 192.168.1.64"),
         ("rtsp://192.168.1.64/stream", "cámara IP 192.168.1.64"),
         ("http://camara-patio.local:8080/video", "cámara IP camara-patio.local"),
         ("C:\\videos\\patio.mp4", "archivo patio.mp4"),
@@ -29,10 +30,10 @@ def test_la_camara_se_describe_sin_credenciales_ni_rutas(
 
 
 def test_la_descripcion_nunca_muestra_el_usuario_ni_la_contrasena() -> None:
-    descripcion = describir_camara("rtsp://admin:Clave123@192.168.1.64:554/canal")
+    descripcion = describir_camara(CAMARA_IP)
 
-    assert "admin" not in descripcion
-    assert "Clave123" not in descripcion
+    assert USUARIO_DE_CAMARA not in descripcion
+    assert CLAVE_DE_CAMARA not in descripcion
 
 
 def test_un_nombre_largo_se_recorta_para_no_ensanchar_la_barra() -> None:

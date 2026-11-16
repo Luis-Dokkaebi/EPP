@@ -403,3 +403,21 @@ def test_reanudar_sin_camara_elegida_solo_devuelve_los_avisos(
 
     assert trabajadores.creados == []
     assert falso.eventos == ["iniciar", "detener 10 s", "iniciar"]
+
+
+@pytest.mark.integration
+def test_una_camara_ip_se_muestra_sin_credenciales_y_sin_ensanchar_la_barra(
+    app: AppMain, trabajadores: FabricaDeTrabajadoresFalsa
+) -> None:
+    """Regresión del ensayo de la demo: la URL RTSP completa salía en la barra lateral."""
+    app.update()
+    ancho = app.sidebar_frame.winfo_width()
+
+    app._start_local_camera("rtsp://admin:Clave123@192.168.1.64:554/Streaming/Channels/101")
+    app.update()
+
+    assert texto_de_estado(app) == "✅ Activa: cámara IP 192.168.1.64"
+    assert app.sidebar_frame.winfo_width() == ancho
+    assert [t.camara for t in trabajadores.creados] == [
+        "rtsp://admin:Clave123@192.168.1.64:554/Streaming/Channels/101"
+    ]

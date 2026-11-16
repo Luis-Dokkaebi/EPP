@@ -140,8 +140,9 @@ class AppMain(ctk.CTk):
         self.camera_workers.append(worker)
         
         if hasattr(self, '_cam_status_label'):
+            from src.gui.descripcion_camara import describir_camara
             self._cam_status_label.configure(
-                text=f"✅ Activa: índice {idx}",
+                text=f"✅ Activa: {describir_camara(idx)}",
                 text_color="#2ECC71"
             )
 

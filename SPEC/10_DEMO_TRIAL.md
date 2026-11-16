@@ -614,6 +614,14 @@ no detecta EPP real) instalado con manifiesto firmado; la ventana principal most
 Históricos", y registró dos infracciones (sin casco, sin chaleco) con su evidencia. No se probó
 el ejecutable de Windows ni una cámara real.
 
+Ensayo del 2026-11-16 (mismo entorno): se corrió el arranque real de `src/main_ui.py` manejando
+las ventanas desde adentro, 22 comprobaciones en verde: ventana de activación con el Machine ID,
+llave inválida rechazada, licencia de prueba activada, selección de sucursal, cámara con el
+modelo firmado, dos infracciones con evidencia, panel de alertas, Excel de cumplimiento,
+vencimiento con la app abierta (cámaras detenidas y ventana "Su licencia venció"), activación de
+la licencia comercial (la cámara vuelve, el aviso de prueba desaparece, el historial se conserva)
+y base cifrada en reposo al cerrar. Sigue siendo con modelo y video sintéticos.
+
 ---
 
 ## 12. Riesgos

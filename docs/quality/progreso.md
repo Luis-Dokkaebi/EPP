@@ -102,9 +102,17 @@ Deuda y hallazgos de esta tanda:
   arrastra `ultralytics`) y sus tipos son distintos. El archivo no se tocó. Se va con A-16.
 - `src/gui_app.py` se tocó en T-14 sin formatear (WAIVER-#2): formatearlo cambia cientos de líneas
   sin pruebas y rompe la cobertura del diff.
-- `drm.py`, `main_ui.py`, `camera_worker.py`, `keygen_b2b.py` y `generar_llaves_maestras.py`
-  salieron de las exclusiones de formato; `drm.py` y los dos scripts, también de las de lint y mypy.
-- `src/main_ui.py` quedó en 499 líneas: el próximo cambio ahí saca `Bootloader` a su módulo.
+- `drm.py`, `keygen_b2b.py` y `generar_llaves_maestras.py` salieron de las exclusiones de formato,
+  lint y mypy. `main_ui.py` y `camera_worker.py` se formatearon y se volvieron al formato
+  heredado: el job de mutación mide las líneas cambiadas respecto de `main`, y al formatear un
+  archivo heredado sus líneas sin pruebas cuentan como cambiadas (35,9 % y 48,5 %). WAIVER-#2
+  (formatear al tocar) y la mutación por parche chocan en los archivos heredados con poca
+  cobertura: conviene decidir cuál manda o formatearlos en un PR que solo haga eso.
+- `src/main_ui.py` quedó en 445 líneas (la ventana de licencia salió a su módulo).
+- Ensayo de la demo (2026-11-16): con una cámara IP la barra lateral mostraba la URL RTSP con
+  usuario y contraseña y se ensanchaba al doble. Corregido (`src/gui/descripcion_camara.py`).
+  El gate de Windows falló por una aserción del tamaño de ventana que dependía del sistema;
+  corregida.
 - El Machine ID de respaldo (sin WMI) usa `uuid.getnode()`, que en un contenedor sin interfaz de
   red estable cambia en cada proceso. En Windows rige WMI; no se cambió la huella porque las
   licencias emitidas dependen de ella.

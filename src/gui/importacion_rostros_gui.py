@@ -5,6 +5,7 @@ reconocedor de rostros y la base de la sucursal abierta, y deja la bitácora en 
 """
 
 import getpass
+import tkinter.filedialog
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
@@ -18,6 +19,7 @@ from src.recognition.importacion_rostros import (
 )
 
 ARCHIVO_DE_BITACORA = "importaciones_rostros.csv"
+TITULO_DEL_DIALOGO = "Carpeta de rostros con consentimientos.csv"
 
 
 class Rostros(Protocol):
@@ -58,3 +60,11 @@ def importar_carpeta_de_rostros(carpeta: Path, rostros: Rostros, base: BaseDeEmp
         return resumen(importar_rostros(carpeta, RegistroDeLaSucursal(rostros, base), bitacora))
     except ImportacionInvalidaError as error:
         return str(error)
+
+
+def elegir_e_importar(rostros: Rostros, base: BaseDeEmpleados) -> str | None:
+    """Pide la carpeta al operador y la carga; None si canceló la elección."""
+    carpeta = tkinter.filedialog.askdirectory(title=TITULO_DEL_DIALOGO)
+    if not carpeta:
+        return None
+    return importar_carpeta_de_rostros(Path(carpeta), rostros, base)

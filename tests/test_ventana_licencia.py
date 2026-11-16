@@ -227,7 +227,25 @@ def test_la_ventana_se_ve_como_se_diseno(raiz: ctk.CTk) -> None:
     assert ventana.protocol("WM_DELETE_WINDOW") != ""
     assert ESPERA_AL_ACTIVAR_MS == UN_SEGUNDO_Y_MEDIO_MS
     assert ventana.cget("fg_color") == "#1E1E1E"
-    assert ventana.geometry().startswith("620x520")
+
+
+def test_la_ventana_pide_su_tamano_de_diseno(
+    raiz: ctk.CTk, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Se comprueba el tamaño pedido: el que informa Tk antes de mostrar la ventana depende del
+    sistema (Windows responde 200x200 hasta que la dibuja)."""
+    pedidos: list[str | None] = []
+    original = ctk.CTkToplevel.geometry
+
+    def anotar(ventana: ctk.CTkToplevel, tamano: str | None = None) -> Any:
+        pedidos.append(tamano)
+        return original(ventana, tamano)
+
+    monkeypatch.setattr(ctk.CTkToplevel, "geometry", anotar)
+
+    VentanaDeLicencia(raiz, LicenciaFalsa())
+
+    assert "620x520" in pedidos
 
 
 def test_los_textos_secundarios_van_en_gris_y_el_titulo_en_rojo(raiz: ctk.CTk) -> None:

@@ -14,8 +14,9 @@ from pathlib import Path
 from typing import NamedTuple, Protocol
 
 from config import config
-from src.composition import clases_declaradas, entrada_del_modelo, leer_manifiesto
+from src.composition import clases_declaradas, entrada_del_modelo
 from src.inference.types import ClaseObjeto
+from src.models.modelo_de_la_app import modelo_de_la_app
 from src.ppe.application.evaluar_cumplimiento import EvaluarCumplimiento, PuertosCumplimiento
 from src.ppe.application.ports import PublicadorEventosPort, RelojPort
 from src.ppe.domain.asociacion import ConfiguracionAsociacion
@@ -140,7 +141,8 @@ def crear_integracion_epp_de_la_app(
 
     Las zonas se leen al crearlo: un cambio en el editor de zonas rige al reconectar la cámara.
     """
-    entrada = entrada_del_modelo(config.MODEL_PATH, leer_manifiesto(config.MANIFEST_PATH))
+    modelo = modelo_de_la_app()
+    entrada = entrada_del_modelo(modelo.ruta, modelo.leer_manifiesto())
     if not licencia.incluye_modulo(MODULO_EPP) or not modelo_detecta_epp(
         clases_declaradas(entrada)
     ):

@@ -64,6 +64,7 @@ class AppMain(ctk.CTk):
         
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="VMS Panel", font=("Roboto", 24, "bold"), text_color="#FFFFFF")
         self.logo_label.pack(pady=(30, 15), padx=20, anchor="w")
+        self._licencia_en_la_app = self._vigilar_licencia()
         
         # --- MAIN WORKSPACE ---
         self.main_workspace = ctk.CTkFrame(self, corner_radius=0, fg_color="#1E1E1E")
@@ -85,7 +86,7 @@ class AppMain(ctk.CTk):
         """Inicializa las vistas con lógica de negocio REAL."""
         import queue
         from src.gui.dashboard import DashboardFrame
-        from src.gui.views import create_employees_view, create_zones_view, create_reports_view, create_tenant_view
+        from src.gui.views import create_employees_view, create_zones_view, create_tenant_view
         
         self.camera_workers = []
         self.camera_queues = {}
@@ -114,8 +115,7 @@ class AppMain(ctk.CTk):
         
         self._registrar_vistas_epp()
 
-        self.view_reportes = create_reports_view(self.main_workspace)
-        self.view_manager.register_view("Reportes", self.view_reportes)
+        self._registrar_vista_de_eficiencia()
         
         self.view_manager.register_view("Tenant", create_tenant_view(self.main_workspace))
 
@@ -140,8 +140,9 @@ class AppMain(ctk.CTk):
         self.camera_workers.append(worker)
         
         if hasattr(self, '_cam_status_label'):
+            from src.gui.descripcion_camara import describir_camara
             self._cam_status_label.configure(
-                text=f"✅ Activa: índice {idx}",
+                text=f"✅ Activa: {describir_camara(idx)}",
                 text_color="#2ECC71"
             )
 
@@ -172,6 +173,15 @@ class AppMain(ctk.CTk):
             from src.gui import epp_en_la_app
             epp_en_la_app.registrar_vistas(self.view_manager, self.main_workspace)
 
+    def _registrar_vista_de_eficiencia(self):
+        """SPEC/10 T-18 (M-1): los reportes de eficiencia, solo con el módulo `eficiencia`."""
+        from src.gui.menu_principal import incluye_eficiencia
+        from src.gui.views import create_reports_view
+
+        if incluye_eficiencia(self.licencia):
+            self.view_reportes = create_reports_view(self.main_workspace)
+            self.view_manager.register_view("Reportes", self.view_reportes)
+
     def _iniciar_avisos_epp(self):
         """SPEC/9 §5.4: los avisos de EPP arrancan solo si la licencia incluye el módulo."""
         if not self._modulo_epp_habilitado():
@@ -179,27 +189,40 @@ class AppMain(ctk.CTk):
         from src.composicion_avisos import iniciar_avisos_de_la_sucursal
         return iniciar_avisos_de_la_sucursal()
 
-    def on_closing(self):
-        for w in self.camera_workers:
-            w.stop()
+    def _vigilar_licencia(self):
+        """SPEC/10 T-05: aviso de la prueba y revalidación cada hora, si se abrió con licencia."""
+        if self.licencia is None:
+            return None
+        from src.gui.licencia_en_la_app import LicenciaEnLaApp
+
+        return LicenciaEnLaApp(self, self.licencia, self.sidebar_frame)
+
+    def suspender_por_licencia(self):
+        """La licencia dejó de regir: paran cámaras y avisos; rostros, zonas e historial quedan."""
+        self._stop_local_camera()
+        self._detener_avisos_epp()
+
+    def reanudar_con_licencia(self):
+        self._despachador_epp = self._iniciar_avisos_epp()
+        if self._active_camera_index is not None:
+            self._start_local_camera(camera_index=self._active_camera_index)
+
+    def _detener_avisos_epp(self):
         if self._despachador_epp is not None:
             # Antes de destruir la ventana: main() cifra la base al volver de mainloop.
             from datetime import timedelta
             self._despachador_epp.detener(timedelta(seconds=10))
+            self._despachador_epp = None
+
+    def on_closing(self):
+        self._stop_local_camera()
+        self._detener_avisos_epp()
         self.destroy()
 
     def setup_sidebar_buttons(self):
-        buttons = [
-            ("Monitoreo en Vivo", "Dashboard"),
-            ("Gestión de Empleados", "Empleados"),
-            ("Configuración de Zonas", "Zonas"),
-            ("Reportes Históricos", "Reportes"),
-            ("Cambiar Sucursal", "Tenant")
-        ]
-        if self._modulo_epp_habilitado():
-            buttons[3:3] = [("Alertas EPP", "AlertasEPP"), ("Cumplimiento EPP", "CumplimientoEPP")]
-        
-        for text, view_name in buttons:
+        from src.gui.menu_principal import botones_del_menu
+
+        for text, view_name in botones_del_menu(self.licencia):
             btn = ctk.CTkButton(
                 self.sidebar_frame, text=text, font=("Roboto", 14),
                 fg_color="#1f6aa5", hover_color="#144870",
@@ -310,80 +333,6 @@ import os
 from config.path_utils import ConfigManager
 from src.security.drm import DRMValidator
 
-class LicenseWindow(ctk.CTkToplevel):
-    def __init__(self, master, drm_validator):
-        super().__init__(master)
-        self.title("Activación Corporativa B2B (DRM RSA-2048)")
-        self.geometry("620x520")
-        self.configure(fg_color="#1E1E1E")
-        self.attributes("-topmost", True)
-        self.grab_set()
-        self.focus_force()
-        self.protocol("WM_DELETE_WINDOW", self.on_close)
-        
-        self.drm = drm_validator
-        self.activated = False
-        
-        ctk.CTkLabel(self, text="🔐 Licencia Requerida", font=("Roboto", 22, "bold"), text_color="#E74C3C").pack(pady=(15, 5))
-        ctk.CTkLabel(self, text="Envíe el siguiente Machine ID a su proveedor para recibir la llave:", 
-                     font=("Roboto", 12), text_color="#A0A0A0").pack(pady=5)
-        
-        mid_frame = ctk.CTkFrame(self, fg_color="#2B2B2B", corner_radius=8)
-        mid_frame.pack(fill="x", padx=20, pady=5)
-        ctk.CTkLabel(mid_frame, text="Machine ID (SHA-256 Hardware Fingerprint):", 
-                     font=("Roboto", 11), text_color="#A0A0A0").pack(pady=(8, 2), padx=10, anchor="w")
-        
-        self.mid_entry = ctk.CTkEntry(mid_frame, justify="center", font=("Consolas", 11), height=32)
-        self.mid_entry.insert(0, self.drm.machine_id)
-        self.mid_entry.configure(state="readonly")
-        self.mid_entry.pack(pady=(0, 10), fill="x", padx=10)
-        
-        ctk.CTkButton(mid_frame, text="📋 Copiar Machine ID", height=28, width=160,
-                      fg_color="#1f6aa5", hover_color="#144870",
-                      command=lambda: (self.clipboard_clear(), self.clipboard_append(self.drm.machine_id))
-                      ).pack(pady=(0, 10))
-        
-        key_frame = ctk.CTkFrame(self, fg_color="#2B2B2B", corner_radius=8)
-        key_frame.pack(fill="x", padx=20, pady=10)
-        ctk.CTkLabel(key_frame, text="Pegue la Llave de Activación RSA-2048 (Base64):", 
-                     font=("Roboto", 11), text_color="#A0A0A0").pack(pady=(8, 2), padx=10, anchor="w")
-        
-        self.key_textbox = ctk.CTkTextbox(key_frame, height=80, font=("Consolas", 10), fg_color="#1E1E1E")
-        self.key_textbox.pack(fill="x", padx=10, pady=(0, 10))
-        
-        ctk.CTkButton(self, text="🔓 Activar VMS Localmente", fg_color="#2ECC71", 
-                      hover_color="#27AE60", height=40, font=("Roboto", 14, "bold"),
-                      command=self.activate).pack(pady=10)
-        
-        self.status_label = ctk.CTkLabel(self, text="", font=("Roboto", 13), text_color="#A0A0A0")
-        self.status_label.pack(pady=5)
-        
-    def activate(self):
-        val = self.key_textbox.get("1.0", "end").strip()
-        if not val:
-            self.status_label.configure(text="⚠️ Pegue la llave Base64 en el campo de texto.", text_color="#E74C3C")
-            return
-            
-        if self.drm.activate_license(val):
-            self.activated = True
-            exp = self.drm.get_expiration_date() or "N/A"
-            cams = self.drm.get_max_cameras()
-            tier = self.drm.get_tier().upper()
-            self.status_label.configure(
-                text=f"✅ Activado | Tier: {tier} | Cámaras: {cams} | Expira: {exp}",
-                text_color="#2ECC71"
-            )
-            self.after(1500, self.destroy)
-        else:
-            self.status_label.configure(
-                text="❌ Llave RSA inválida, expirada, o no coincide con este hardware.",
-                text_color="#E74C3C"
-            )
-
-    def on_close(self):
-        import sys
-        sys.exit(0)
-
 class Bootloader(ctk.CTkToplevel):
     def __init__(self, master=None):
         super().__init__(master)
@@ -457,12 +406,10 @@ if __name__ == "__main__":
     
     drm = DRMValidator()
     if not drm.validate_license():
-        lic_win = LicenseWindow(root, drm)
-        root.wait_window(lic_win)
-        # CR-06: no confiar en que `wait_window` implique activación. Si la ventana
-        # se cerró/destruyó sin activar (excepción interna, cierre programático),
-        # abortar. Se re-valida contra disco (fuente de verdad), no solo el flag.
-        if not getattr(lic_win, "activated", False) and not drm.validate_license():
+        from src.gui.ventana_licencia import pedir_licencia
+        # CR-06: sin una licencia validada y guardada (cierre de la ventana incluido), no se
+        # abre la app. `pedir_licencia` solo da True tras activar y persistir la licencia.
+        if not pedir_licencia(root, drm):
             import sys
             print("[VMS] Activación no completada. Cerrando.")
             sys.exit(0)

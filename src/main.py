@@ -29,6 +29,8 @@ from datetime import timedelta
 
 # Antes de que main() cifre o cierre, el despachador termina el aviso en curso (igual que la GUI).
 ESPERA_AL_DETENER_AVISOS = timedelta(seconds=10)
+# SPEC/10 §4.2: la licencia se revalida cada hora con el monitoreo en marcha, como en la GUI.
+INTERVALO_DE_REVALIDACION_S = 3600.0
 
 
 def get_bbox_center(xyxy):
@@ -67,6 +69,13 @@ def iniciar_avisos_epp(licencia):
     if not modulo_habilitado(licencia):
         return None
     return composicion_avisos.iniciar_avisos_de_la_sucursal()
+
+
+def aviso_de_licencia_caida(licencia):
+    """Qué decirle al operador cuando la licencia deja de regir con el monitoreo en marcha."""
+    motivo = licencia.motivo_de_rechazo
+    detalle = f": {motivo.value}" if motivo is not None else "."
+    return f"🔒 La licencia dejó de regir{detalle} Monitoreo detenido; no se borró nada."
 
 
 def detener_avisos_epp(despachador):
@@ -167,6 +176,9 @@ def start_video_stream():
         epp=modulo_epp_de_la_sucursal(licencia),
     )
     despachador = iniciar_avisos_epp(licencia)
+    from src.security.guardia_licencia import RevalidacionPeriodica
+
+    vigilancia = RevalidacionPeriodica(licencia, INTERVALO_DE_REVALIDACION_S, time.time())
 
     print("✅ Sistema iniciado. Presiona 'q' para salir.")
 
@@ -176,6 +188,9 @@ def start_video_stream():
             break
 
         current_time = time.time()
+        if vigilancia.dejo_de_regir(current_time):
+            print(aviso_de_licencia_caida(licencia))
+            break
 
         # Detección (DetectorPort, SPEC/9 §1.3.5) y separación de personas y celulares
         detecciones = detector.detectar(frame)

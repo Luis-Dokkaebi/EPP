@@ -3,12 +3,12 @@
 Mismo criterio que las pruebas de CameraWorker: la fixture cambia de motor, las aserciones no.
 """
 
+import itertools
 import subprocess
 import sys
 import types
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from datetime import timedelta
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -17,100 +17,24 @@ import pytest
 
 from config.path_utils import ConfigManager
 from src import main
+from tests.dobles_headless import (
+    VERDE,
+    CapturaFalsa,
+    Corrida,
+    DespachadorFalso,
+    EstadosFalsos,
+    LicenciaFalsa,
+    PipelineFalso,
+)
 from tests.dobles_ultralytics import DeteccionCruda, ModeloFalso
 
 MODULO_EPP = "modulo-epp"
-VERDE = (0, 255, 0)
 INDICE_LOCAL = 5
 TECLA_Q_CON_MODIFICADOR = 0x100 | ord("q")
 CLASE_PERSONA = 0
 CLASE_CELULAR = 67
 UMBRAL = 0.4
 MARCA_TIEMPO = 2_000.0
-
-
-class CapturaFalsa:
-    def __init__(self, frames: list[np.ndarray], abierta: bool = True) -> None:
-        self._frames = frames
-        self._abierta = abierta
-        self.liberada = False
-
-    def isOpened(self) -> bool:  # noqa: N802 - interfaz de cv2.VideoCapture
-        return self._abierta
-
-    def read(self) -> tuple[bool, np.ndarray | None]:
-        if not self._frames:
-            return False, None
-        return True, self._frames.pop(0)
-
-    def release(self) -> None:
-        self.liberada = True
-
-
-@dataclass
-class PipelineFalso:
-    llamadas: list[tuple[Any, ...]] = field(default_factory=list)
-
-    def __init__(self, pistas: list[dict[str, Any]], **colaboradores: Any) -> None:
-        self.colaboradores = colaboradores
-        self.llamadas = []
-        self.opciones: list[dict[str, Any]] = []
-        self._pistas = pistas
-
-    def process(self, *argumentos: Any, **opciones: Any) -> list[dict[str, Any]]:
-        self.llamadas.append(argumentos)
-        self.opciones.append(opciones)
-        return self._pistas
-
-
-class EstadosFalsos:
-    """StateManager falso: todos trabajan y se pintan de verde; anota por quién se preguntó."""
-
-    def __init__(self) -> None:
-        self.consultados: list[str] = []
-
-    def get_state(self, nombre: str) -> str:
-        self.consultados.append(nombre)
-        return "Trabajando"
-
-    def get_color_for_state(self, _estado: str) -> tuple[int, int, int]:
-        return VERDE
-
-
-class LicenciaFalsa:
-    def __init__(self, *modulos: str) -> None:
-        self._modulos = modulos
-
-    def incluye_modulo(self, modulo: str) -> bool:
-        return modulo in self._modulos
-
-
-class DespachadorFalso:
-    def __init__(self) -> None:
-        self.eventos: list[str] = []
-
-    def iniciar(self) -> None:
-        self.eventos.append("iniciar")
-
-    def detener(self, espera_maxima: timedelta) -> None:
-        self.eventos.append(f"detener {espera_maxima.total_seconds():.0f} s")
-
-
-@dataclass
-class Corrida:
-    pipelines: list[PipelineFalso]
-    capturas: list[CapturaFalsa]
-    ventanas_cerradas: list[bool]
-    despachador: DespachadorFalso = field(default_factory=DespachadorFalso)
-    mostrados: list[Any] = field(default_factory=list)
-    ventanas: list[str] = field(default_factory=list)
-    esperas_ms: list[int] = field(default_factory=list)
-    fuentes: list[object] = field(default_factory=list)
-    estados: "EstadosFalsos" = field(default_factory=lambda: EstadosFalsos())
-
-    def llamadas(self) -> list[tuple[Any, ...]]:
-        [pipeline] = self.pipelines
-        return pipeline.llamadas
 
 
 @pytest.fixture
@@ -131,15 +55,24 @@ def tecla() -> int:
     return 0
 
 
+@pytest.fixture
+def reloj() -> Callable[[], float]:
+    """La hora de cada cuadro: fija por omisión; una prueba la parametriza para que avance."""
+    return lambda: MARCA_TIEMPO
+
+
 @dataclass(frozen=True)
 class EntornoDeCorrida:
     camara_elegida: str | None
     tecla: int
+    reloj: Callable[[], float]
 
 
 @pytest.fixture
-def entorno_de_corrida(camara_elegida: str | None, tecla: int) -> EntornoDeCorrida:
-    return EntornoDeCorrida(camara_elegida, tecla)
+def entorno_de_corrida(
+    camara_elegida: str | None, tecla: int, reloj: Callable[[], float]
+) -> EntornoDeCorrida:
+    return EntornoDeCorrida(camara_elegida, tecla, reloj)
 
 
 @pytest.fixture
@@ -162,7 +95,7 @@ def correr_headless(
         corrida = Corrida(pipelines=[], capturas=[], ventanas_cerradas=[])
         _aislar_entorno(monkeypatch, tmp_path, entorno_de_corrida.camara_elegida)
         monkeypatch.setattr(main, "StateManager", lambda _bd: corrida.estados)
-        monkeypatch.setattr(main.time, "time", lambda: MARCA_TIEMPO)
+        monkeypatch.setattr(main.time, "time", entorno_de_corrida.reloj)
         monkeypatch.setattr(main.cv2, "VideoCapture", _fabrica(corrida, frames))
         monkeypatch.setattr(main.cv2, "imshow", _mostrar_en(corrida))
         _conectar_epp(monkeypatch, licencia, corrida.despachador)
@@ -332,6 +265,71 @@ def test_headless_muestra_el_cuadro_con_el_estado_de_epp_dibujado(
     corrida = correr_headless(frames=[np.zeros((4, 4, 3), dtype=np.uint8)], detecciones=[])
 
     assert corrida.mostrados == ["cuadro con EPP"]
+
+
+# --- Revalidación de la licencia con el monitoreo en marcha (SPEC/10 T-05) ---------------------
+
+UNA_HORA_S = 3_600.0
+CUADRO = np.zeros((4, 4, 3), dtype=np.uint8)
+
+
+def reloj_que_avanza(paso_s: float) -> Callable[[], float]:
+    """Cada consulta de la hora adelanta el reloj `paso_s` segundos."""
+    marcas = itertools.count(MARCA_TIEMPO, paso_s)
+    return lambda: next(marcas)
+
+
+@pytest.mark.parametrize("reloj", [reloj_que_avanza(UNA_HORA_S)], ids=["una_hora_por_cuadro"])
+@pytest.mark.parametrize(
+    "licencia",
+    [LicenciaFalsa("epp", vigencias=(True, True, False, True, True, True))],
+    ids=["vence_en_marcha"],
+)
+def test_headless_se_detiene_cuando_la_licencia_vence_con_el_monitoreo_en_marcha(
+    correr_headless: Callable[..., Corrida], capsys: pytest.CaptureFixture[str]
+) -> None:
+    corrida = correr_headless(frames=[CUADRO] * 5, detecciones=[])
+
+    [pipeline] = corrida.pipelines
+    [captura] = corrida.capturas
+    assert len(pipeline.llamadas) == 1
+    assert corrida.despachador.eventos == ["iniciar", "detener 10 s"]
+    assert captura.liberada is True
+    assert capsys.readouterr().out.endswith(
+        "🔒 La licencia dejó de regir: La licencia venció. Contrate para continuar: "
+        "lo aprendido se conserva. Monitoreo detenido; no se borró nada.\n"
+    )
+
+
+@pytest.mark.parametrize("reloj", [reloj_que_avanza(UNA_HORA_S)], ids=["una_hora_por_cuadro"])
+@pytest.mark.parametrize(
+    "licencia", [LicenciaFalsa("epp", vigencias=(True,) * 9)], ids=["sigue_vigente"]
+)
+def test_headless_sigue_mientras_la_licencia_revalidada_rige(
+    correr_headless: Callable[..., Corrida],
+) -> None:
+    corrida = correr_headless(frames=[CUADRO] * 5, detecciones=[])
+
+    assert len(corrida.llamadas()) == len([CUADRO] * 5)
+
+
+@pytest.mark.parametrize(
+    "licencia", [LicenciaFalsa("epp", vigencias=(True, False))], ids=["venceria_al_revalidar"]
+)
+def test_headless_no_revalida_antes_de_una_hora(correr_headless: Callable[..., Corrida]) -> None:
+    corrida = correr_headless(frames=[CUADRO] * 5, detecciones=[])
+
+    assert len(corrida.llamadas()) == len([CUADRO] * 5)
+
+
+def test_el_aviso_de_licencia_caida_sin_motivo_conocido_no_inventa_uno() -> None:
+    assert main.aviso_de_licencia_caida(LicenciaFalsa()) == (
+        "🔒 La licencia dejó de regir. Monitoreo detenido; no se borró nada."
+    )
+
+
+def test_el_modo_sin_interfaz_revalida_la_licencia_cada_hora() -> None:
+    assert main.INTERVALO_DE_REVALIDACION_S == UNA_HORA_S
 
 
 class ValidadorFalso:

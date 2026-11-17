@@ -53,3 +53,12 @@ def importacion_sin_efectos(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(
         sys.modules, "face_recognition", sys.modules.get("face_recognition") or MagicMock()
     )
+
+
+@pytest.fixture(autouse=True)
+def _appdata_en_carpeta_temporal(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ninguna prueba escribe en el APPDATA (o el HOME) real: licencias, modelos y sucursales
+    van a una carpeta temporal salvo que la prueba fije la suya (CLAUDE.md §4)."""
+    monkeypatch.setenv("APPDATA", str(tmp_path_factory.mktemp("appdata")))

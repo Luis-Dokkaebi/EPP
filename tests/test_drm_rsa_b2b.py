@@ -11,7 +11,9 @@ import os
 import json
 import base64
 import hashlib
+import tempfile
 import time
+from unittest.mock import patch
 
 # Setup path for project imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -175,12 +177,20 @@ class TestRSALicenseValidation(unittest.TestCase):
         cls.SHA256 = SHA256
         cls.pkcs1_15 = pkcs1_15
 
-        # Cargar llave privada del proveedor
-        key_path = os.path.join(
-            os.path.dirname(__file__), "..", "scripts", "tu_llave_maestra_privada.pem"
-        )
-        with open(key_path, "rb") as f:
-            cls.private_key = RSA.import_key(f.read())
+        # SPEC/10 T-01: par generado en la corrida; nunca la llave privada del proveedor.
+        cls.private_key = RSA.generate(2048)
+        cls.public_pem = cls.private_key.public_key().export_key()
+
+    def _validador(self):
+        """Validador con la llave pública de la corrida y la licencia en una carpeta temporal."""
+        from src.security.drm import DRMValidator
+
+        carpeta = tempfile.TemporaryDirectory()
+        self.addCleanup(carpeta.cleanup)
+        entorno = patch.dict(os.environ, {"APPDATA": carpeta.name})
+        entorno.start()
+        self.addCleanup(entorno.stop)
+        return DRMValidator(self.public_pem)
 
     def _sign_license(self, payload_dict):
         """Helper: Firma un payload con la llave privada real."""
@@ -192,12 +202,7 @@ class TestRSALicenseValidation(unittest.TestCase):
 
     def test_valid_license_accepted(self):
         """Una licencia firmada correctamente con hardware ID valido se acepta."""
-        if "src.security.drm" in sys.modules:
-            del sys.modules["src.security.drm"]
-
-        from src.security.drm import DRMValidator
-
-        drm = DRMValidator()
+        drm = self._validador()
 
         # Emitir licencia valida para ESTE hardware
         payload = {
@@ -217,18 +222,9 @@ class TestRSALicenseValidation(unittest.TestCase):
             f"[PASS] Licencia RSA-2048 valida aceptada. Tier: {drm.get_tier()}, Cams: {drm.get_max_cameras()}"
         )
 
-        # Limpiar archivo de licencia creado por el test
-        if os.path.exists(drm.license_path):
-            os.remove(drm.license_path)
-
     def test_forged_license_rejected(self):
         """Una licencia con firma aleatoria (forjada) es rechazada."""
-        if "src.security.drm" in sys.modules:
-            del sys.modules["src.security.drm"]
-
-        from src.security.drm import DRMValidator
-
-        drm = DRMValidator()
+        drm = self._validador()
 
         # Crear una licencia FALSA con firma inventada
         payload = {
@@ -248,12 +244,7 @@ class TestRSALicenseValidation(unittest.TestCase):
 
     def test_expired_license_rejected(self):
         """Una licencia firmada correctamente PERO expirada es rechazada."""
-        if "src.security.drm" in sys.modules:
-            del sys.modules["src.security.drm"]
-
-        from src.security.drm import DRMValidator
-
-        drm = DRMValidator()
+        drm = self._validador()
 
         # Emitir licencia que ya expiro (fecha en el pasado)
         payload = {
@@ -270,12 +261,7 @@ class TestRSALicenseValidation(unittest.TestCase):
 
     def test_wrong_hardware_rejected(self):
         """Una licencia valida para OTRO hardware es rechazada en ESTE hardware."""
-        if "src.security.drm" in sys.modules:
-            del sys.modules["src.security.drm"]
-
-        from src.security.drm import DRMValidator
-
-        drm = DRMValidator()
+        drm = self._validador()
 
         # Emitir licencia para un Machine ID totalmente diferente
         payload = {
@@ -292,12 +278,7 @@ class TestRSALicenseValidation(unittest.TestCase):
 
     def test_tampered_payload_rejected(self):
         """Si alguien modifica el exp (Epoch) del payload para hackear la fecha, la firma colapsa."""
-        if "src.security.drm" in sys.modules:
-            del sys.modules["src.security.drm"]
-
-        from src.security.drm import DRMValidator
-
-        drm = DRMValidator()
+        drm = self._validador()
 
         # Emitir licencia valida real
         payload = {
@@ -325,12 +306,7 @@ class TestRSALicenseValidation(unittest.TestCase):
 
     def test_garbage_input_rejected(self):
         """Texto aleatorio no-Base64 es rechazado sin crash."""
-        if "src.security.drm" in sys.modules:
-            del sys.modules["src.security.drm"]
-
-        from src.security.drm import DRMValidator
-
-        drm = DRMValidator()
+        drm = self._validador()
 
         garbage_inputs = [
             "",

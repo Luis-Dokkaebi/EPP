@@ -12,6 +12,7 @@ import pytest
 from freezegun import freeze_time
 
 from config import config
+from src import composicion_epp
 from src.composicion_epp import (
     PARAMETROS_DECIDIDOS,
     DestinoEPP,
@@ -23,6 +24,7 @@ from src.composicion_epp import (
     modulo_habilitado,
 )
 from src.inference.types import ClaseObjeto
+from src.models.modelo_de_la_app import ModeloDeLaApp
 from src.ppe.application.evaluar_cumplimiento import FotogramaEPP, PersonaEnEscena
 from src.ppe.domain.elementos import ElementoEPP
 from src.ppe.domain.infracciones import EventoInfraccion, Incumplimiento, InfraccionIniciada
@@ -262,3 +264,17 @@ def test_con_licencia_y_modelo_de_epp_evalua_con_las_zonas_del_tenant(
 
     assert estados[persona.track_id].exigidos == frozenset({CASCO})
     assert (carpeta / "tenant.db").is_file()
+
+
+def test_el_modulo_se_activa_con_el_modelo_instalado_y_firmado_para_el_cliente(
+    app: Callable[[dict[str, str]], Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SPEC/10 F-05: las clases salen del manifiesto firmado, no del que viaja en el ejecutable."""
+    carpeta = app(CLASES_COCO)
+    firmado = {"modelos": [{"archivo": "epp_acme.onnx", "version": VERSION, "clases": CLASES_EPP}]}
+    instalado = ModeloDeLaApp(str(carpeta / "epp_acme.onnx"), "onnx", {}, lambda: firmado)
+    monkeypatch.setattr(composicion_epp, "modelo_de_la_app", lambda: instalado)
+
+    integracion = crear_integracion_epp_de_la_app(PublicadorEnMemoria(), LicenciaFalsa("epp"))
+
+    assert integracion is not None

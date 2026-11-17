@@ -280,11 +280,6 @@ class SystemGUI:
         self.quality_canvas.pack(side=tk.LEFT, padx=5)
         self._draw_semaphore('red')
 
-        self.landmarks_var = tk.BooleanVar()
-        landmarks_check = tk.Checkbutton(sem_land_frame, text="Malla Facial", variable=self.landmarks_var,
-                                         font=("Arial", 9))
-        landmarks_check.pack(side=tk.LEFT, padx=15)
-
         # Camera Selector Frame (below semaphore)
         cam_frame = tk.Frame(left_frame)
         cam_frame.pack(side=tk.TOP, pady=5, fill=tk.X)
@@ -708,30 +703,6 @@ class SystemGUI:
                         cv2.putText(display, "Esperando movimiento...", (fx, fy - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 180, 255), 1)
 
-                    # --- Landmarks (Demo Mode) ---
-                    if self.landmarks_var.get():
-                        try:
-                            display_rgb = cv2.cvtColor(display, cv2.COLOR_BGR2RGB)
-                            # Optimize by providing the pre-computed bounding box from Haar cascade
-                            # face_recognition takes (top, right, bottom, left) format
-                            face_locs = [(fy, fx + fw, fy + fh, fx)]
-                            landmarks_list = face_recognition.face_landmarks(display_rgb, face_locations=face_locs)
-                            for landmarks in landmarks_list:
-                                for feature_name, points in landmarks.items():
-                                    # Puntos más pequeños y de color celeste neón
-                                    for point in points:
-                                        cv2.circle(display, point, 2, (255, 200, 50), -1) 
-                                    
-                                    # Líneas conectando los puntos para formar la malla
-                                    pts = list(points)
-                                    for j in range(len(pts) - 1):
-                                        cv2.line(display, pts[j], pts[j+1], (255, 200, 50), 1)
-                                        
-                                    # Para polígonos cerrados como ojos y labios, conectar el último con el primero
-                                    if feature_name in ['left_eye', 'right_eye', 'top_lip', 'bottom_lip'] and len(pts) > 0:
-                                        cv2.line(display, pts[-1], pts[0], (255, 200, 50), 1)
-                        except Exception as e:
-                            print(f"Error drawing landmarks: {e}")
                 else:
                     self.quality_state = 'red'
                     self.liveness_confirmed = False
